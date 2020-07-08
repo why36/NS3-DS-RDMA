@@ -13,23 +13,48 @@
 
 namespace ns3 {
 
+// 20200708
+// TODO: by now the interface is not incompatible withe Datagram service
+enum QueuePairType { RDMA_RC = 0, RDMA_UD = 1, RDMA_RC = 3, RDMA_UD = 4 };
+using QPConnectionAttr = struct {
+    uint16_t pg;
+    Ipv4Address sip;
+    Ipv4Address dip;
+    uint16_t sport;
+    uint16_t dport;
+    QueuePairType qp_type;
+}
+
 class RdmaQueuePair : public Object {
    public:
+    // app-specified
     Time startTime;
+    Callback<void> m_notifyAppFinish;
+
+    // connection
     Ipv4Address sip, dip;
     uint16_t sport, dport;
     uint64_t m_size;
-    uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
     uint16_t m_pg;
     uint16_t m_ipid;
-    uint32_t m_win;       // bound of on-the-fly packets
+    QueuePairType m_type;
+
+    // TX/RX/Scheduling
     uint64_t m_baseRtt;   // base RTT of this qp
     DataRate m_max_rate;  // max rate
-    bool m_var_win;       // variable window size
     Time m_nextAvail;     //< Soonest time of next send
-    uint32_t wp;          // current window of packets
+
+    // reliability
+    uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
     uint32_t lastPktSize;
-    Callback<void> m_notifyAppFinish;
+
+    // flow control
+    uint32_t m_win;  // bound of on-the-fly packets
+    uint32_t wp;     // current window of packets
+    bool m_var_win;  // variable window size
+
+    // congestio control
+    // TODO: encapsure theses states into CC module
 
     /******************************
      * runtime states
@@ -85,7 +110,8 @@ class RdmaQueuePair : public Object {
      * methods
      **********/
     static TypeId GetTypeId(void);
-    RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport);
+
+    RdmaQueuePair(QPConnectionAttr& attr);
     void SetSize(uint64_t size);
     void SetWin(uint32_t win);
     void SetBaseRtt(uint64_t baseRtt);

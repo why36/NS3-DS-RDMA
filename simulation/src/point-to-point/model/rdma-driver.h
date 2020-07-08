@@ -12,6 +12,19 @@
 
 namespace ns3 {
 
+class SendCompeltionReturnValue;
+class RpcResponse;
+
+using QPCreateAttribute = struct {
+    QPConnectionAttr conAttr;
+    uint64_t size;
+    uint32_t win;
+    uint64_t baseRtt;
+    QPType type;
+    Callback<void> notifyAppFinish;
+    Callback;
+};
+
 class RdmaDriver : public Object {
    public:
     Ptr<Node> m_node;
@@ -34,11 +47,15 @@ class RdmaDriver : public Object {
     void SetRdmaHw(Ptr<RdmaHw> rdma);
 
     // add a queue pair
-    void AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport, uint32_t win,
-                      uint64_t baseRtt, Callback<void> notifyAppFinish);
+    void AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
-    // callback when qp completes
-    void QpComplete(Ptr<RdmaQueuePair> q);
+    void PostSendWithImmData();
+    void PostWrite();
+    void
+
+        // callback when qp completes
+        void
+        QpComplete(Ptr<RdmaQueuePair> q);
 };
 
 }  // namespace ns3
