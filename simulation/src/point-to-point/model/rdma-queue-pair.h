@@ -8,6 +8,7 @@
 #include <ns3/ipv4-address.h>
 #include <ns3/object.h>
 #include <ns3/packet.h>
+#include <ns3/rdma.h>
 
 #include <vector>
 
@@ -15,15 +16,16 @@ namespace ns3 {
 
 // 20200708
 // TODO: by now the interface is not incompatible withe Datagram service
-enum QueuePairType { RDMA_RC = 0, RDMA_UD = 1, RDMA_RC = 3, RDMA_UD = 4 };
+enum class QPType { RDMA_RC = 0, RDMA_UD, RDMA_UC, RDMA_UD };
+
 using QPConnectionAttr = struct {
     uint16_t pg;
     Ipv4Address sip;
     Ipv4Address dip;
     uint16_t sport;
     uint16_t dport;
-    QueuePairType qp_type;
-}
+    QPType qp_type;
+};
 
 class RdmaQueuePair : public Object {
    public:
@@ -32,12 +34,10 @@ class RdmaQueuePair : public Object {
     Callback<void> m_notifyAppFinish;
 
     // connection
-    Ipv4Address sip, dip;
-    uint16_t sport, dport;
-    uint64_t m_size;
-    uint16_t m_pg;
+    QPConnectionAttr m_connectionAttr;
     uint16_t m_ipid;
-    QueuePairType m_type;
+
+    uint64_t m_size;
 
     // TX/RX/Scheduling
     uint64_t m_baseRtt;   // base RTT of this qp
@@ -130,6 +130,17 @@ class RdmaQueuePair : public Object {
 
 class RdmaRxQueuePair : public Object {  // Rx side queue pair
    public:
+    // connection
+    QPConnectionAttr m_connectionAttr;
+
+    uint16_t m_ipid;
+
+    // reliability
+    Time m_nackTimer;
+    uint32_t ReceiverNextExpectedSeq;
+    int32_t m_milestone_rx;
+    uint32_t m_lastNACK;
+
     struct ECNAccount {
         uint16_t qIndex;
         uint8_t ecnbits;
@@ -139,13 +150,6 @@ class RdmaRxQueuePair : public Object {  // Rx side queue pair
         ECNAccount() { memset(this, 0, sizeof(ECNAccount)); }
     };
     ECNAccount m_ecn_source;
-    uint32_t sip, dip;
-    uint16_t sport, dport;
-    uint16_t m_ipid;
-    uint32_t ReceiverNextExpectedSeq;
-    Time m_nackTimer;
-    int32_t m_milestone_rx;
-    uint32_t m_lastNACK;
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 
     static TypeId GetTypeId(void);

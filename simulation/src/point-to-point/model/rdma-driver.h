@@ -22,7 +22,7 @@ using QPCreateAttribute = struct {
     uint64_t baseRtt;
     QPType type;
     Callback<void> notifyAppFinish;
-    Callback;
+    Callback<void, IBVWorkCompletion&> notifyCompletion;
 };
 
 class RdmaDriver : public Object {
@@ -49,13 +49,20 @@ class RdmaDriver : public Object {
     // add a queue pair
     void AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
-    void PostSendWithImmData();
-    void PostWrite();
-    void
+    void PostSend(IBVWorkRequest& wr);
 
-        // callback when qp completes
-        void
-        QpComplete(Ptr<RdmaQueuePair> q);
+    void OnCompletion(IBVWorkCompletion& wc);
+    // Callback back to User-space appllication
+    // Callback <>
+
+    void OnSendReceived();
+
+    // callback when qp completes
+    void QpComplete(Ptr<RdmaQueuePair> q);
+
+   private:
+    void OnSendCompletion(IBVWorkCompletion& wc);
+    void OnReceiveCompletion(IBVWorkCompletion& wc);
 };
 
 }  // namespace ns3

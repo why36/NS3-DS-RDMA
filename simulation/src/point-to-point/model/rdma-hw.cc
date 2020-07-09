@@ -194,7 +194,53 @@ void RdmaHw::DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport) {
     m_rxQpMap.erase(key);
 }
 
-int RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader &ch) {
+void RdmaHw::RCReceiveUdp(Ptr<Packet> p, CustomHeader &ch) {
+    uint8_t ecnbits = ch.GetIpv4EcnBits();
+    uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+
+    // TODO find corresponding rx queue pair
+    Ptr<RdmaRxQueuePair> rxQp = GetRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, true);
+    if (ecnbits != 0) {
+        rxQp->m_ecn_source.ecnbits |= ecnbits;
+        rxQp->m_ecn_source.qfb++;
+    }
+    rxQp->m_ecn_source.total++;
+    rxQp->m_milestone_rx = m_ack_interval;
+
+    CheckSeqState x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+    switch (x) {
+        case CheckSeqState::GENERATE_ACK:
+        case CheckSeqState::GENERATE_NACK: {
+            qbbHeader seqh;
+            seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
+            seqh.SetPG(ch.udp.pg);
+            seqh.SetSport(ch.udp.dport);
+            seqh.SetDport(ch.udp.sport);
+            seqh.SetIntHeader(ch.udp.ih);
+            if (ecnbits) seqh.SetCnp();
+
+            Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
+            newp->AddHeader(seqh);
+
+            Ipv4Header head;  // Prepare IPv4 header
+            head.SetDestination(Ipv4Address(ch.sip));
+            head.SetSource(Ipv4Address(ch.dip));
+            head.SetProtocol(x == CheckSeqState::GENERATE_ACK ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
+            head.SetTtl(64);
+            head.SetPayloadSize(newp->GetSize());
+            head.SetIdentification(rxQp->m_ipid++);
+
+            newp->AddHeader(head);
+            AddHeader(newp, 0x800);  // Attach PPP header
+            // send
+            uint32_t nic_idx = GetNicIdxOfRxQp(rxQp);
+            m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
+            m_nic[nic_idx].dev->TriggerTransmit();
+        }
+    }
+}
+
+void RdmaHw::UCReceiveUdp(Ptr<Packet> p, CustomHeader &ch) {
     uint8_t ecnbits = ch.GetIpv4EcnBits();
 
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
@@ -208,35 +254,8 @@ int RdmaHw::ReceiveUdp(Ptr<Packet> p, CustomHeader &ch) {
     rxQp->m_ecn_source.total++;
     rxQp->m_milestone_rx = m_ack_interval;
 
-    int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
-    if (x == 1 || x == 2) {  // generate ACK or NACK
-        qbbHeader seqh;
-        seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
-        seqh.SetPG(ch.udp.pg);
-        seqh.SetSport(ch.udp.dport);
-        seqh.SetDport(ch.udp.sport);
-        seqh.SetIntHeader(ch.udp.ih);
-        if (ecnbits) seqh.SetCnp();
-
-        Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
-        newp->AddHeader(seqh);
-
-        Ipv4Header head;  // Prepare IPv4 header
-        head.SetDestination(Ipv4Address(ch.sip));
-        head.SetSource(Ipv4Address(ch.dip));
-        head.SetProtocol(x == 1 ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
-        head.SetTtl(64);
-        head.SetPayloadSize(newp->GetSize());
-        head.SetIdentification(rxQp->m_ipid++);
-
-        newp->AddHeader(head);
-        AddHeader(newp, 0x800);  // Attach PPP header
-        // send
-        uint32_t nic_idx = GetNicIdxOfRxQp(rxQp);
-        m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
-        m_nic[nic_idx].dev->TriggerTransmit();
-    }
-    return 0;
+    CheckSeqState x = UCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+    switch (x) {}
 }
 
 int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
@@ -333,9 +352,14 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     return 0;
 }
 
+enum L3Prot { PROTO_UDP = 0x11, PROTO_UDP = 0xFC, PROTO_UDP = 0xFD, PROTO_CNP = 0xFF };
+
 int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
+    L3Prot proto = static_cast<L3Prot>(ch.l3Prot);
+
     if (ch.l3Prot == 0x11) {  // UDP
-        ReceiveUdp(p, ch);
+        switch ()
+            ReceiveUdp(p, ch);
     } else if (ch.l3Prot == 0xFF) {  // CNP
         ReceiveCnp(p, ch);
     } else if (ch.l3Prot == 0xFD) {  // NACK
@@ -346,19 +370,17 @@ int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
     return 0;
 }
 
-enum CheckSeqState { GENERATE_ACK = 1, GENERATE_NACK, DUPLICATED, NOT_GENERATE_NACK, NOT_GENERATE_ACK };
-
-int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+RCCheckSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) {
     uint32_t expected = q->ReceiverNextExpectedSeq;
     if (seq == expected) {
         q->ReceiverNextExpectedSeq = expected + size;
         if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
             q->m_milestone_rx += m_ack_interval;
-            return 1;  // Generate ACK
+            return CheckSeqState::GENERATE_ACK;  // Generate ACK
         } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
-            return 1;
+            return CheckSeqState::GENERATE_ACK;
         } else {
-            return 5;
+            return CheckSeqState::NOT_GENERATE_ACK;
         }
     } else if (seq > expected) {
         // Generate NACK
@@ -368,19 +390,50 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
             if (m_backto0) {
                 q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
             }
-            return 2;
+            return CheckSeqState::GENERATE_NACK;
         } else
-            return 4;
+            return CheckSeqState::NOT_GENERATE_NACK;
     } else {
         // Duplicate.
-        return 3;
+        return CheckSeqState::DUPLICATED;
     }
 }
+
+UCCheckSeqState RdmaHw::UCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+    uint32_t expected = q->ReceiverNextExpectedSeq;
+    if (seq == expected) {
+        q->ReceiverNextExpectedSeq = expected + size;
+        if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
+            q->m_milestone_rx += m_ack_interval;
+            return CheckSeqState::GENERATE_ACK;  // Generate ACK
+        } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
+            return CheckSeqState::GENERATE_ACK;
+        } else {
+            return CheckSeqState::NOT_GENERATE_ACK;
+        }
+    } else if (seq > expected) {
+        // Generate NACK
+        if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
+            q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
+            q->m_lastNACK = expected;
+            if (m_backto0) {
+                q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
+            }
+            return CheckSeqState::GENERATE_NACK;
+        } else
+            return CheckSeqState::NOT_GENERATE_NACK;
+    } else {
+        // Duplicate.
+        return CheckSeqState::DUPLICATED;
+    }
+}
+
 void RdmaHw::AddHeader(Ptr<Packet> p, uint16_t protocolNumber) {
     PppHeader ppp;
     ppp.SetProtocol(EtherToPpp(protocolNumber));
     p->AddHeader(ppp);
 }
+
 uint16_t RdmaHw::EtherToPpp(uint16_t proto) {
     switch (proto) {
         case 0x0800:
