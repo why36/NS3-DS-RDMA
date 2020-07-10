@@ -21,7 +21,8 @@ struct RdmaInterfaceMgr {
     RdmaInterfaceMgr(Ptr<QbbNetDevice> _dev) { dev = _dev; }
 };
 
-enum class CheckSeqState { NULL = 0, RC_GENERATE_ACK = 1, RC_GENERATE_NACK, RC_DUPLICATED, RC_NOT_GENERATE_NACK, RC_NOT_GENERATE_ACK };
+enum class RCSeqState { ERROR = 0, RC_GENERATE_ACK, RC_GENERATE_NACK, RC_DUPLICATED, RC_NOT_GENERATE_NACK, RC_NOT_GENERATE_ACK };
+enum class UCSeqState { ERROR = 0, UC_OK, UC_OOS, UC_DUPLICATED };
 
 class RdmaHw : public Object {
    public:
@@ -64,15 +65,15 @@ class RdmaHw : public Object {
     // TO DO Krayecho Yx: these fuunctions should be moved into QPs
     int Receive(Ptr<Packet> p, CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this
                                                    // function. And do not call this upon PFC
-    void RCReceiveUdp(Ptr<Packet> p, CustomHeader &ch);
-    void UCReceiveUdp(Ptr<Packet> p, CustomHeader &ch);
+    void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> qp, CustomHeader &ch);
+    void UCReceiveUdp(Ptr<Packet> p, RdmaRxQueuePair qp, CustomHeader &ch);
     int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
     int ReceiveAck(Ptr<Packet> p, CustomHeader &ch);  // handle both ACK and NACK
 
     void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
 
-    CheckSeqState RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
-    CheckSeqState UCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    RCSeqState RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    UCSeqState UCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
 
     void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
     static uint16_t EtherToPpp(uint16_t protocol);

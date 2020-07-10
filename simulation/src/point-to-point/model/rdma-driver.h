@@ -17,10 +17,10 @@ class RpcResponse;
 
 using QPCreateAttribute = struct {
     QPConnectionAttr conAttr;
+    QPType type;
     uint64_t size;
     uint32_t win;
     uint64_t baseRtt;
-    QPType type;
     Callback<void> notifyAppFinish;
     Callback<void, IBVWorkCompletion&> notifyCompletion;
 };
@@ -65,6 +65,14 @@ class RdmaDriver : public Object {
     void OnReceiveCompletion(IBVWorkCompletion& wc);
 };
 
+/*
+// TO DO Krayecho Yx: should be implemented
+void RdmaDriver::PostSend(IBVWorkRequest& wr) { return; };
+void RdmaDriver::OnCompletion(IBVWorkCompletion& wc) { return; };
+void OnSendReceived() { return; };
+void OnSendCompletion(IBVWorkCompletion& wc) { return; };
+void OnReceiveCompletion(IBVWorkCompletion& wc) { return; };
+*/
 }  // namespace ns3
 
 #endif /* RDMA_DRIVER_H */
