@@ -19,15 +19,11 @@ TypeId RdmaQueuePair::GetTypeId(void) {
     return tid;
 }
 
-RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport) {
+RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(attr) {
     startTime = Simulator::Now();
-    sip = _sip;
-    dip = _dip;
-    sport = _sport;
-    dport = _dport;
     m_size = 0;
     snd_nxt = snd_una = 0;
-    m_pg = pg;
+
     m_ipid = 0;
     m_win = 0;
     m_baseRtt = 0;
@@ -76,6 +72,8 @@ void RdmaQueuePair::SetVarWin(bool v) { m_var_win = v; }
 
 void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
 
+void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
+
 uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
 
 uint32_t RdmaQueuePair::GetHash(void) {
@@ -86,10 +84,10 @@ uint32_t RdmaQueuePair::GetHash(void) {
         };
         char c[12];
     } buf;
-    buf.sip = sip.Get();
-    buf.dip = dip.Get();
-    buf.sport = sport;
-    buf.dport = dport;
+    buf.sip = m_connectionAttr.sip.Get();
+    buf.dip = m_connectionAttr.dip.Get();
+    buf.sport = m_connectionAttr.sport;
+    buf.dport = m_connectionAttr.dport;
     return Hash32(buf.c, 12);
 }
 
@@ -141,7 +139,6 @@ TypeId RdmaRxQueuePair::GetTypeId(void) {
 }
 
 RdmaRxQueuePair::RdmaRxQueuePair() {
-    sip = dip = sport = dport = 0;
     m_ipid = 0;
     ReceiverNextExpectedSeq = 0;
     m_nackTimer = Time(0);
@@ -157,10 +154,10 @@ uint32_t RdmaRxQueuePair::GetHash(void) {
         };
         char c[12];
     } buf;
-    buf.sip = sip;
-    buf.dip = dip;
-    buf.sport = sport;
-    buf.dport = dport;
+    buf.sip = m_connectionAttr.sip.Get();
+    buf.dip = m_connectionAttr.dip.Get();
+    buf.sport = m_connectionAttr.sport;
+    buf.dport = m_connectionAttr.dport;
     return Hash32(buf.c, 12);
 }
 

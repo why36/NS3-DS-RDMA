@@ -27,7 +27,7 @@
 namespace ns3 {
 
 // TO DO: Krayecho Yx: put this in the protocal layer
-enum class L3Protocol { PROTO_TCP = 0x6, PROTO_UDP = 0x11, PROTO_UDP = 0xFC, PROTO_UDP = 0xFD, PROTO_CNP = 0xFF };
+enum class L3Protocol { PROTO_TCP = 0x6, PROTO_UDP = 0x11, PROTO_ACK = 0xFC, PROTO_NACK = 0xFD, PROTO_CNP = 0xFF };
 
 // Job for GYY: replace meaningless magic numbers with protocol name:(such as 0x6-> L3pro)  L3protol
 

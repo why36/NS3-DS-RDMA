@@ -15,15 +15,25 @@ namespace ns3 {
 class SendCompeltionReturnValue;
 class RpcResponse;
 
-using QPCreateAttribute = struct {
+using QPCreateAttribute = struct qp_create_attr {
     QPConnectionAttr conAttr;
-    QPType type;
     uint64_t size;
     uint32_t win;
     uint64_t baseRtt;
     Callback<void> notifyAppFinish;
     Callback<void, IBVWorkCompletion&> notifyCompletion;
+    qp_create_attr(const QPConnectionAttr& p_con_attr, uint64_t p_size, uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish,
+                   Callback<void, IBVWorkCompletion&> p_notifyCompletion);
 };
+
+inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr, uint64_t p_size, uint32_t p_win, uint64_t p_base_rtt,
+                                         Callback<void> p_notify_app_finish, Callback<void, IBVWorkCompletion&> p_notify_completion)
+    : conAttr(p_con_attr),
+      size(p_size),
+      win(p_win),
+      baseRtt(p_base_rtt),
+      notifyAppFinish(p_notify_app_finish),
+      notifyCompletion(p_notify_completion){};
 
 class RdmaDriver : public Object {
    public:
@@ -49,7 +59,10 @@ class RdmaDriver : public Object {
     // add a queue pair
     void AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
+    // Verbs
     void PostSend(IBVWorkRequest& wr);
+    // TO DO Krayecho Yx:
+    // void PostReceive();
 
     void OnCompletion(IBVWorkCompletion& wc);
     // Callback back to User-space appllication

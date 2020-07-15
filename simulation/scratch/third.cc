@@ -107,7 +107,7 @@ struct Interface {
     Interface() : idx(0), up(false) {}
 };
 map<Ptr<Node>, map<Ptr<Node>, Interface> > nbr2if;
-// Mapping destination to next hop for each node: <node, <dest, <nexthop0, ...> > >
+// Mapping destination to next hop for each node: <node, <dest, <nexthop0, ..> > >
 map<Ptr<Node>, map<Ptr<Node>, vector<Ptr<Node> > > > nextHop;
 map<Ptr<Node>, map<Ptr<Node>, uint64_t> > pairDelay;
 map<Ptr<Node>, map<Ptr<Node>, uint64_t> > pairTxDelay;
@@ -162,21 +162,21 @@ Ipv4Address node_id_to_ip(uint32_t id) { return Ipv4Address(0x0b000001 + ((id / 
 uint32_t ip_to_node_id(Ipv4Address ip) { return (ip.Get() >> 8) & 0xffff; }
 
 void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q) {
-    uint32_t sid = ip_to_node_id(q->sip), did = ip_to_node_id(q->dip);
+    uint32_t sid = ip_to_node_id(q->m_connectionAttr.sip), did = ip_to_node_id(q->m_connectionAttr.dip);
     uint64_t base_rtt = pairRtt[sid][did], b = pairBw[sid][did];
     uint32_t total_bytes = q->m_size + ((q->m_size - 1) / packet_payload_size + 1) *
                                            (CustomHeader::GetStaticWholeHeaderSize() -
                                             IntHeader::GetStaticSize());  // translate to the minimum bytes required (with header but no INT)
     uint64_t standalone_fct = base_rtt + total_bytes * 8000000000lu / b;
     // sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
-    fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(),
-            (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
+    fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", q->m_connectionAttr.sip.Get(), q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport,
+            q->m_connectionAttr.dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
     fflush(fout);
 
     // remove rxQp from the receiver
     Ptr<Node> dstNode = n.Get(did);
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
-    rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
+    rdma->m_rdma->DeleteRxQp(q->m_connectionAttr.sip.Get(), q->m_connectionAttr.pg, q->m_connectionAttr.sport);
 }
 
 void get_pfc(FILE *fout, Ptr<QbbNetDevice> dev, uint32_t type) {

@@ -21,8 +21,8 @@ struct RdmaInterfaceMgr {
     RdmaInterfaceMgr(Ptr<QbbNetDevice> _dev) { dev = _dev; }
 };
 
-enum class RCSeqState { ERROR = 0, RC_GENERATE_ACK, RC_GENERATE_NACK, RC_DUPLICATED, RC_NOT_GENERATE_NACK, RC_NOT_GENERATE_ACK };
-enum class UCSeqState { ERROR = 0, UC_OK, UC_OOS, UC_DUPLICATED };
+enum class RCSeqState { ERROR = 0, GENERATE_ACK, GENERATE_NACK, DUPLICATED, NOT_GENERATE_NACK, NOT_GENERATE_ACK };
+enum class UCSeqState { ERROR = 0, OK, OOS, DUPLICATED };
 
 class RdmaHw : public Object {
    public:
@@ -54,8 +54,8 @@ class RdmaHw : public Object {
     Ptr<RdmaQueuePair> GetQp(uint32_t dip, uint16_t sport, uint16_t pg);  // get the qp
     uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);                        // get the NIC index of the qp
 
-    void AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport, uint32_t win,
-                      uint64_t baseRtt, Callback<void> notifyAppFinish);  // add a new qp (new send)
+    void AddQueuePair(uint64_t size, const QPConnectionAttr &conn_attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
+                      Callback<void, IBVWorkCompletion &> notifyCompletion);  // add a new qp (new send)
     void DeleteQueuePair(Ptr<RdmaQueuePair> qp);
 
     Ptr<RdmaRxQueuePair> GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create);  // get a rxQp
@@ -66,7 +66,7 @@ class RdmaHw : public Object {
     int Receive(Ptr<Packet> p, CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this
                                                    // function. And do not call this upon PFC
     void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> qp, CustomHeader &ch);
-    void UCReceiveUdp(Ptr<Packet> p, RdmaRxQueuePair qp, CustomHeader &ch);
+    void UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> qp, CustomHeader &ch);
     int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
     int ReceiveAck(Ptr<Packet> p, CustomHeader &ch);  // handle both ACK and NACK
 

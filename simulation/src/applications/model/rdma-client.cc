@@ -83,6 +83,8 @@ void RdmaClient::SetSize(uint64_t size) { m_size = size; }
 
 void RdmaClient::Finish() { m_node->DeleteApplication(this); }
 
+void RdmaClient::OnComletion(IBVWorkCompletion&) { return; }
+
 void RdmaClient::DoDispose(void) {
     NS_LOG_FUNCTION_NOARGS();
     Application::DoDispose();
@@ -93,8 +95,19 @@ void RdmaClient::StartApplication(void) {
     // get RDMA driver and add up queue pair
     Ptr<Node> node = GetNode();
     Ptr<RdmaDriver> rdma = node->GetObject<RdmaDriver>();
-    rdma->AddQueuePair(m_size, m_pg, m_sip, m_dip, m_sport, m_dport, m_win, m_baseRtt, MakeCallback(&RdmaClient::Finish, this));
-}
+    QPConnectionAttr conn_attr;
+    {
+        conn_attr.pg = m_pg;
+        conn_attr.sip = m_sip;
+        conn_attr.dip = m_dip;
+        conn_attr.sip = m_sip;
+        conn_attr.sport = m_sport;
+        conn_attr.dport = m_dport;
+    }
+    QPCreateAttribute create_attr(conn_attr, m_size, m_win, m_baseRtt, MakeCallback(&RdmaClient::Finish, this),
+                                  MakeCallback(&RdmaClient::OnComletion, this));
+    rdma->AddQueuePair(create_attr);
+}  // namespace ns3
 
 void RdmaClient::StopApplication() {
     NS_LOG_FUNCTION_NOARGS();

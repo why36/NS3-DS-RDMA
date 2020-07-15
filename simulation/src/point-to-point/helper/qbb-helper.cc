@@ -341,7 +341,7 @@ void QbbHelper::DropDetailCallback(FILE *file, Ptr<QbbNetDevice> dev, Ptr<const 
 
 void QbbHelper::QpDequeueCallback(FILE *file, Ptr<QbbNetDevice> dev, Ptr<const Packet> p, Ptr<RdmaQueuePair> qp) {
     TraceFormat tr;
-    GetTraceFromPacket(tr, dev, p, qp->m_pg, Dequ, true);
+    GetTraceFromPacket(tr, dev, p, qp->m_connectionAttr.pg, Dequ, true);
     tr.Serialize(file);
 }
 

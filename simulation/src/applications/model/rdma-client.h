@@ -23,12 +23,11 @@
 #ifndef RDMA_CLIENT_H
 #define RDMA_CLIENT_H
 
-#include <ns3/rdma.h>
-
 #include "ns3/application.h"
 #include "ns3/event-id.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
+#include "ns3/rdma.h"
 
 namespace ns3 {
 
@@ -59,6 +58,7 @@ class RdmaClient : public Application {
     void SetPG(uint16_t pg);
     void SetSize(uint64_t size);
     void Finish();
+    void OnComletion(IBVWorkCompletion&);
 
    protected:
     virtual void DoDispose(void);

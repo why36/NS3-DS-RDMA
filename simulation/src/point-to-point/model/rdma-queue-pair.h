@@ -16,22 +16,31 @@ namespace ns3 {
 
 // 20200708
 // TODO: by now the interface is not incompatible withe Datagram service
-enum class QPType { RDMA_RC = 0, RDMA_UD, RDMA_UC, RDMA_UD };
+enum class QPType { RDMA_RC = 0, RDMA_UC, RDMA_RD, RDMA_UD };
 
-using QPConnectionAttr = struct {
+using QPConnectionAttr = struct qp_attr {
     uint16_t pg;
     Ipv4Address sip;
     Ipv4Address dip;
     uint16_t sport;
     uint16_t dport;
     QPType qp_type;
+    qp_attr();
+    qp_attr(const qp_attr&);
+    qp_attr(qp_attr& attr);
 };
+
+inline qp_attr::qp_attr() : pg(0), sip(), dip(), sport(0), dport(0), qp_type(QPType::RDMA_RC){};
+inline qp_attr::qp_attr(const qp_attr& other)
+    : pg(other.pg), sip(other.sip), dip(other.dip), sport(other.sport), dport(other.dport), qp_type(other.qp_type){};
+inline qp_attr::qp_attr(qp_attr& other) : qp_attr(reinterpret_cast<const qp_attr&>(other)){};
 
 class RdmaQueuePair : public Object {
    public:
     // app-specified
     Time startTime;
     Callback<void> m_notifyAppFinish;
+    Callback<void, IBVWorkCompletion&> m_notifyCompletion;
 
     // connection
     QPConnectionAttr m_connectionAttr;
@@ -111,13 +120,13 @@ class RdmaQueuePair : public Object {
      **********/
     static TypeId GetTypeId(void);
 
-    RdmaQueuePair(QPConnectionAttr& attr);
+    RdmaQueuePair(const QPConnectionAttr& attr);
     void SetSize(uint64_t size);
     void SetWin(uint32_t win);
     void SetBaseRtt(uint64_t baseRtt);
     void SetVarWin(bool v);
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
-
+    void SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyAPPCompletion);
     uint64_t GetBytesLeft();
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);

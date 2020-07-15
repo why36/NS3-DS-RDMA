@@ -84,7 +84,7 @@ Ptr<Packet> RdmaEgressQueue::DequeueQindex(int qIndex) {
         Ptr<Packet> p = m_rdmaGetNxtPkt(m_qpGrp->Get(qIndex));
         m_rrlast = qIndex;
         m_qlast = qIndex;
-        m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)->m_pg);
+        m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)->m_connectionAttr.pg);
         return p;
     }
     return 0;
@@ -101,7 +101,7 @@ int RdmaEgressQueue::GetNextQindex(bool paused[]) {
     for (qIndex = 1; qIndex <= fcount; qIndex++) {
         uint32_t idx = (qIndex + m_rrlast) % fcount;
         Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-        if (!paused[qp->m_pg] && qp->GetBytesLeft() > 0 && !qp->IsWinBound()) {
+        if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->IsWinBound()) {
             if (m_qpGrp->Get(idx)->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep())  // not available now
                 continue;
             res = idx;
