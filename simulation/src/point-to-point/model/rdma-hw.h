@@ -73,7 +73,7 @@ class RdmaHw : public Object {
     void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
 
     RCSeqState RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
-    UCSeqState UCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    UCSeqState UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair> q, uint32_t size);
 
     void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
     static uint16_t EtherToPpp(uint16_t protocol);

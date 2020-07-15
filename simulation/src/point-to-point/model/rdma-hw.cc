@@ -6,6 +6,7 @@
 #include <ns3/udp-header.h>
 
 #include "cn-header.h"
+#include "ns3/assert.h"
 #include "ns3/boolean.h"
 #include "ns3/data-rate.h"
 #include "ns3/double.h"
@@ -243,6 +244,9 @@ void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader
     uint8_t ecnbits = ch.GetIpv4EcnBits();
 
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+
+    IBHeader &ibh = ch.udp.ibh;
+
     // TODO find corresponding rx queue pair
     if (ecnbits != 0) {
         rxQp->m_ecn_source.ecnbits |= ecnbits;
@@ -252,7 +256,7 @@ void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader
     rxQp->m_milestone_rx = m_ack_interval;
 
     // TO DO Krayecho Yx: implement UC receiver logic
-    UCSeqState x = UCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+    UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
     return;
 }
 
@@ -407,9 +411,32 @@ RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint
     }
 }
 
-UCSeqState RdmaHw::UCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+    uint32_t seq = header.udp.seq;
     uint32_t expected = q->ReceiverNextExpectedSeq;
-    return UCSeqState::ERROR;
+
+    if (seq < expected) {
+        // silently dropped
+        return UCSeqState::DUPLICATED;
+    }
+
+    if (seq > expected) {
+        q->ReceiverNextExpectedSeq = seq;
+        switch (header.udp.ibh.GetOpCode().GetOpCodeOperation()) {
+            case OpCodeOperation::SEND_FIRST:;
+            case OpCodeOperation::SEND_LAST_WITH_IMM:
+            case OpCodeOperation::SEND_ONLY_WITH_IMM:;
+            case OpCodeOperation::SEND_LAST:
+            case OpCodeOperation::SEND_ONLY:
+                NS_ASSERT_MSG(false, " INVALID OP CODE");
+        }
+        return UCSeqState::OOS;
+    }
+
+    if (seq == exp) {
+        return UCSeqState::OK;
+    }
+    q->ReceiverNextExpectedSeq;
     /*
     if (seq == expected) {
         q->ReceiverNextExpectedSeq = expected + size;

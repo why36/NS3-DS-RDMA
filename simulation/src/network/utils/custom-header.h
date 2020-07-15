@@ -22,6 +22,7 @@
 #define CUSTOM_HEADER_H
 
 #include "ns3/header.h"
+#include "ns3/ib-header.h"
 #include "ns3/int-header.h"
 
 namespace ns3 {
@@ -104,6 +105,7 @@ class CustomHeader : public Header {
             // SeqTsHeader
             uint16_t pg;
             uint32_t seq;
+            IBHeader ibh;
             IntHeader ih;
         } udp;
         // CnHeader
