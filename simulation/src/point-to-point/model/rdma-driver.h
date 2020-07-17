@@ -12,28 +12,42 @@
 
 namespace ns3 {
 
-class SendCompeltionReturnValue;
-class RpcResponse;
+using QpParam = struct qp_param {
+    uint64_t m_size;
+    uint32_t m_win;      // bound of on-the-fly packets
+    uint64_t m_baseRtt;  // base Rtt
+    Callback<void> notifyAppFinish;
+    Callback<void, IBVWorkCompletion&> notifyCompletion;
+    qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
+             Callback<void, IBVWorkCompletion&> p_notifyCompletion);
+    qp_param& operator=(qp_param& rhs);
+};
+
+QpParam::qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
+                  Callback<void, IBVWorkCompletion&> p_notifyCompletion)
+    : m_size(p_size), m_win(p_win), m_baseRtt(p_base_rtt), notifyAppFinish(p_notifyAppFinish), notifyCompletion(p_notifyCompletion){};
+
+QpParam& QpParam::operator=(QpParam& rhs) {
+    m_size = rhs.m_size;
+    m_win = rhs.m_win;
+    m_baseRtt = rhs.m_baseRtt;
+    notifyAppFinish = rhs.notifyAppFinish;
+    notifyCompletion = rhs.notifyCompletion;
+}
 
 using QPCreateAttribute = struct qp_create_attr {
     QPConnectionAttr conAttr;
-    uint64_t size;
-    uint32_t win;
-    uint64_t baseRtt;
-    Callback<void> notifyAppFinish;
-    Callback<void, IBVWorkCompletion&> notifyCompletion;
-    qp_create_attr(const QPConnectionAttr& p_con_attr, uint64_t p_size, uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish,
-                   Callback<void, IBVWorkCompletion&> p_notifyCompletion);
+    QpParam qpParam;
+    qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& param);
+    qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type, uint64_t p_size,
+                   uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish, Callback<void, IBVWorkCompletion&> p_notifyCompletion);
 };
 
-inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr, uint64_t p_size, uint32_t p_win, uint64_t p_base_rtt,
-                                         Callback<void> p_notify_app_finish, Callback<void, IBVWorkCompletion&> p_notify_completion)
-    : conAttr(p_con_attr),
-      size(p_size),
-      win(p_win),
-      baseRtt(p_base_rtt),
-      notifyAppFinish(p_notify_app_finish),
-      notifyCompletion(p_notify_completion){};
+inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& p_param) : conAttr(p_con_attr), qpParam(p_param){};
+inline QPCreateAttribute::qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type,
+                                         uint64_t p_size, uint32_t p_win, uint64_t p_base_rtt, Callback<void> p_notify_app_finish,
+                                         Callback<void, IBVWorkCompletion&> p_notify_completion)
+    : conAttr(p_pg, p_sip, p_dip, p_sport, p_dport, p_qp_type), qpParam(p_size, p_win, p_base_rtt, p_notify_app_finish, p_notify_completion){};
 
 class RdmaDriver : public Object {
    public:
@@ -59,33 +73,12 @@ class RdmaDriver : public Object {
     // add a queue pair
     void AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
-    // Verbs
-    void PostSend(IBVWorkRequest& wr);
-    // TO DO Krayecho Yx:
-    // void PostReceive();
-
-    void OnCompletion(IBVWorkCompletion& wc);
-    // Callback back to User-space appllication
-    // Callback <>
-
-    void OnSendReceived();
-
     // callback when qp completes
     void QpComplete(Ptr<RdmaQueuePair> q);
 
    private:
-    void OnSendCompletion(IBVWorkCompletion& wc);
-    void OnReceiveCompletion(IBVWorkCompletion& wc);
 };
 
-/*
-// TO DO Krayecho Yx: should be implemented
-void RdmaDriver::PostSend(IBVWorkRequest& wr) { return; };
-void RdmaDriver::OnCompletion(IBVWorkCompletion& wc) { return; };
-void OnSendReceived() { return; };
-void OnSendCompletion(IBVWorkCompletion& wc) { return; };
-void OnReceiveCompletion(IBVWorkCompletion& wc) { return; };
-*/
 }  // namespace ns3
 
 #endif /* RDMA_DRIVER_H */

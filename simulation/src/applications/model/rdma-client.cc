@@ -95,17 +95,8 @@ void RdmaClient::StartApplication(void) {
     // get RDMA driver and add up queue pair
     Ptr<Node> node = GetNode();
     Ptr<RdmaDriver> rdma = node->GetObject<RdmaDriver>();
-    QPConnectionAttr conn_attr;
-    {
-        conn_attr.pg = m_pg;
-        conn_attr.sip = m_sip;
-        conn_attr.dip = m_dip;
-        conn_attr.sip = m_sip;
-        conn_attr.sport = m_sport;
-        conn_attr.dport = m_dport;
-    }
-    QPCreateAttribute create_attr(conn_attr, m_size, m_win, m_baseRtt, MakeCallback(&RdmaClient::Finish, this),
-                                  MakeCallback(&RdmaClient::OnComletion, this));
+    QPCreateAttribute create_attr(m_pg, m_sip, m_dip, m_sport, m_dport, QPType::RDMA_RC, m_size, m_win, m_baseRtt,
+                                  MakeCallback(&RdmaClient::Finish, this), MakeCallback(&RdmaClient::OnComletion, this));
     rdma->AddQueuePair(create_attr);
 }  // namespace ns3
 

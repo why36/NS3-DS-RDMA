@@ -245,8 +245,6 @@ void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader
 
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
 
-    IBHeader &ibh = ch.udp.ibh;
-
     // TODO find corresponding rx queue pair
     if (ecnbits != 0) {
         rxQp->m_ecn_source.ecnbits |= ecnbits;
@@ -422,6 +420,7 @@ UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair>
 
     if (seq > expected) {
         q->ReceiverNextExpectedSeq = seq;
+        /*
         switch (header.udp.ibh.GetOpCode().GetOpCodeOperation()) {
             case OpCodeOperation::SEND_FIRST:;
             case OpCodeOperation::SEND_LAST_WITH_IMM:
@@ -430,12 +429,14 @@ UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair>
             case OpCodeOperation::SEND_ONLY:
                 NS_ASSERT_MSG(false, " INVALID OP CODE");
         }
+        */
         return UCSeqState::OOS;
     }
-
+    /*
     if (seq == exp) {
         return UCSeqState::OK;
     }
+    */
     q->ReceiverNextExpectedSeq;
     /*
     if (seq == expected) {

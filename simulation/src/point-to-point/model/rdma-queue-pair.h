@@ -14,28 +14,103 @@
 
 namespace ns3 {
 
-// 20200708
-// TODO: by now the interface is not incompatible withe Datagram service
-enum class QPType { RDMA_RC = 0, RDMA_UC, RDMA_RD, RDMA_UD };
-
-using QPConnectionAttr = struct qp_attr {
-    uint16_t pg;
-    Ipv4Address sip;
-    Ipv4Address dip;
-    uint16_t sport;
-    uint16_t dport;
-    QPType qp_type;
-    qp_attr();
-    qp_attr(const qp_attr&);
-    qp_attr(qp_attr& attr);
+namespace CongestionControl {
+using DCQCN = struct dcqcn {
+    DataRate m_targetRate;  //< Target rate
+    EventId m_eventUpdateAlpha;
+    double m_alpha;
+    bool m_alpha_cnp_arrived;  // indicate if CNP arrived in the last slot
+    bool m_first_cnp;          // indicate if the current CNP is the first CNP
+    EventId m_eventDecreaseRate;
+    bool m_decrease_cnp_arrived;  // indicate if CNP arrived in the last slot
+    uint32_t m_rpTimeStage;
+    EventId m_rpTimer;
 };
 
-inline qp_attr::qp_attr() : pg(0), sip(), dip(), sport(0), dport(0), qp_type(QPType::RDMA_RC){};
-inline qp_attr::qp_attr(const qp_attr& other)
-    : pg(other.pg), sip(other.sip), dip(other.dip), sport(other.sport), dport(other.dport), qp_type(other.qp_type){};
-inline qp_attr::qp_attr(qp_attr& other) : qp_attr(reinterpret_cast<const qp_attr&>(other)){};
+using HPCC = struct hpcc {
+    uint32_t m_lastUpdateSeq;
+    DataRate m_curRate;
+    IntHop hop[IntHeader::maxHop];
+    uint32_t keep[IntHeader::maxHop];
+    uint32_t m_incStage;
+    double m_lastGap;
+    double u;
+    struct {
+        double u;
+        DataRate Rc;
+        uint32_t incStage;
+    } hopState[IntHeader::maxHop];
+};
 
-class RdmaQueuePair : public Object {
+using HPCCPint = struct hpcc_pint {
+    uint32_t m_lastUpdateSeq;
+    DataRate m_curRate;
+    uint32_t m_incStage;
+};
+
+using TIMELY = struct timely {
+    uint32_t m_lastUpdateSeq;
+    DataRate m_curRate;
+    uint32_t m_incStage;
+    uint64_t lastRtt;
+    double rttDiff;
+};
+
+using DCTCP = struct dctcp {
+    uint32_t m_lastUpdateSeq;
+    uint32_t m_caState;
+    uint32_t m_highSeq;  // when to exit cwr
+    double m_alpha;
+    uint32_t m_ecnCnt;
+    uint32_t m_batchSizeOfAlpha;
+};
+
+using ECNAccount = struct ecn_account {
+    uint16_t qIndex;
+    uint8_t ecnbits;
+    uint16_t qfb;
+    uint16_t total;
+
+    ecn_account() { memset(this, 0, sizeof(ecn_account)); }
+};
+
+}  // namespace CongestionControl
+
+class CongestionControlSender {
+   public:
+    bool IsWinBound();
+    uint64_t GetWin();  // window size calculated from m_rate
+    virtual uint64_t GetOnTheFly();
+    uint64_t HpGetCurWin();  // window size calculated from hp.m_curRate, used by HPCC
+
+    void SetWin(uint32_t win);
+    void SetBaseRtt(uint64_t baseRtt);
+    void SetVarWin(bool v);
+
+    CongestionControl::DCQCN mlx;
+    CongestionControl::HPCC hp;
+    CongestionControl::TIMELY tmly;
+    CongestionControl::DCTCP dctcp;
+    CongestionControl::HPCCPint hpccPint;
+
+    uint64_t m_baseRtt;   // base RTT of this qp
+    DataRate m_max_rate;  // max rate
+    Time m_nextAvail;     //< Soonest time of next send
+    DataRate m_rate;      //< Current rate
+
+    // flow control
+    uint32_t m_win;  // bound of on-the-fly packets
+    uint32_t wp;     // current window of packets
+    bool m_var_win;  // variable window size
+};
+
+class CongestionControlReceiver {
+   public:
+    CongestionControl::ECNAccount m_ecn_source;
+    EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
+};
+
+class RdmaQueuePair : public Object, public CongestionControlSender {
    public:
     // app-specified
     Time startTime;
@@ -48,72 +123,9 @@ class RdmaQueuePair : public Object {
 
     uint64_t m_size;
 
-    // TX/RX/Scheduling
-    uint64_t m_baseRtt;   // base RTT of this qp
-    DataRate m_max_rate;  // max rate
-    Time m_nextAvail;     //< Soonest time of next send
-
     // reliability
     uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
     uint32_t lastPktSize;
-
-    // flow control
-    uint32_t m_win;  // bound of on-the-fly packets
-    uint32_t wp;     // current window of packets
-    bool m_var_win;  // variable window size
-
-    // congestio control
-    // TODO: encapsure theses states into CC module
-
-    /******************************
-     * runtime states
-     *****************************/
-    DataRate m_rate;  //< Current rate
-    struct {
-        DataRate m_targetRate;  //< Target rate
-        EventId m_eventUpdateAlpha;
-        double m_alpha;
-        bool m_alpha_cnp_arrived;  // indicate if CNP arrived in the last slot
-        bool m_first_cnp;          // indicate if the current CNP is the first CNP
-        EventId m_eventDecreaseRate;
-        bool m_decrease_cnp_arrived;  // indicate if CNP arrived in the last slot
-        uint32_t m_rpTimeStage;
-        EventId m_rpTimer;
-    } mlx;
-    struct {
-        uint32_t m_lastUpdateSeq;
-        DataRate m_curRate;
-        IntHop hop[IntHeader::maxHop];
-        uint32_t keep[IntHeader::maxHop];
-        uint32_t m_incStage;
-        double m_lastGap;
-        double u;
-        struct {
-            double u;
-            DataRate Rc;
-            uint32_t incStage;
-        } hopState[IntHeader::maxHop];
-    } hp;
-    struct {
-        uint32_t m_lastUpdateSeq;
-        DataRate m_curRate;
-        uint32_t m_incStage;
-        uint64_t lastRtt;
-        double rttDiff;
-    } tmly;
-    struct {
-        uint32_t m_lastUpdateSeq;
-        uint32_t m_caState;
-        uint32_t m_highSeq;  // when to exit cwr
-        double m_alpha;
-        uint32_t m_ecnCnt;
-        uint32_t m_batchSizeOfAlpha;
-    } dctcp;
-    struct {
-        uint32_t m_lastUpdateSeq;
-        DataRate m_curRate;
-        uint32_t m_incStage;
-    } hpccPint;
 
     /***********
      * methods
@@ -121,23 +133,18 @@ class RdmaQueuePair : public Object {
     static TypeId GetTypeId(void);
 
     RdmaQueuePair(const QPConnectionAttr& attr);
+
     void SetSize(uint64_t size);
-    void SetWin(uint32_t win);
-    void SetBaseRtt(uint64_t baseRtt);
-    void SetVarWin(bool v);
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
     void SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyAPPCompletion);
     uint64_t GetBytesLeft();
+    bool IsFinished();
+    virtual uint64_t GetOnTheFly() override final;
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);
-    uint64_t GetOnTheFly();
-    bool IsWinBound();
-    uint64_t GetWin();  // window size calculated from m_rate
-    bool IsFinished();
-    uint64_t HpGetCurWin();  // window size calculated from hp.m_curRate, used by HPCC
 };
 
-class RdmaRxQueuePair : public Object {  // Rx side queue pair
+class RdmaRxQueuePair : public Object, public CongestionControlReceiver {  // Rx side queue pair
    public:
     // connection
     QPConnectionAttr m_connectionAttr;
@@ -149,17 +156,6 @@ class RdmaRxQueuePair : public Object {  // Rx side queue pair
     uint32_t ReceiverNextExpectedSeq;
     int32_t m_milestone_rx;
     uint32_t m_lastNACK;
-
-    struct ECNAccount {
-        uint16_t qIndex;
-        uint8_t ecnbits;
-        uint16_t qfb;
-        uint16_t total;
-
-        ECNAccount() { memset(this, 0, sizeof(ECNAccount)); }
-    };
-    ECNAccount m_ecn_source;
-    EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 
     static TypeId GetTypeId(void);
     RdmaRxQueuePair();
@@ -182,5 +178,4 @@ class RdmaQueuePairGroup : public Object {
 };
 
 }  // namespace ns3
-
 #endif /* RDMA_QUEUE_PAIR_H */

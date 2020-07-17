@@ -19,6 +19,12 @@ TypeId RdmaQueuePair::GetTypeId(void) {
     return tid;
 }
 
+void CongestionControlSender::SetWin(uint32_t win) { m_win = win; }
+
+void CongestionControlSender::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
+
+void CongestionControlSender::SetVarWin(bool v) { m_var_win = v; }
+
 RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(attr) {
     startTime = Simulator::Now();
     m_size = 0;
@@ -62,13 +68,38 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(at
     hpccPint.m_incStage = 0;
 }
 
+bool CongestionControlSender::IsWinBound() {
+    uint64_t w = GetWin();
+    return w != 0 && GetOnTheFly() >= w;
+}
+
+uint64_t CongestionControlSender::GetWin() {
+    if (m_win == 0) return 0;
+    uint64_t w;
+    if (m_var_win) {
+        w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
+        if (w == 0) w = 1;  // must > 0
+    } else {
+        w = m_win;
+    }
+    return w;
+}
+
+uint64_t CongestionControlSender::GetOnTheFly() { return 0; }
+
+uint64_t CongestionControlSender::HpGetCurWin() {
+    if (m_win == 0) return 0;
+    uint64_t w;
+    if (m_var_win) {
+        w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
+        if (w == 0) w = 1;  // must > 0
+    } else {
+        w = m_win;
+    }
+    return w;
+}
+
 void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
-
-void RdmaQueuePair::SetWin(uint32_t win) { m_win = win; }
-
-void RdmaQueuePair::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
-
-void RdmaQueuePair::SetVarWin(bool v) { m_var_win = v; }
 
 void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
 
@@ -98,35 +129,6 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
 }
 
 uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
-
-bool RdmaQueuePair::IsWinBound() {
-    uint64_t w = GetWin();
-    return w != 0 && GetOnTheFly() >= w;
-}
-
-uint64_t RdmaQueuePair::GetWin() {
-    if (m_win == 0) return 0;
-    uint64_t w;
-    if (m_var_win) {
-        w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0) w = 1;  // must > 0
-    } else {
-        w = m_win;
-    }
-    return w;
-}
-
-uint64_t RdmaQueuePair::HpGetCurWin() {
-    if (m_win == 0) return 0;
-    uint64_t w;
-    if (m_var_win) {
-        w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0) w = 1;  // must > 0
-    } else {
-        w = m_win;
-    }
-    return w;
-}
 
 bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 

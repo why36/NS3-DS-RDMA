@@ -63,19 +63,6 @@ class DistributedStorageClient : public RdmaClient {
 
     // RPC-level interface
     void SendRpc(uint32_t size);
-    /**
-     * \brief called by a QP when it recieves an response of RPC;
-     * \param rpcResponse response;
-     * \param qp the Rdma Queue Pair of received message;
-     */
-    void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp);
-
-    // RDMA QP Callback
-    /**
-     * \brief called by a QP when it returns a completion;
-     * \param completionReturn params returned by completion;
-     */
-    void OnSendCompletion(Ptr<SendCompeltionReturnValue> completionReturn);
 
     //
 
