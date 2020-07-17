@@ -76,12 +76,16 @@ using ECNAccount = struct ecn_account {
 
 }  // namespace CongestionControl
 
-class CongestionControlSender {
+class CongestionControlSender : public Object {
    public:
     bool IsWinBound();
     uint64_t GetWin();  // window size calculated from m_rate
     virtual uint64_t GetOnTheFly();
+    virtual uint64_t GetBytesLeft();
+    virtual bool IsFinished();
     uint64_t HpGetCurWin();  // window size calculated from hp.m_curRate, used by HPCC
+
+    virtual Ptr<RdmaQueuePair> GetNextQp() = 0;
 
     void SetWin(uint32_t win);
     void SetBaseRtt(uint64_t baseRtt);
@@ -93,10 +97,11 @@ class CongestionControlSender {
     CongestionControl::DCTCP dctcp;
     CongestionControl::HPCCPint hpccPint;
 
-    uint64_t m_baseRtt;   // base RTT of this qp
-    DataRate m_max_rate;  // max rate
-    Time m_nextAvail;     //< Soonest time of next send
-    DataRate m_rate;      //< Current rate
+    uint64_t m_baseRtt;    // base RTT of this qp
+    DataRate m_max_rate;   // max rate
+    Time m_nextAvail;      //< Soonest time of next send
+    DataRate m_rate;       //< Current rate
+    uint32_t lastPktSize;  // last packet size
 
     // flow control
     uint32_t m_win;  // bound of on-the-fly packets
@@ -104,13 +109,13 @@ class CongestionControlSender {
     bool m_var_win;  // variable window size
 };
 
-class CongestionControlReceiver {
+class CongestionControlReceiver : public Object {
    public:
     CongestionControl::ECNAccount m_ecn_source;
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 };
 
-class RdmaQueuePair : public Object, public CongestionControlSender {
+class RdmaQueuePair : public CongestionControlSender {
    public:
     // app-specified
     Time startTime;
@@ -125,7 +130,6 @@ class RdmaQueuePair : public Object, public CongestionControlSender {
 
     // reliability
     uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
-    uint32_t lastPktSize;
 
     /***********
      * methods
@@ -137,14 +141,15 @@ class RdmaQueuePair : public Object, public CongestionControlSender {
     void SetSize(uint64_t size);
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
     void SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyAPPCompletion);
-    uint64_t GetBytesLeft();
-    bool IsFinished();
+    virtual uint64_t GetBytesLeft() override final;
+    virtual bool IsFinished() override final;
     virtual uint64_t GetOnTheFly() override final;
+    virtual Ptr<RdmaQueuePair> GetNextQp() override final;
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);
 };
 
-class RdmaRxQueuePair : public Object, public CongestionControlReceiver {  // Rx side queue pair
+class RdmaRxQueuePair : public CongestionControlReceiver {  // Rx side queue pair
    public:
     // connection
     QPConnectionAttr m_connectionAttr;
@@ -162,17 +167,17 @@ class RdmaRxQueuePair : public Object, public CongestionControlReceiver {  // Rx
     uint32_t GetHash(void);
 };
 
-class RdmaQueuePairGroup : public Object {
+class RdmaCongestionControlGroup : public Object {
    public:
-    std::vector<Ptr<RdmaQueuePair> > m_qps;
+    std::vector<Ptr<CongestionControlSender> > m_qps;
     // std::vector<Ptr<RdmaRxQueuePair> > m_rxQps;
 
     static TypeId GetTypeId(void);
-    RdmaQueuePairGroup(void);
+    RdmaCongestionControlGroup(void);
     uint32_t GetN(void);
-    Ptr<RdmaQueuePair> Get(uint32_t idx);
-    Ptr<RdmaQueuePair> operator[](uint32_t idx);
-    void AddQp(Ptr<RdmaQueuePair> qp);
+    Ptr<CongestionControlSender> Get(uint32_t idx);
+    Ptr<CongestionControlSender> operator[](uint32_t idx);
+    void AddQp(Ptr<CongestionControlSender> qp);
     // void AddRxQp(Ptr<RdmaRxQueuePair> rxQp);
     void Clear(void);
 };

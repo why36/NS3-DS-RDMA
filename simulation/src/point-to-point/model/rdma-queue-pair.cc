@@ -15,7 +15,7 @@ namespace ns3 {
  * RdmaQueuePair
  *************************/
 TypeId RdmaQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
+    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<CongestionControlSender>();
     return tid;
 }
 
@@ -86,6 +86,8 @@ uint64_t CongestionControlSender::GetWin() {
 }
 
 uint64_t CongestionControlSender::GetOnTheFly() { return 0; }
+uint64_t CongestionControlSender::GetBytesLeft() { return 0; }
+bool CongestionControlSender::IsFinished() { return true; }
 
 uint64_t CongestionControlSender::HpGetCurWin() {
     if (m_win == 0) return 0;
@@ -106,6 +108,8 @@ void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_not
 void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
 
 uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
+
+Ptr<RdmaQueuePair> RdmaQueuePair::GetNextQp() { return this; };
 
 uint32_t RdmaQueuePair::GetHash(void) {
     union {
@@ -136,7 +140,7 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
  * RdmaRxQueuePair
  ********************/
 TypeId RdmaRxQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaRxQueuePair").SetParent<Object>();
+    static TypeId tid = TypeId("ns3::RdmaRxQueuePair").SetParent<CongestionControlReceiver>();
     return tid;
 }
 
@@ -164,29 +168,29 @@ uint32_t RdmaRxQueuePair::GetHash(void) {
 }
 
 /*********************
- * RdmaQueuePairGroup
+ * RdmaCongestionControlGroup
  ********************/
-TypeId RdmaQueuePairGroup::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaQueuePairGroup").SetParent<Object>();
+TypeId RdmaCongestionControlGroup::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::RdmaCongestionControlGroup").SetParent<Object>();
     return tid;
 }
 
-RdmaQueuePairGroup::RdmaQueuePairGroup(void) {}
+RdmaCongestionControlGroup::RdmaCongestionControlGroup(void) {}
 
-uint32_t RdmaQueuePairGroup::GetN(void) { return m_qps.size(); }
+uint32_t RdmaCongestionControlGroup::GetN(void) { return m_qps.size(); }
 
-Ptr<RdmaQueuePair> RdmaQueuePairGroup::Get(uint32_t idx) { return m_qps[idx]; }
+Ptr<CongestionControlSender> RdmaCongestionControlGroup::Get(uint32_t idx) { return m_qps[idx]; }
 
-Ptr<RdmaQueuePair> RdmaQueuePairGroup::operator[](uint32_t idx) { return m_qps[idx]; }
+Ptr<CongestionControlSender> RdmaCongestionControlGroup::operator[](uint32_t idx) { return m_qps[idx]; }
 
-void RdmaQueuePairGroup::AddQp(Ptr<RdmaQueuePair> qp) { m_qps.push_back(qp); }
+void RdmaCongestionControlGroup::AddQp(Ptr<CongestionControlSender> qp) { m_qps.push_back(qp); }
 
 #if 0
-void RdmaQueuePairGroup::AddRxQp(Ptr<RdmaRxQueuePair> rxQp){
+void RdmaCongestionControlGroup::AddRxQp(Ptr<RdmaRxQueuePair> rxQp){
 	m_rxQps.push_back(rxQp);
 }
 #endif
 
-void RdmaQueuePairGroup::Clear(void) { m_qps.clear(); }
+void RdmaCongestionControlGroup::Clear(void) { m_qps.clear(); }
 
 }  // namespace ns3

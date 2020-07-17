@@ -15,7 +15,7 @@ namespace ns3 {
 
 struct RdmaInterfaceMgr {
     Ptr<QbbNetDevice> dev;
-    Ptr<RdmaQueuePairGroup> qpGrp;
+    Ptr<RdmaCongestionControlGroup> qpGrp;
 
     RdmaInterfaceMgr() : dev(NULL), qpGrp(NULL) {}
     RdmaInterfaceMgr(Ptr<QbbNetDevice> _dev) { dev = _dev; }
@@ -87,10 +87,10 @@ class RdmaHw : public Object {
     void ClearTable();
     void RedistributeQp();
 
-    Ptr<Packet> GetNxtPacket(Ptr<RdmaQueuePair> qp);  // get next packet to send, inc snd_nxt
-    void PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap);
-    void UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size);
-    void ChangeRate(Ptr<RdmaQueuePair> qp, DataRate new_rate);
+    Ptr<Packet> GetNxtPacket(Ptr<CongestionControlSender> qp);  // get next packet to send, inc snd_nxt
+    void PktSent(Ptr<CongestionControlSender> qp, Ptr<Packet> pkt, Time interframeGap);
+    void UpdateNextAvail(Ptr<CongestionControlSender> qp, Time interframeGap, uint32_t pkt_size);
+    void ChangeRate(Ptr<CongestionControlSender> qp, DataRate new_rate);
     /******************************
      * Mellanox's version of DCQCN
      *****************************/
@@ -106,24 +106,24 @@ class RdmaHw : public Object {
 
     // the Mellanox's version of alpha update:
     // every fixed time slot, update alpha.
-    void UpdateAlphaMlx(Ptr<RdmaQueuePair> q);
-    void ScheduleUpdateAlphaMlx(Ptr<RdmaQueuePair> q);
+    void UpdateAlphaMlx(Ptr<CongestionControlSender> q);
+    void ScheduleUpdateAlphaMlx(Ptr<CongestionControlSender> q);
 
     // Mellanox's version of CNP receive
-    void cnp_received_mlx(Ptr<RdmaQueuePair> q);
+    void cnp_received_mlx(Ptr<CongestionControlSender> q);
 
     // Mellanox's version of rate decrease
     // It checks every m_rateDecreaseInterval if CNP arrived (m_decrease_cnp_arrived).
     // If so, decrease rate, and reset all rate increase related things
-    void CheckRateDecreaseMlx(Ptr<RdmaQueuePair> q);
-    void ScheduleDecreaseRateMlx(Ptr<RdmaQueuePair> q, uint32_t delta);
+    void CheckRateDecreaseMlx(Ptr<CongestionControlSender> q);
+    void ScheduleDecreaseRateMlx(Ptr<CongestionControlSender> q, uint32_t delta);
 
     // Mellanox's version of rate increase
-    void RateIncEventTimerMlx(Ptr<RdmaQueuePair> q);
-    void RateIncEventMlx(Ptr<RdmaQueuePair> q);
-    void FastRecoveryMlx(Ptr<RdmaQueuePair> q);
-    void ActiveIncreaseMlx(Ptr<RdmaQueuePair> q);
-    void HyperIncreaseMlx(Ptr<RdmaQueuePair> q);
+    void RateIncEventTimerMlx(Ptr<CongestionControlSender> q);
+    void RateIncEventMlx(Ptr<CongestionControlSender> q);
+    void FastRecoveryMlx(Ptr<CongestionControlSender> q);
+    void ActiveIncreaseMlx(Ptr<CongestionControlSender> q);
+    void HyperIncreaseMlx(Ptr<CongestionControlSender> q);
 
     /***********************
      * High Precision CC
@@ -133,33 +133,33 @@ class RdmaHw : public Object {
     uint32_t m_miThresh;
     bool m_multipleRate;
     bool m_sampleFeedback;  // only react to feedback every RTT, or qlen > 0
-    void HandleAckHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
-    void UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
-    void UpdateRateHpTest(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
-    void FastReactHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+    void HandleAckHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
+    void UpdateRateHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+    void UpdateRateHpTest(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+    void FastReactHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
 
     /**********************
      * TIMELY
      *********************/
     double m_tmly_alpha, m_tmly_beta;
     uint64_t m_tmly_TLow, m_tmly_THigh, m_tmly_minRtt;
-    void HandleAckTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
-    void UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool us);
-    void FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+    void HandleAckTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
+    void UpdateRateTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch, bool us);
+    void FastReactTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
 
     /**********************
      * DCTCP
      *********************/
     DataRate m_dctcp_rai;
-    void HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+    void HandleAckDctcp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
 
     /*********************
      * HPCC-PINT
      ********************/
     uint32_t pint_smpl_thresh;
     void SetPintSmplThresh(double p);
-    void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
-    void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+    void HandleAckHpPint(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch);
+    void UpdateRateHpPint(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
 };
 
 } /* namespace ns3 */

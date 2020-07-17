@@ -84,7 +84,8 @@ Ptr<Packet> RdmaEgressQueue::DequeueQindex(int qIndex) {
         Ptr<Packet> p = m_rdmaGetNxtPkt(m_qpGrp->Get(qIndex));
         m_rrlast = qIndex;
         m_qlast = qIndex;
-        m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)->m_connectionAttr.pg);
+        // TO DO: Krayecho Yx: add traceRdmaDequeue
+        // /m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)-shqotes rataed>);
         return p;
     }
     return 0;
@@ -100,13 +101,13 @@ int RdmaEgressQueue::GetNextQindex(bool paused[]) {
     uint32_t min_finish_id = 0xffffffff;
     for (qIndex = 1; qIndex <= fcount; qIndex++) {
         uint32_t idx = (qIndex + m_rrlast) % fcount;
-        Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-        if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->IsWinBound()) {
+        Ptr<CongestionControlSender> ccSender = m_qpGrp->Get(idx);
+        if (!paused[ccSender->GetNextQp()->m_connectionAttr.pg] && ccSender->GetBytesLeft() > 0 && !ccSender->IsWinBound()) {
             if (m_qpGrp->Get(idx)->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep())  // not available now
                 continue;
             res = idx;
             break;
-        } else if (qp->IsFinished()) {
+        } else if (ccSender->IsFinished()) {
             min_finish_id = idx < min_finish_id ? idx : min_finish_id;
         }
     }
@@ -136,13 +137,14 @@ uint32_t RdmaEgressQueue::GetNBytes(uint32_t qIndex) {
 
 uint32_t RdmaEgressQueue::GetFlowCount(void) { return m_qpGrp->GetN(); }
 
-Ptr<RdmaQueuePair> RdmaEgressQueue::GetQp(uint32_t i) { return m_qpGrp->Get(i); }
+Ptr<CongestionControlSender> RdmaEgressQueue::GetQp(uint32_t i) { return m_qpGrp->Get(i); }
 
+/*
 void RdmaEgressQueue::RecoverQueue(uint32_t i) {
     NS_ASSERT_MSG(i < m_qpGrp->GetN(), "RdmaEgressQueue::RecoverQueue: qIndex >= m_qpGrp->GetN()");
     m_qpGrp->Get(i)->snd_nxt = m_qpGrp->Get(i)->snd_una;
 }
-
+*/
 void RdmaEgressQueue::EnqueueHighPrioQ(Ptr<Packet> p) {
     m_traceRdmaEnqueue(p, 0);
     m_ackQ->Enqueue(p);
@@ -229,11 +231,12 @@ void QbbNetDevice::DequeueAndTransmit(void) {
                 return;
             }
             // a qp dequeue a packet
-            Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
+            Ptr<CongestionControlSender> lastQp = m_rdmaEQ->GetQp(qIndex);
             p = m_rdmaEQ->DequeueQindex(qIndex);
 
             // transmit
-            m_traceQpDequeue(p, lastQp);
+            // TO DO Krayecho Yx: fix trace
+            // m_traceQpDequeue(p, lastQp);
             TransmitStart(p);
 
             // update for the next avail time
@@ -242,7 +245,7 @@ void QbbNetDevice::DequeueAndTransmit(void) {
             NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
             Time t = Simulator::GetMaximumSimulationTime();
             for (uint32_t i = 0; i < m_rdmaEQ->GetFlowCount(); i++) {
-                Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
+                Ptr<CongestionControlSender> qp = m_rdmaEQ->GetQp(i);
                 if (qp->GetBytesLeft() == 0) continue;
                 t = Min(qp->m_nextAvail, t);
             }
@@ -278,7 +281,7 @@ void QbbNetDevice::DequeueAndTransmit(void) {
             if (m_node->GetNodeType() == 0 && m_qcnEnabled) {  // nothing to send, possibly due to qcn flow control, if so reschedule sending
                 Time t = Simulator::GetMaximumSimulationTime();
                 for (uint32_t i = 0; i < m_rdmaEQ->GetFlowCount(); i++) {
-                    Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
+                    Ptr<CongestionControlSender> qp = m_rdmaEQ->GetQp(i);
                     if (qp->GetBytesLeft() == 0) continue;
                     t = Min(qp->m_nextAvail, t);
                 }
