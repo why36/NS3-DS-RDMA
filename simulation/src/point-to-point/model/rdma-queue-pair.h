@@ -76,7 +76,7 @@ using ECNAccount = struct ecn_account {
 
 }  // namespace CongestionControl
 
-class CongestionControlSender : public Object {
+class CongestionControlSender : public virtual Object {
    public:
     bool IsWinBound();
     uint64_t GetWin();  // window size calculated from m_rate
@@ -109,13 +109,32 @@ class CongestionControlSender : public Object {
     bool m_var_win;  // variable window size
 };
 
-class CongestionControlReceiver : public Object {
+class CongestionControlReceiver : public virtual Object {
    public:
+    static TypeId GetTypeId(void);
     CongestionControl::ECNAccount m_ecn_source;
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 };
 
-class RdmaQueuePair : public CongestionControlSender {
+class RdmaRxQueuePair : public CongestionControlReceiver {  // Rx side queue pair
+   public:
+    // connection
+    QPConnectionAttr m_connectionAttr;
+
+    uint16_t m_ipid;
+
+    // reliability
+    Time m_nackTimer;
+    uint32_t ReceiverNextExpectedSeq;
+    int32_t m_milestone_rx;
+    uint32_t m_lastNACK;
+
+    static TypeId GetTypeId(void);
+    RdmaRxQueuePair();
+    uint32_t GetHash(void);
+};
+
+class RdmaQueuePair : public CongestionControlSender, public RdmaRxQueuePair {
    public:
     // app-specified
     Time startTime;
@@ -147,24 +166,6 @@ class RdmaQueuePair : public CongestionControlSender {
     virtual Ptr<RdmaQueuePair> GetNextQp() override final;
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);
-};
-
-class RdmaRxQueuePair : public CongestionControlReceiver {  // Rx side queue pair
-   public:
-    // connection
-    QPConnectionAttr m_connectionAttr;
-
-    uint16_t m_ipid;
-
-    // reliability
-    Time m_nackTimer;
-    uint32_t ReceiverNextExpectedSeq;
-    int32_t m_milestone_rx;
-    uint32_t m_lastNACK;
-
-    static TypeId GetTypeId(void);
-    RdmaRxQueuePair();
-    uint32_t GetHash(void);
 };
 
 class RdmaCongestionControlGroup : public Object {

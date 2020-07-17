@@ -139,6 +139,11 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 /*********************
  * RdmaRxQueuePair
  ********************/
+TypeId CongestionControlReceiver::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::CongestionControlReceiver").SetParent<Object>();
+    return tid;
+}
+
 TypeId RdmaRxQueuePair::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::RdmaRxQueuePair").SetParent<CongestionControlReceiver>();
     return tid;

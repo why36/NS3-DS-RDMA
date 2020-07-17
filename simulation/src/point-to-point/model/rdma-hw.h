@@ -2,6 +2,7 @@
 #define RDMA_HW_H
 
 #include <ns3/custom-header.h>
+#include <ns3/ipv4-flow-classifier.h>
 #include <ns3/node.h>
 #include <ns3/rdma-queue-pair.h>
 #include <ns3/rdma.h>
@@ -39,10 +40,11 @@ class RdmaHw : public Object {
     bool m_backto0;
     bool m_var_win, m_fast_react;
     bool m_rateBound;
-    std::vector<RdmaInterfaceMgr> m_nic;                            // list of running nic controlled by this RdmaHw
-    std::unordered_map<uint64_t, Ptr<RdmaQueuePair> > m_qpMap;      // mapping from uint64_t to qp
-    std::unordered_map<uint64_t, Ptr<RdmaRxQueuePair> > m_rxQpMap;  // mapping from uint64_t to rx qp
-    std::unordered_map<uint32_t, std::vector<int> > m_rtTable;      // map from ip address (u32) to possible ECMP port (index of dev)
+    std::vector<RdmaInterfaceMgr> m_nic;                        // list of running nic controlled by this RdmaHw
+    std::unordered_map<uint64_t, Ptr<RdmaQueuePair> > m_qpMap;  // mapping from uint64_t to qp
+
+    std::unordered_map<Tuple, Ptr<RdmaRxQueuePair> > m_rxQpMap;  // mapping from uint64_t to rx qp
+    std::unordered_map<uint32_t, std::vector<int> > m_rtTable;   // map from ip address (u32) to possible ECMP port (index of dev)
 
     // qp complete callback
     typedef Callback<void, Ptr<RdmaQueuePair> > QpCompleteCallback;
@@ -60,7 +62,7 @@ class RdmaHw : public Object {
 
     Ptr<RdmaRxQueuePair> GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create);  // get a rxQp
     uint32_t GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q);  // get the NIC index of the rxQp
-    void DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport);
+    void DeleteRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);
 
     // TO DO Krayecho Yx: these fuunctions should be moved into QPs
     int Receive(Ptr<Packet> p, CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this

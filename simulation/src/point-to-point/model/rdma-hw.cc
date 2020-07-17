@@ -165,8 +165,14 @@ void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp) {
 }
 
 Ptr<RdmaRxQueuePair> RdmaHw::GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create) {
-    uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
-    auto it = m_rxQpMap.find(key);
+    Tuple tuple;
+    tuple.;
+
+    auto it = m_rxQpMap.find(tuple);
+
+    NS_ASSERT_MSG(it != m_rxQpMap.end(), "Cannot find QP when receiving");
+    return it->second;
+    /*
     if (it != m_rxQpMap.end()) return it->second;
     if (create) {
         // create new rx qp
@@ -182,7 +188,8 @@ Ptr<RdmaRxQueuePair> RdmaHw::GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport,
         return q;
     }
     return NULL;
-}
+    */
+}  // namespace ns3
 uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q) {
     auto &v = m_rtTable[q->m_connectionAttr.dip.Get()];
     if (v.size() > 0) {
@@ -191,9 +198,16 @@ uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q) {
         NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
     }
 }
-void RdmaHw::DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport) {
-    uint64_t key = ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | (uint64_t)dport;
-    m_rxQpMap.erase(key);
+void RdmaHw::DeleteRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg) {
+    Tuple tuple;
+    tuple.sourcePort = sport;
+    tuple.destinationPort = dport;
+    tuple.protocol = pg;
+    tuple.sourceAddress.Set(sip);
+    tuple.destinationAddress.Set(sip);
+
+    NS_ASSERT_MSG(m_rxQpMap.count(tuple), "Cannot find rxQP when deleting");
+    m_rxQpMap.erase(tuple);
 }
 
 void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader &ch) {
