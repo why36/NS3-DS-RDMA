@@ -803,6 +803,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
+#define ENABLE_QP 1
+
 #if ENABLE_QP
     FILE *fct_output = fopen(fct_output_file.c_str(), "w");
     //
