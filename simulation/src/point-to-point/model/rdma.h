@@ -23,6 +23,7 @@
 #define RDMA_H
 
 #include <array>
+#include <functional>
 
 #include "ns3/ipv4-address.h"
 #include "ns3/pointer.h"
@@ -93,22 +94,21 @@ using SimpleTuple = struct simple_tuple {
     uint32_t dip;
     uint16_t sport;
     uint16_t dport;
-    uint8_t prio;
-    bool operator<(simple_tuple& rhs);
-    bool operator=(simple_tuple& rhs);
+    uint16_t prio;
 };
 
-bool SimpleTuple::operator<(SimpleTuple& rhs) {
-    return (((static_cast<uint64_t>(sip) << 32) + static_cast<uint64_t>(dip)) <
-            ((static_cast<uint64_t>(rhs.sip) << 32) + static_cast<uint64_t>(rhs.dip)))
-               ? true
-               : (((static_cast<uint64_t>(sport) << 24) + (static_cast<uint64_t>(dport) << 8) + prio) <
-                  ((static_cast<uint64_t>(rhs.sport) << 24) + (static_cast<uint64_t>(rhs.dport) << 8) + rhs.prio));
-}
+struct SimpleTupleHash {
+    std::size_t operator()(const SimpleTuple& s) const {
+        uint32_t magic = (2 << 9) - 1;
+        return ((s.sip | magic) << 24) + ((s.dip | magic) << 16) + ((static_cast<uint32_t>(s.sport) | magic) << 8) +
+               (static_cast<uint32_t>(s.dport) | magic);
+    }
+};
 
-bool SimpleTuple::operator=(SimpleTuple& rhs) {
-    return ((sip == rhs.sip) && (dip == rhs.dip) && (sport == rhs.sport) && (dport == rhs.dport) && (prio == rhs.prio));
-}
-
+struct SimpleTupleEqual {
+    std::size_t operator()(const SimpleTuple& lhs, const SimpleTuple& rhs) const {
+        return ((lhs.sip == rhs.sip) && (lhs.dip == rhs.dip) && (lhs.sport == rhs.sport) && (lhs.dport == rhs.dport) && (lhs.prio == rhs.prio));
+    }
+};
 }  // namespace ns3
 #endif /* RDMA_H */

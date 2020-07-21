@@ -165,8 +165,7 @@ void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp) {
 }
 
 Ptr<RdmaRxQueuePair> RdmaHw::GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create) {
-    Tuple tuple;
-    tuple.;
+    SimpleTuple tuple = {.sip = sip, .dip = dip, .sport = sport, .dport = dport, .prio = pg};
 
     auto it = m_rxQpMap.find(tuple);
 
@@ -199,12 +198,7 @@ uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q) {
     }
 }
 void RdmaHw::DeleteRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg) {
-    Tuple tuple;
-    tuple.sourcePort = sport;
-    tuple.destinationPort = dport;
-    tuple.protocol = pg;
-    tuple.sourceAddress.Set(sip);
-    tuple.destinationAddress.Set(sip);
+    SimpleTuple tuple = {.sip = sip, .dip = dip, .sport = sport, .dport = dport, .prio = pg};
 
     NS_ASSERT_MSG(m_rxQpMap.count(tuple), "Cannot find rxQP when deleting");
     m_rxQpMap.erase(tuple);
