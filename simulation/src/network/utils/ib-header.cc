@@ -34,11 +34,11 @@ namespace ns3
         return GetTypeId();
     }
 
-    ~IBHeader()
+    IBHeader::~IBHeader()
     {
     }
 
-    OpCode IBHeader::&GetOpCode()
+    OpCode& IBHeader::GetOpCode()
     {
         return m_opcode;
     }
@@ -52,21 +52,21 @@ namespace ns3
     {
         Buffer::Iterator i = start;
 
-        i.WriteU8(i, data);
+        i.WriteU8(m_opcode.data);
     }
 
     uint32_t IBHeader::Deserialize(Buffer::Iterator start)
     {
         Buffer::Iterator i = start;
 
-        data = i.ReadU8();
+        m_opcode.data = i.ReadU8();
 
         return GetSerializedSize();
     }
 
     void IBHeader::Print(std::ostream &os) const
     {
-        os << "data=" << std::dec << data;
+        os << "data=" << std::dec << m_opcode.data;
     }
 
 } //namespace ns3
