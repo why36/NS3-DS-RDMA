@@ -36,6 +36,14 @@
 
 namespace ns3 {
 
+class Buffer;
+
+// this is a interface used for demonsrate how rdma app works
+class SimpleRdmaApp {
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) = 0;
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) = 0;
+};
+
 // TO DO: Krayecho Yx: implement more details;
 /**
  * \brief RdmaAppQP is a useable QP interface for application;
@@ -44,26 +52,13 @@ class RdmaAppQP : Object {
     friend class RdmaCM;
 
    public:
+    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
+              Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB);
     /**
      * \brief ibv_post_send;
      * \param IBVWorkRequest wr;
      */
     void PostSend(IBVWorkRequest& wr);
-
-    /**
-     * \brief called by a QP when it recieves an response of RPC;
-     * \param rpcResponse response;
-     * \param qp the Rdma Queue Pair of received message;
-     */
-    virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) = 0;
-
-    // RDMA QP Callback
-    /**
-     * \brief called by a QP when it returns a completion;
-     * \param completionReturn params returned by completion;
-     */
-    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) = 0;
-    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) = 0;
 
    private:
     /**
@@ -72,12 +67,28 @@ class RdmaAppQP : Object {
      */
     void CreateQP(QPCreateAttribute& create_attr);
 
+    void OnCompletion(Ptr<IBVWorkCompletion> completion);
     // TO DO Krayecho Yx:
     // void PostReceive();
-
     Ptr<RdmaDriver> m_rdmaDriver;
     Ptr<RdmaQueuePair> m_qp;
+
+    /*
+     * Callback
+     */
+    Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
+    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
 };
+
+inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
+    if (completion->isTx) {
+        m_onSendCompletion(completion);
+        return;
+    } else {
+        m_onReceiveCompletion(completion);
+        return;
+    }
+}
 
 void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
     m_qp = m_rdmaDriver->AddQueuePair(create_attr);
@@ -88,15 +99,17 @@ void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
 // Ensure that each
 class RdmaCM {
    public:
-    int Connect(Ptr<RdmaApp> src, Ptr<RdmaApp> dst, QPConnectionAttr& src_attr, QpParam& src_old_param, QpParam& dst_old_param)
+    int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam);
 };
 
-int RdmaCM::Connect(Ptr<RdmaApp> src, Ptr<RdmaApp> dst, QPConnectionAttr& src_attr, QpParam& src_old_param, QpParam& dst_old_param) {
-    QPCreateAttribute src_create_attr(src_attr, src_old_param);
-    src->CreateQP(attr);
+int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
+    srcParam.notifyCompletion = RdmaAppQP::OnCompletion;
+    dstParam.notifyCompletion = RdmaAppQP::OnCompletion;
+    QPCreateAttribute src_create_attr(srcAttr, srcParam);
+    src->CreateQP(src_create_attr);
     src_create_attr.conAttr.operator~();
-    src_create_attr.qpParam = dst_old_param;
-    dst->CreateQP(dst_attr);
+    src_create_attr.qpParam = dstParam;
+    dst->CreateQP(src_create_attr);
 };
 
 }  // namespace ns3

@@ -26,6 +26,13 @@ void CongestionControlSender::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt
 void CongestionControlSender::SetVarWin(bool v) { m_var_win = v; }
 
 RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(attr) {
+    {
+        ReceiverNextExpectedSeq = 0;
+        m_nackTimer = Time(0);
+        m_milestone_rx = 0;
+        m_lastNACK = 0;
+    }
+
     startTime = Simulator::Now();
     m_size = 0;
     snd_nxt = snd_una = 0;
@@ -136,40 +143,9 @@ uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
 
 bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 
-/*********************
- * RdmaRxQueuePair
- ********************/
 TypeId CongestionControlReceiver::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::CongestionControlReceiver").SetParent<Object>();
     return tid;
-}
-
-TypeId RdmaRxQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaRxQueuePair").SetParent<CongestionControlReceiver>();
-    return tid;
-}
-
-RdmaRxQueuePair::RdmaRxQueuePair() {
-    m_ipid = 0;
-    ReceiverNextExpectedSeq = 0;
-    m_nackTimer = Time(0);
-    m_milestone_rx = 0;
-    m_lastNACK = 0;
-}
-
-uint32_t RdmaRxQueuePair::GetHash(void) {
-    union {
-        struct {
-            uint32_t sip, dip;
-            uint16_t sport, dport;
-        };
-        char c[12];
-    } buf;
-    buf.sip = m_connectionAttr.sip.Get();
-    buf.dip = m_connectionAttr.dip.Get();
-    buf.sport = m_connectionAttr.sport;
-    buf.dport = m_connectionAttr.dport;
-    return Hash32(buf.c, 12);
 }
 
 /*********************
@@ -189,12 +165,6 @@ Ptr<CongestionControlSender> RdmaCongestionControlGroup::Get(uint32_t idx) { ret
 Ptr<CongestionControlSender> RdmaCongestionControlGroup::operator[](uint32_t idx) { return m_qps[idx]; }
 
 void RdmaCongestionControlGroup::AddQp(Ptr<CongestionControlSender> qp) { m_qps.push_back(qp); }
-
-#if 0
-void RdmaCongestionControlGroup::AddRxQp(Ptr<RdmaRxQueuePair> rxQp){
-	m_rxQps.push_back(rxQp);
-}
-#endif
 
 void RdmaCongestionControlGroup::Clear(void) { m_qps.clear(); }
 

@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ns3/assert.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/inet6-socket-address.h"
 #include "ns3/ipv4-address.h"
@@ -58,6 +59,29 @@ TypeId DistributedStorageClient::GetTypeId(void) {
 DistributedStorageClient::DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS(); }
 
 DistributedStorageClient::~DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS(); }
+
+static void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
+    uint16_t sport = client->GetNextAvailablePort();
+    uint16_t dport = server->GetNextAvailablePort();
+    NS_ASSERT(sport && dport);
+
+    Ptr<Node> client_node = client->GetNode();
+    Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    client->AddQP(srcRdmaAppQP);
+
+    Ptr<Node> server_node = server->GetNode();
+    Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    server->AddQP(dstRdmaAppQP);
+
+    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
+    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
+    QPConnectionAttr srcConnAttr(pg, client_node.m_ip, server_node.m_ip, sport, dport, QPType::RDMA_RC);
+    RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
+};
+
+void DistributedStorageClient::AddQP(Ptr<RdmaQueuePair> qp){};
 
 void DistributedStorageClient::StartApplication(void) override {
     NS_LOG_FUNCTION_NOARGS();

@@ -83,8 +83,6 @@ void RdmaClient::SetSize(uint64_t size) { m_size = size; }
 
 void RdmaClient::Finish() { m_node->DeleteApplication(this); }
 
-void RdmaClient::OnComletion(IBVWorkCompletion&) { return; }
-
 void RdmaClient::DoDispose(void) {
     NS_LOG_FUNCTION_NOARGS();
     Application::DoDispose();
@@ -96,7 +94,7 @@ void RdmaClient::StartApplication(void) {
     Ptr<Node> node = GetNode();
     Ptr<RdmaDriver> rdma = node->GetObject<RdmaDriver>();
     QPCreateAttribute create_attr(m_pg, m_sip, m_dip, m_sport, m_dport, QPType::RDMA_RC, m_size, m_win, m_baseRtt,
-                                  MakeCallback(&RdmaClient::Finish, this), MakeCallback(&RdmaClient::OnComletion, this));
+                                  MakeCallback(&RdmaClient::Finish, this));
     rdma->AddQueuePair(create_attr);
 }  // namespace ns3
 

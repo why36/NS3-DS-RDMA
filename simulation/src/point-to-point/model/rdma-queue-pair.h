@@ -116,25 +116,7 @@ class CongestionControlReceiver : public virtual Object {
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 };
 
-class RdmaRxQueuePair : public CongestionControlReceiver {  // Rx side queue pair
-   public:
-    // connection
-    QPConnectionAttr m_connectionAttr;
-
-    uint16_t m_ipid;
-
-    // reliability
-    Time m_nackTimer;
-    uint32_t ReceiverNextExpectedSeq;
-    int32_t m_milestone_rx;
-    uint32_t m_lastNACK;
-
-    static TypeId GetTypeId(void);
-    RdmaRxQueuePair();
-    uint32_t GetHash(void);
-};
-
-class RdmaQueuePair : public CongestionControlSender, public RdmaRxQueuePair {
+class RdmaQueuePair : public CongestionControlSender, public CongestionControlReceiver {
    public:
     // app-specified
     Time startTime;
@@ -147,8 +129,14 @@ class RdmaQueuePair : public CongestionControlSender, public RdmaRxQueuePair {
 
     uint64_t m_size;
 
-    // reliability
+    // reliability sender
     uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
+
+    // reliability receiver
+    Time m_nackTimer;
+    uint32_t ReceiverNextExpectedSeq;
+    int32_t m_milestone_rx;
+    uint32_t m_lastNACK;
 
     /***********
      * methods
@@ -171,15 +159,12 @@ class RdmaQueuePair : public CongestionControlSender, public RdmaRxQueuePair {
 class RdmaCongestionControlGroup : public Object {
    public:
     std::vector<Ptr<CongestionControlSender> > m_qps;
-    // std::vector<Ptr<RdmaRxQueuePair> > m_rxQps;
-
     static TypeId GetTypeId(void);
     RdmaCongestionControlGroup(void);
     uint32_t GetN(void);
     Ptr<CongestionControlSender> Get(uint32_t idx);
     Ptr<CongestionControlSender> operator[](uint32_t idx);
     void AddQp(Ptr<CongestionControlSender> qp);
-    // void AddRxQp(Ptr<RdmaRxQueuePair> rxQp);
     void Clear(void);
 };
 

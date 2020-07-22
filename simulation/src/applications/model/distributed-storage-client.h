@@ -52,18 +52,36 @@ class Packet;
 class SendCompeltionReturnValue;
 class RpcResponse;
 
-class DistributedStorageClient : public RdmaClient {
+class UserSpaceConnection {
+    UserSpaceCongestionControl ucc;
+    DropBasedFlowseg flowseg;
+    Ptr<RdmaQueuePair> qp;
+};
+
+class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
    public:
     static TypeId GetTypeId(void);
     DistributedStorageClient();
     virtual ~DistributedStorageClient();
 
-    // storage-specified level
-    // maybe we need an abstraction here
+    /*
+     *  public interfaces
+     */
+    static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
+    // Rdma
+    virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) override;
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
+
+    /*
+     *  application interface
+     */
     // RPC-level interface
     void SendRpc(uint32_t size);
 
+    // Used for port Management
+    void GetNextAvailablePort();
     //
 
    protected:
@@ -73,9 +91,15 @@ class DistributedStorageClient : public RdmaClient {
     virtual void StartApplication(void);
     virtual void StopApplication(void);
 
+    void AddQP(Ptr<RdmaAppQP> qp);
     // need maintain a QP collection:
     // somthing like key-value storage <qp,ip>
+    std::hash_map<RdmaAppQP> m_QPs;
 
+    /*
+     *  basic attributes
+     */
+    Ipv4Address m_ip;
     //
 };
 

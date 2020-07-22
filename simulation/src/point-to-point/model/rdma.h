@@ -48,6 +48,7 @@ using IBVWorkRequest = struct ibv_wr {
 using IBVWorkCompletion = struct ibv_wc {
     Ptr<RdmaQueuePair> qp;
     IBVerb verb;
+    bool isTx;
     uint32_t size;
     uint32_t imm;
     uint64_t time_in_us;

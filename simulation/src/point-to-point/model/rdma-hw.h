@@ -40,42 +40,37 @@ class RdmaHw : public Object {
     bool m_backto0;
     bool m_var_win, m_fast_react;
     bool m_rateBound;
-    std::vector<RdmaInterfaceMgr> m_nic;                        // list of running nic controlled by this RdmaHw
-    std::unordered_map<uint64_t, Ptr<RdmaQueuePair> > m_qpMap;  // mapping from uint64_t to qp
-
-    std::unordered_map<SimpleTuple, Ptr<RdmaRxQueuePair>, SimpleTupleHash, SimpleTupleEqual> m_rxQpMap;  // mapping from uint64_t to rx qp
-    std::unordered_map<uint32_t, std::vector<int> > m_rtTable;  // map from ip address (u32) to possible ECMP port (index of dev)
+    std::vector<RdmaInterfaceMgr> m_nic;                                                             // list of running nic controlled by this RdmaHw
+    std::unordered_map<SimpleTuple, Ptr<RdmaQueuePair>, SimpleTupleHash, SimpleTupleEqual> m_qpMap;  // mapping from uint64_t to qp
+    std::unordered_map<uint32_t, std::vector<int>> m_rtTable;  // map from ip address (u32) to possible ECMP port (index of dev)
 
     // qp complete callback
-    typedef Callback<void, Ptr<RdmaQueuePair> > QpCompleteCallback;
+    typedef Callback<void, Ptr<RdmaQueuePair>> QpCompleteCallback;
     QpCompleteCallback m_qpCompleteCallback;
 
     void SetNode(Ptr<Node> node);
-    void Setup(QpCompleteCallback cb);                                    // setup shared data and callbacks with the QbbNetDevice
-    static uint64_t GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg);  // get the lookup key for m_qpMap
-    Ptr<RdmaQueuePair> GetQp(uint32_t dip, uint16_t sport, uint16_t pg);  // get the qp
-    uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);                        // get the NIC index of the qp
+    void Setup(QpCompleteCallback cb);  // setup shared data and callbacks with the QbbNetDevice
+    // static uint64_t GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg);  // get the lookup key for m_qpMap
+    Ptr<RdmaQueuePair> GetQp(SimpleTuple &tuple);   // get the qp
+    uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);  // get the NIC index of the qp
 
-    void AddQueuePair(uint64_t size, const QPConnectionAttr &conn_attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
-                      Callback<void, IBVWorkCompletion &> notifyCompletion);  // add a new qp (new send)
+    Ptr<RdmaQueuePair> AddQueuePair(uint64_t size, const QPConnectionAttr &conn_attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
+                                    Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion);  // add a new qp (new send)
     void DeleteQueuePair(Ptr<RdmaQueuePair> qp);
-
-    Ptr<RdmaRxQueuePair> GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create);  // get a rxQp
-    uint32_t GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q);  // get the NIC index of the rxQp
-    void DeleteRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);
+    void DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);
 
     // TO DO Krayecho Yx: these fuunctions should be moved into QPs
     int Receive(Ptr<Packet> p, CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this
                                                    // function. And do not call this upon PFC
-    void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> qp, CustomHeader &ch);
-    void UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> qp, CustomHeader &ch);
+    void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+    void UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
     int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
     int ReceiveAck(Ptr<Packet> p, CustomHeader &ch);  // handle both ACK and NACK
 
-    void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
+    void CheckandSendQCN(Ptr<RdmaQueuePair> q);
 
-    RCSeqState RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
-    UCSeqState UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    RCSeqState RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size);
+    UCSeqState UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size);
 
     void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
     static uint16_t EtherToPpp(uint16_t protocol);

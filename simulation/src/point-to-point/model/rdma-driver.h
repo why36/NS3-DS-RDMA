@@ -17,14 +17,14 @@ using QpParam = struct qp_param {
     uint32_t m_win;      // bound of on-the-fly packets
     uint64_t m_baseRtt;  // base Rtt
     Callback<void> notifyAppFinish;
-    Callback<void, IBVWorkCompletion&> notifyCompletion;
+    Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion;
     qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
-             Callback<void, IBVWorkCompletion&> p_notifyCompletion);
+             Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion = MakeNullCallback<void, Ptr<IBVWorkCompletion>>());
     qp_param& operator=(qp_param& rhs);
 };
 
 QpParam::qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
-                  Callback<void, IBVWorkCompletion&> p_notifyCompletion)
+                  Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion)
     : m_size(p_size), m_win(p_win), m_baseRtt(p_base_rtt), notifyAppFinish(p_notifyAppFinish), notifyCompletion(p_notifyCompletion){};
 
 QpParam& QpParam::operator=(QpParam& rhs) {
@@ -40,13 +40,14 @@ using QPCreateAttribute = struct qp_create_attr {
     QpParam qpParam;
     qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& param);
     qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type, uint64_t p_size,
-                   uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish, Callback<void, IBVWorkCompletion&> p_notifyCompletion);
+                   uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish,
+                   Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion = MakeNullCallback<void, Ptr<IBVWorkCompletion>>());
 };
 
 inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& p_param) : conAttr(p_con_attr), qpParam(p_param){};
 inline QPCreateAttribute::qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type,
                                          uint64_t p_size, uint32_t p_win, uint64_t p_base_rtt, Callback<void> p_notify_app_finish,
-                                         Callback<void, IBVWorkCompletion&> p_notify_completion)
+                                         Callback<void, Ptr<IBVWorkCompletion>> p_notify_completion)
     : conAttr(p_pg, p_sip, p_dip, p_sport, p_dport, p_qp_type), qpParam(p_size, p_win, p_base_rtt, p_notify_app_finish, p_notify_completion){};
 
 class RdmaDriver : public Object {
@@ -55,7 +56,7 @@ class RdmaDriver : public Object {
     Ptr<RdmaHw> m_rdma;
 
     // trace
-    TracedCallback<Ptr<RdmaQueuePair> > m_traceQpComplete;
+    TracedCallback<Ptr<RdmaQueuePair>> m_traceQpComplete;
 
     static TypeId GetTypeId(void);
     RdmaDriver();
@@ -71,7 +72,7 @@ class RdmaDriver : public Object {
     void SetRdmaHw(Ptr<RdmaHw> rdma);
 
     // add a queue pair
-    void AddQueuePair(QPCreateAttribute& QPCreateAttr);
+    Ptr<RdmaQueuePair> AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
     // callback when qp completes
     void QpComplete(Ptr<RdmaQueuePair> q);

@@ -176,8 +176,8 @@ void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q) {
     // remove rxQp from the receiver
     Ptr<Node> dstNode = n.Get(did);
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
-    rdma->m_rdma->DeleteRxQp(q->m_connectionAttr.sip.Get(), q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport, q->m_connectionAttr.dport,
-                             q->m_connectionAttr.pg);
+    rdma->m_rdma->DeleteQp(q->m_connectionAttr.sip.Get(), q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport, q->m_connectionAttr.dport,
+                           q->m_connectionAttr.pg);
 }
 
 void get_pfc(FILE *fout, Ptr<QbbNetDevice> dev, uint32_t type) {

@@ -58,7 +58,6 @@ class RdmaClient : public Application {
     void SetPG(uint16_t pg);
     void SetSize(uint64_t size);
     void Finish();
-    void OnComletion(IBVWorkCompletion&);
 
    protected:
     virtual void DoDispose(void);

@@ -113,15 +113,15 @@ uint32_t RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp) {
         NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
     }
 }
-uint64_t RdmaHw::GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg) { return ((uint64_t)dip << 32) | ((uint64_t)sport << 16) | (uint64_t)pg; }
-Ptr<RdmaQueuePair> RdmaHw::GetQp(uint32_t dip, uint16_t sport, uint16_t pg) {
-    uint64_t key = GetQpKey(dip, sport, pg);
-    auto it = m_qpMap.find(key);
+// uint64_t RdmaHw::GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg) { return ((uint64_t)dip << 32) | ((uint64_t)sport << 16) | (uint64_t)pg; }
+
+Ptr<RdmaQueuePair> RdmaHw::GetQp(SimpleTuple &tuple) {
+    auto it = m_qpMap.find(tuple);
     if (it != m_qpMap.end()) return it->second;
     return NULL;
 }
-void RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
-                          Callback<void, IBVWorkCompletion &> notifyCompletion) {
+Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
+                                        Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) {
     // create qp
 
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(attr);
@@ -134,8 +134,15 @@ void RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &attr, uint32_t 
     // add qp
     uint32_t nic_idx = GetNicIdxOfQp(qp);
     m_nic[nic_idx].qpGrp->AddQp(qp);
-    uint64_t key = GetQpKey(attr.dip.Get(), attr.sport, attr.pg);
-    m_qpMap[key] = qp;
+    SimpleTuple tuple = {
+        .sip = attr.sip.Get(),
+        .dip = attr.dip.Get(),
+        .sport = attr.sport,
+        .dport = attr.dport,
+        .prio = attr.pg,
+    };
+
+    m_qpMap[tuple] = qp;
 
     // set init variables
     DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
@@ -156,55 +163,30 @@ void RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &attr, uint32_t 
 
     // Notify Nic
     m_nic[nic_idx].dev->NewQp(qp);
+    return qp;
 }
 
 void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp) {
     // remove qp from the m_qpMap
-    uint64_t key = GetQpKey(qp->m_connectionAttr.dip.Get(), qp->m_connectionAttr.sport, qp->m_connectionAttr.pg);
-    m_qpMap.erase(key);
+    QPConnectionAttr &attr = qp->m_connectionAttr;
+    SimpleTuple tuple = {
+        .sip = attr.sip.Get(),
+        .dip = attr.dip.Get(),
+        .sport = attr.sport,
+        .dport = attr.dport,
+        .prio = attr.pg,
+    };
+    m_qpMap.erase(tuple);
 }
 
-Ptr<RdmaRxQueuePair> RdmaHw::GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create) {
+void RdmaHw::DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg) {
     SimpleTuple tuple = {.sip = sip, .dip = dip, .sport = sport, .dport = dport, .prio = pg};
 
-    auto it = m_rxQpMap.find(tuple);
-
-    NS_ASSERT_MSG(it != m_rxQpMap.end(), "Cannot find QP when receiving");
-    return it->second;
-    /*
-    if (it != m_rxQpMap.end()) return it->second;
-    if (create) {
-        // create new rx qp
-        Ptr<RdmaRxQueuePair> q = CreateObject<RdmaRxQueuePair>();
-        // init the qp
-        q->m_connectionAttr.sip.Set(sip);
-        q->m_connectionAttr.dip.Set(dip);
-        q->m_connectionAttr.sport = sport;
-        q->m_connectionAttr.dport = dport;
-        q->m_ecn_source.qIndex = pg;
-        // store in map
-        m_rxQpMap[key] = q;
-        return q;
-    }
-    return NULL;
-    */
-}  // namespace ns3
-uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q) {
-    auto &v = m_rtTable[q->m_connectionAttr.dip.Get()];
-    if (v.size() > 0) {
-        return v[q->GetHash() % v.size()];
-    } else {
-        NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
-    }
-}
-void RdmaHw::DeleteRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg) {
-    SimpleTuple tuple = {.sip = sip, .dip = dip, .sport = sport, .dport = dport, .prio = pg};
-
-    NS_ASSERT_MSG(m_rxQpMap.count(tuple), "Cannot find rxQP when deleting");
-    m_rxQpMap.erase(tuple);
+    NS_ASSERT_MSG(m_qpMap.count(tuple), "Cannot find rxQP when deleting");
+    m_qpMap.erase(tuple);
 }
 
-void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader &ch) {
+void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
     uint8_t ecnbits = ch.GetIpv4EcnBits();
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
 
@@ -241,14 +223,14 @@ void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader
             newp->AddHeader(head);
             AddHeader(newp, 0x800);  // Attach PPP header
             // send
-            uint32_t nic_idx = GetNicIdxOfRxQp(rxQp);
+            uint32_t nic_idx = GetNicIdxOfQp(rxQp);
             m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
             m_nic[nic_idx].dev->TriggerTransmit();
         }
     }
 }
 
-void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaRxQueuePair> rxQp, CustomHeader &ch) {
+void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
     uint8_t ecnbits = ch.GetIpv4EcnBits();
 
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
@@ -283,7 +265,14 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
 
     uint32_t i;
     // get qp
-    Ptr<RdmaQueuePair> qp = GetQp(ch.sip, udpport, qIndex);
+    SimpleTuple rxTuple = {
+        .sip = ch.dip,
+        .dip = ch.sip,
+        .sport = ch.udp.dport,
+        .dport = ch.udp.sport,
+        .prio = ch.udp.pg,
+    };
+    Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
     if (qp == NULL) std::cout << "ERROR: QCN NIC cannot find the flow\n";
     // get nic
     uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -306,7 +295,7 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
         }
     }
     return 0;
-}
+}  // namespace ns3
 
 int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     uint16_t qIndex = ch.ack.pg;
@@ -314,7 +303,14 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     uint32_t seq = ch.ack.seq;
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     int i;
-    Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
+    SimpleTuple rxTuple = {
+        .sip = ch.sip,
+        .dip = ch.dip,
+        .sport = ch.udp.sport,
+        .dport = ch.udp.dport,
+        .prio = ch.udp.pg,
+    };
+    Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
     if (qp == NULL) {
         std::cout << "ERROR: "
                   << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
@@ -364,7 +360,14 @@ int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
     L3Protocol proto = static_cast<L3Protocol>(ch.l3Prot);
     switch (proto) {
         case L3Protocol::PROTO_UDP: {
-            Ptr<RdmaRxQueuePair> rxQp = GetRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, true);
+            SimpleTuple rxTuple = {
+                .sip = ch.dip,
+                .dip = ch.sip,
+                .sport = ch.udp.dport,
+                .dport = ch.udp.sport,
+                .prio = ch.udp.pg,
+            };
+            Ptr<RdmaQueuePair> rxQp = GetQp(rxTuple);
             if (rxQp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
                 RCReceiveUdp(p, rxQp, ch);
             } else {
@@ -383,12 +386,12 @@ int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
         case L3Protocol::PROTO_ACK:
             ReceiveAck(p, ch);
             break;
-    }
+    }  // namespace ns3
 
     return 0;
 }
 
-RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size) {
     uint32_t expected = q->ReceiverNextExpectedSeq;
     if (seq == expected) {
         q->ReceiverNextExpectedSeq = expected + size;
@@ -417,7 +420,7 @@ RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint
     }
 }
 
-UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaRxQueuePair> q, uint32_t size) {
+UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size) {
     uint32_t seq = header.udp.seq;
     uint32_t expected = q->ReceiverNextExpectedSeq;
 
