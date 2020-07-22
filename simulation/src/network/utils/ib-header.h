@@ -11,7 +11,11 @@
 namespace ns3 {
 
 // Note : only RC/UC + send is supported (for OpCodeOperation)
-enum class OpCodeType { RC = 0, UC = 1, /* RD = 2, UD = 3, CNP = 4, XRC = 5 */ };
+enum class OpCodeType {
+    RC = 0,
+    UC = 1,
+    /* RD = 2, UD = 3, CNP = 4, XRC = 5 */
+};
 
 enum class OpCodeOperation {
     SEND_FIRST = 0,
@@ -31,13 +35,14 @@ struct OpCode {
 class IBHeader final : public Header {
    public:
     static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId (void) const;
     virtual ~IBHeader() override;
     virtual uint32_t GetSerializedSize(void) const override;
     virtual void Serialize(Buffer::Iterator start) const;
     virtual uint32_t Deserialize(Buffer::Iterator start) override;
-    virtual void Print(std::ostream& os) const override;
+    virtual void Print(std::ostream &os) const override;
 
-    OpCode& GetOpCode();
+    OpCode &GetOpCode();
     OpCode m_opcode;
 };
 
