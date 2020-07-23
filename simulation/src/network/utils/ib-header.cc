@@ -23,6 +23,16 @@ namespace ns3
         return (OpCodeOperation)(data & 0x1f);
     }
 
+    void OpCode::SetOpCodeType( OpCodeType opCodeType) //opcode[7-5]
+    {
+        data = GetOpCodeOperation() + ( static_cast<uint8_t>(opCodeType)<<5);
+    }
+
+    void OpCode::SetOpCodeOperation(OpCodeOperation opCodeOperation) //opcode[4-0]
+    {
+        data = (data & 0xe0) + static_cast<uint8_t>(opCodeOperation);
+    }
+
     TypeId IBHeader::GetTypeId(void)
     {
         static TypeId tid = TypeId("ns3::IBHeader").SetParent<Header>().AddConstructor<IBHeader>();

@@ -30,6 +30,8 @@ struct OpCode {
     uint8_t data;
     OpCodeType GetOpCodeType();
     OpCodeOperation GetOpCodeOperation();
+    void SetOpCodeType(OpCodeType opCodeType);
+    void SetOpCodeOperation(OpCodeOperation opCodeOperation);
 };
 
 class IBHeader final : public Header {
