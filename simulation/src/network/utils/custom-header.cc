@@ -78,15 +78,15 @@ uint32_t CustomHeader::GetSerializedSize(void) const {
     if (headerType & L2_Header) len += 14;
     if (headerType & L3_Header) len += 5 * 4;
     if (headerType & L4_Header) {
-        if (l3Prot == 0x6)  // TCP
+        if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_TCP))  // TCP
             len += tcp.length * 4;
-        else if (l3Prot == 0x11)  // UDP
+        else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_UDP))  // UDP
             len += GetUdpHeaderSize();
-        else if (l3Prot == 0xFC || l3Prot == 0xFD)
+        else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_ACK) || l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_NACK))
             len += GetAckSerializedSize();
-        else if (l3Prot == 0xFF)
+        else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_CNP))
             len += 8;
-        else if (l3Prot == 0xFE)
+        else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_PFC))  // PFC
             len += 9;
     }
     return len;
@@ -125,7 +125,7 @@ void CustomHeader::Serialize(Buffer::Iterator start) const {
 
     // L4
     if (headerType & L4_Header) {
-        if (l3Prot == 0x6) {  // TCP
+        if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_TCP)) {  // TCP
             i.WriteHtonU16(tcp.sport);
             i.WriteHtonU16(tcp.dport);
             i.WriteHtonU32(tcp.seq);
@@ -137,7 +137,7 @@ void CustomHeader::Serialize(Buffer::Iterator start) const {
 
             uint32_t optionLen = (tcp.length - 5) * 4;
             if (optionLen <= 32) i.Write(tcp.optionBuf, optionLen);
-        } else if (l3Prot == 0x11) {  // UDP
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_UDP)) {  // UDP
             // udp header
             i.WriteHtonU16(udp.sport);
             i.WriteHtonU16(udp.dport);
@@ -148,20 +148,20 @@ void CustomHeader::Serialize(Buffer::Iterator start) const {
             i.WriteHtonU16(udp.pg);
             // udp.ibh.Serialize(i);
             // udp.ih.Serialize(i);
-        } else if (l3Prot == 0xFF) {  // CNP
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_CNP)) {  // CNP
             i.WriteU8(cnp.qIndex);
             i.WriteU16(cnp.fid);
             i.WriteU8(cnp.ecnBits);
             i.WriteU16(cnp.qfb);
             i.WriteU16(cnp.total);
-        } else if (l3Prot == 0xFC || l3Prot == 0xFD) {  // ACK or NACK
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_ACK) || l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_NACK)) {  // ACK or NACK
             i.WriteU16(ack.sport);
             i.WriteU16(ack.dport);
             i.WriteU16(ack.flags);
             i.WriteU16(ack.pg);
             i.WriteU32(ack.seq);
             udp.ih.Serialize(i);
-        } else if (l3Prot == 0xFE) {  // PFC
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_PFC)) {  // PFC
             i.WriteU32(pfc.time);
             i.WriteU32(pfc.qlen);
             i.WriteU8(pfc.qIndex);
@@ -232,7 +232,7 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
     // TCP
     int l4Size = 0;
     if (headerType & L4_Header) {
-        if (l3Prot == 0x6) {  // TCP
+        if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_TCP)) {  // TCP
             i = start;
             i.Next(l2Size + l3Size);
             tcp.sport = i.ReadNtohU16();
@@ -257,7 +257,7 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
                 i.Read(tcp.optionBuf, optionLen);
             }
             l4Size = tcp.length * 4;
-        } else if (l3Prot == 0x11) {  // UDP + SeqTsHeader
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_UDP)) {  // UDP + SeqTsHeader
             i = start;
             i.Next(l2Size + l3Size);
             // udp header
@@ -277,14 +277,14 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
             if (getInt) udp.ih.Deserialize(i);
 
             l4Size = GetUdpHeaderSize();
-        } else if (l3Prot == 0xFF) {
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_CNP)) {
             cnp.qIndex = i.ReadU8();
             cnp.fid = i.ReadU16();
             cnp.ecnBits = i.ReadU8();
             cnp.qfb = i.ReadU16();
             cnp.total = i.ReadU16();
             l4Size = 8;
-        } else if (l3Prot == 0xFC || l3Prot == 0xFD) {  // ACK or NACK
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_ACK) || l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_NACK)) {  // ACK or NACK
             ack.sport = i.ReadU16();
             ack.dport = i.ReadU16();
             ack.flags = i.ReadU16();
@@ -292,7 +292,7 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
             ack.seq = i.ReadU32();
             if (getInt) ack.ih.Deserialize(i);
             l4Size = GetAckSerializedSize();
-        } else if (l3Prot == 0xFE) {  // PFC
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_PFC)) {  // PFC
             pfc.time = i.ReadU32();
             pfc.qlen = i.ReadU32();
             pfc.qIndex = i.ReadU8();
