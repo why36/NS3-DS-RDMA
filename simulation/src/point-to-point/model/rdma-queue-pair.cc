@@ -6,10 +6,12 @@
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 #include <ns3/uinteger.h>
-
+#include <ns3/ib-header.h>
 #include "ns3/ppp-header.h"
+#include <ns3/assert.h>
 
 namespace ns3 {
+
 
 /**************************
  * RdmaQueuePair
@@ -142,6 +144,82 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
 uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
 
 bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
+
+//data path
+Ptr<Packet> RdmaQueuePair::GetNextPacket(){
+
+    NS_ASSERT_WITH_LOG(m_sendingWr!=nullptr,"m_sendingWr is NULL");
+    uint32_t size = m_remainingSize < m_mtu ? m_remainingSize:m_mtu;
+    m_remainingSize -= size;
+    
+
+    IBHeader ibheader;
+    ibheader.GetOpCode().SetOpCodeType(m_connectionAttr.qp_type);
+    
+    if(size == m_sendingWr->size)
+    {
+        if(m_remainingSize == size)
+        {
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
+        }else{
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
+        }
+    }else{
+        if(m_remainingSize == size){
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
+        }else{
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
+        }
+    }
+    
+    if(m_remainingSize == 0)
+    {
+        if(!m_wrs.Empty())
+        {
+            m_sendingWr = m_wrs.front();
+            m_remainingSize = m_sendingWr->size;
+        }
+        else{
+            m_sendingWr = nullptr;
+        }
+    }
+    
+    
+    Ptr<Packet> packet = Create<Packet>(size); 
+
+    // add SeqTsHeader
+    SeqTsHeader seqTs;
+    seqTs.SetSeq(snd_nxt);
+    seqTs.SetPG(m_connectionAttr.pg);
+    packet->AddHeader(seqTs);
+
+
+    // add udp header
+    UdpHeader udpHeader;
+    udpHeader.SetDestinationPort(m_connectionAttr.dport);
+    udpHeader.SetSourcePort(m_connectionAttr.sport);
+    packet->AddHeader(udpHeader);
+    
+    // add ipv4 header
+    Ipv4Header ipHeader;
+    ipHeader.SetSource(m_connectionAttr.sip);
+    ipHeader.SetDestination(m_connectionAttr.dip);
+    ipHeader.SetProtocol(0x11);
+    ipHeader.SetPayloadSize(packet->GetSize());
+    ipHeader.SetTtl(64);
+    ipHeader.SetTos(0);
+    ipHeader.SetIdentification(m_ipid);
+    packet->AddHeader(ipHeader);
+    
+    // add ppp header
+    PppHeader ppp;
+    ppp.SetProtocol(0x0021);  // EtherToPpp(0x800), see point-to-point-net-device.cc
+    packet->AddHeader(ppp);
+
+    
+    return packet;
+}
+
 
 TypeId CongestionControlReceiver::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::CongestionControlReceiver").SetParent<Object>();

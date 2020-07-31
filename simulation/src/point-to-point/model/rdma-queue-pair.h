@@ -9,10 +9,12 @@
 #include <ns3/object.h>
 #include <ns3/packet.h>
 #include <ns3/rdma.h>
-
+#include <ns3/tag.h>
 #include <vector>
 
 namespace ns3 {
+
+
 
 namespace CongestionControl {
 using DCQCN = struct dcqcn {
@@ -116,6 +118,7 @@ class CongestionControlReceiver : public virtual Object {
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 };
 
+
 class RdmaQueuePair : public CongestionControlSender, public CongestionControlReceiver {
    public:
     // app-specified
@@ -138,6 +141,12 @@ class RdmaQueuePair : public CongestionControlSender, public CongestionControlRe
     int32_t m_milestone_rx;
     uint32_t m_lastNACK;
 
+    // data path
+    std::queue<Ptr<IBVWorkRequest>> m_wrs;
+    Ptr<IBVWorkRequest> m_sendingWr;
+    uint32_t m_remainingSize;
+    OpCodeOperation m_sendingOperation;    
+
     /***********
      * methods
      **********/
@@ -154,6 +163,11 @@ class RdmaQueuePair : public CongestionControlSender, public CongestionControlRe
     virtual Ptr<RdmaQueuePair> GetNextQp() override final;
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);
+
+    //data path
+    int ibv_post_send(Ptr<IBVWorkRequest> wc);
+    Ptr<Packet> GetNextPacket();
+    int Empty();
 };
 
 class RdmaCongestionControlGroup : public Object {
