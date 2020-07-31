@@ -30,12 +30,7 @@ class CongestionSignal {
     // To do
 };
 
-enum CongestionControlType {
-    WINDOW_BASE = 0 << 0,
-    RATE_BASE = 1 << 0,
-    RTT_SIGNAL = 0 << 1,
-    ECN_SIGNAL = 1 << 1
-}
+enum CongestionControlType { WINDOW_BASE = 0 << 0, RATE_BASE = 1 << 0, RTT_SIGNAL = 1 << 1, ECN_SIGNAL = (1 << 1) | (1 << 0) };
 
 class UserSpaceCongestionControl {
    public:
@@ -53,16 +48,16 @@ class WindowCongestionControl : public UserSpaceCongestionControl {
     virtual void UpdateSignal(CongestionSignal& signal);
     virtual uint32_t GetCongestionWindow() = 0;
 
-   private:
+   protected:
     // forbids to construct
     WindowCongestionControl() { mType |= WINDOW_BASE; }
-}
+};
 
 class RttWindowCongestionControl : public object,
                                    public WindowCongestionControl {
    public:
     RttWindowCongestionControl() : WindowCongestionControl() { mType |= RTT_SIGNAL; }
-}
+};
 
 inline CongestionControlType
 UserSpaceCongestionControl::GetCongestionContorlType() {
