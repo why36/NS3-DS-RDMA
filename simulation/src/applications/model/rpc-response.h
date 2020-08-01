@@ -33,7 +33,7 @@
 
 namespace ns3 {
 
-class PRpcResponse {
+class RpcResponse {
    public:
     template <typename T>
     RpcResponse(T result) {
