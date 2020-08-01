@@ -34,11 +34,11 @@ namespace ns3 {
 
 enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM };
 static const int kTagsInWR = 4;
-using TagPayload = std::array<Ptr<PacketTag>, kTagsInWR>;
+using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
 
 class RdmaQueuePair; 
 
-using IBVWorkRequest = struct ibv_wr {
+using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr>{
     IBVerb verb;
     uint32_t size;
     uint32_t imm;

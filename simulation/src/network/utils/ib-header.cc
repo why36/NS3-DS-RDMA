@@ -25,7 +25,7 @@ namespace ns3
 
     void OpCode::SetOpCodeType( OpCodeType opCodeType) //opcode[7-5]
     {
-        data = GetOpCodeOperation() + ( static_cast<uint8_t>(opCodeType)<<5);
+        data = static_cast<uint8_t>(GetOpCodeOperation()) + ( static_cast<uint8_t>(opCodeType)<<5);
     }
 
     void OpCode::SetOpCodeOperation(OpCodeOperation opCodeOperation) //opcode[4-0]

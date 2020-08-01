@@ -1,5 +1,8 @@
-#include "rdma-queue-pair.h"
 
+#include "rdma-queue-pair.h"
+#include <ns3/rdma-hw.h>
+
+#include <ns3/rdma.h>
 #include <ns3/hash.h>
 #include <ns3/ipv4-header.h>
 #include <ns3/seq-ts-header.h>
@@ -9,7 +12,7 @@
 #include <ns3/ib-header.h>
 #include "ns3/ppp-header.h"
 #include <ns3/assert.h>
-
+#include <queue>
 namespace ns3 {
 
 
@@ -148,25 +151,22 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 //data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket(){
 
-    NS_ASSERT_WITH_LOG(m_sendingWr!=nullptr,"m_sendingWr is NULL");
-    uint32_t size = m_remainingSize < m_mtu ? m_remainingSize:m_mtu;
+    NS_ASSERT_MSG(m_sendingWr!=nullptr,"m_sendingWr is NULL");
+    uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize:m_rdma->m_mtu;
     m_remainingSize -= size;
     
 
     IBHeader ibheader;
-    ibheader.GetOpCode().SetOpCodeType(m_connectionAttr.qp_type);
+    ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
     
-    if(size == m_sendingWr->size)
-    {
-        if(m_remainingSize == size)
-        {
-            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-        }else{
+
+    if(m_sendingWr->size == size){
+        ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
+    }else if(m_remainingSize == 0 && m_sendingWr->size!=size){
+        ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
+    }else if(m_remainingSize !=0){
+        if(size+m_remainingSize == m_sendingWr->size){
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
-        }
-    }else{
-        if(m_remainingSize == size){
-            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
         }else{
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
         }
@@ -174,7 +174,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket(){
     
     if(m_remainingSize == 0)
     {
-        if(!m_wrs.Empty())
+        if(!m_wrs.empty())
         {
             m_sendingWr = m_wrs.front();
             m_remainingSize = m_sendingWr->size;
