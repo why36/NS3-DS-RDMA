@@ -1,20 +1,21 @@
 
 #include "rdma-queue-pair.h"
-#include <ns3/rdma-hw.h>
 
-#include <ns3/rdma.h>
+#include <ns3/assert.h>
 #include <ns3/hash.h>
+#include <ns3/ib-header.h>
 #include <ns3/ipv4-header.h>
+#include <ns3/rdma-hw.h>
+#include <ns3/rdma.h>
 #include <ns3/seq-ts-header.h>
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 #include <ns3/uinteger.h>
-#include <ns3/ib-header.h>
-#include "ns3/ppp-header.h"
-#include <ns3/assert.h>
-#include <queue>
-namespace ns3 {
 
+#include <queue>
+
+#include "ns3/ppp-header.h"
+namespace ns3 {
 
 /**************************
  * RdmaQueuePair
@@ -148,44 +149,40 @@ uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
 
 bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 
-//data path
-Ptr<Packet> RdmaQueuePair::GetNextPacket(){
-
-    NS_ASSERT_MSG(m_sendingWr!=nullptr,"m_sendingWr is NULL");
-    uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize:m_rdma->m_mtu;
+// data path
+Ptr<Packet> RdmaQueuePair::GetNextPacket() {
+    NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
+    uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
     m_remainingSize -= size;
-    
 
     IBHeader ibheader;
     ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
-    
 
-    if(m_sendingWr->size == size){
+    if (m_sendingWr->size == size) {
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-    }else if(m_remainingSize == 0 && m_sendingWr->size!=size){
+    } else if (m_remainingSize == 0 && m_sendingWr->size != size) {
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
-    }else if(m_remainingSize !=0){
-        if(size+m_remainingSize == m_sendingWr->size){
+    } else if (m_remainingSize != 0) {
+        if (size + m_remainingSize == m_sendingWr->size) {
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
-        }else{
+        } else {
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
         }
     }
-    
-    if(m_remainingSize == 0)
-    {
-        if(!m_wrs.empty())
-        {
+
+    if (m_remainingSize == 0) {
+        if (!m_wrs.empty()) {
             m_sendingWr = m_wrs.front();
             m_remainingSize = m_sendingWr->size;
-        }
-        else{
+        } else {
             m_sendingWr = nullptr;
         }
     }
-    
-    
-    Ptr<Packet> packet = Create<Packet>(size); 
+
+    Ptr<Packet> packet = Create<Packet>(size);
+
+    // add IBHeader
+    packet->AddHeader(ibheader);
 
     // add SeqTsHeader
     SeqTsHeader seqTs;
@@ -193,13 +190,12 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket(){
     seqTs.SetPG(m_connectionAttr.pg);
     packet->AddHeader(seqTs);
 
-
     // add udp header
     UdpHeader udpHeader;
     udpHeader.SetDestinationPort(m_connectionAttr.dport);
     udpHeader.SetSourcePort(m_connectionAttr.sport);
     packet->AddHeader(udpHeader);
-    
+
     // add ipv4 header
     Ipv4Header ipHeader;
     ipHeader.SetSource(m_connectionAttr.sip);
@@ -210,16 +206,40 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket(){
     ipHeader.SetTos(0);
     ipHeader.SetIdentification(m_ipid);
     packet->AddHeader(ipHeader);
-    
+
     // add ppp header
     PppHeader ppp;
     ppp.SetProtocol(0x0021);  // EtherToPpp(0x800), see point-to-point-net-device.cc
     packet->AddHeader(ppp);
 
-    
+    // update state
+    snd_nxt += size;
+    m_ipid++;
+
     return packet;
 }
 
+bool RdmaQueuePair::GetNextIbvRequest_AssemblePacket_Finished(Ptr<Packet> packet, Ptr<IBVWorkRequest>& m_receiveWr) { //The assembly and completion of m_receiveWr.The input packet is exactly what we want
+    NS_ASSERT_MSG(packet != nullptr, "packet is NULL");
+
+    IBHeader ibheader;
+    packet->PeekHeader(ibheader);
+
+    uint32_t payload_size = packet->GetZeroFilledSize();
+
+    if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {
+            m_receiveWr->size += payload_size;
+    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_MIDDLE) {
+            m_receiveWr->size += payload_size;
+    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM) {
+            m_receiveWr->size += payload_size;
+            return true;
+    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM) {
+            m_receiveWr->size += payload_size;
+            return true;
+    } 
+    return false;
+}
 
 TypeId CongestionControlReceiver::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::CongestionControlReceiver").SetParent<Object>();

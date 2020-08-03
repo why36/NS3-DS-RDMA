@@ -1,5 +1,6 @@
 #include "rdma-hw.h"
 
+#include <ns3/rdma-queue-pair.h>
 #include <ns3/ipv4-header.h>
 #include <ns3/seq-ts-header.h>
 #include <ns3/simulator.h>

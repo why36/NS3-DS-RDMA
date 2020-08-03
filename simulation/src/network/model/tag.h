@@ -34,7 +34,7 @@ namespace ns3 {
  *
  * New kinds of tags can be created by subclassing this base class.
  */
-class Tag : public ObjectBase, public SimpleRefCount<Tag>//
+class Tag : public ObjectBase, public SimpleRefCount<Tag>
 {
 public:
   static TypeId GetTypeId (void);
