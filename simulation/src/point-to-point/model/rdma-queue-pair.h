@@ -10,13 +10,15 @@
 #include <ns3/packet.h>
 #include <ns3/rdma.h>
 #include <ns3/tag.h>
+
+#include <queue>
 #include <vector>
 
 namespace ns3 {
 
+enum class CongestionControlType { IPBase = 0, FlowBase = 1 };
 
-
-namespace CongestionControl {
+namespace CongestionControlAlgorithms {
 using DCQCN = struct dcqcn {
     DataRate m_targetRate;  //< Target rate
     EventId m_eventUpdateAlpha;
@@ -76,16 +78,27 @@ using ECNAccount = struct ecn_account {
     ecn_account() { memset(this, 0, sizeof(ecn_account)); }
 };
 
-}  // namespace CongestionControl
+}  // namespace CongestionControlAlgorithms
+
+class RdmaHw;
+class RdmaQueuePair;
+
+using IPBasedFlow = struct ip_based_flow {
+    uint16_t pg;
+    Ipv4Address sip;
+    Ipv4Address dip;
+};
 
 class CongestionControlSender : public virtual Object {
    public:
+    CongestionControlSender();
     bool IsWinBound();
     uint64_t GetWin();  // window size calculated from m_rate
     virtual uint64_t GetOnTheFly();
     virtual uint64_t GetBytesLeft();
     virtual bool IsFinished();
     uint64_t HpGetCurWin();  // window size calculated from hp.m_curRate, used by HPCC
+    static TypeId GetTypeId(void);
 
     virtual Ptr<RdmaQueuePair> GetNextQp() = 0;
 
@@ -93,11 +106,11 @@ class CongestionControlSender : public virtual Object {
     void SetBaseRtt(uint64_t baseRtt);
     void SetVarWin(bool v);
 
-    CongestionControl::DCQCN mlx;
-    CongestionControl::HPCC hp;
-    CongestionControl::TIMELY tmly;
-    CongestionControl::DCTCP dctcp;
-    CongestionControl::HPCCPint hpccPint;
+    CongestionControlAlgorithms::DCQCN mlx;
+    CongestionControlAlgorithms::HPCC hp;
+    CongestionControlAlgorithms::TIMELY tmly;
+    CongestionControlAlgorithms::DCTCP dctcp;
+    CongestionControlAlgorithms::HPCCPint hpccPint;
 
     uint64_t m_baseRtt;    // base RTT of this qp
     DataRate m_max_rate;   // max rate
@@ -114,10 +127,22 @@ class CongestionControlSender : public virtual Object {
 class CongestionControlReceiver : public virtual Object {
    public:
     static TypeId GetTypeId(void);
-    CongestionControl::ECNAccount m_ecn_source;
+    CongestionControlAlgorithms::ECNAccount m_ecn_source;
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 };
 
+class RdmaCongestionControlGroup : public Object {
+   public:
+    CongestionControlType mCCType;
+    std::vector<Ptr<CongestionControlSender>> m_qps;
+    static TypeId GetTypeId(void);
+    RdmaCongestionControlGroup(void);
+    uint32_t GetN(void);
+    Ptr<CongestionControlSender> Get(uint32_t idx);
+    Ptr<CongestionControlSender> operator[](uint32_t idx);
+    void AddQp(Ptr<RdmaQueuePair> qp);
+    void Clear(void);
+};
 
 class RdmaQueuePair : public CongestionControlSender, public CongestionControlReceiver {
    public:
@@ -143,10 +168,14 @@ class RdmaQueuePair : public CongestionControlSender, public CongestionControlRe
 
     // data path
     std::queue<Ptr<IBVWorkRequest>> m_wrs;
+    std::queue<Ptr<IBVWorkRequest>> m_receive_wrs;
     Ptr<IBVWorkRequest> m_sendingWr;
+    Ptr<IBVWorkRequest> m_receiveWr;
     uint32_t m_remainingSize;
-    OpCodeOperation m_sendingOperation;    
+    OpCodeOperation m_sendingOperation;
 
+    RdmaHw* m_rdma;
+    // uint32_t m_mtu;
     /***********
      * methods
      **********/
@@ -164,22 +193,23 @@ class RdmaQueuePair : public CongestionControlSender, public CongestionControlRe
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);
 
-    //data path
+    // data path
     int ibv_post_send(Ptr<IBVWorkRequest> wc);
     Ptr<Packet> GetNextPacket();
+    bool GetNextIbvRequest_AssemblePacket_Finished(Ptr<Packet> p, Ptr<IBVWorkRequest>& m_receiveWr);
     int Empty();
 };
 
-class RdmaCongestionControlGroup : public Object {
-   public:
-    std::vector<Ptr<CongestionControlSender> > m_qps;
+class IPBasedCongestionControlSender : public CongestionControlSender {
+public:
+    virtual Ptr<RdmaQueuePair> GetNextQp() override;
     static TypeId GetTypeId(void);
-    RdmaCongestionControlGroup(void);
-    uint32_t GetN(void);
-    Ptr<CongestionControlSender> Get(uint32_t idx);
-    Ptr<CongestionControlSender> operator[](uint32_t idx);
-    void AddQp(Ptr<CongestionControlSender> qp);
-    void Clear(void);
+    void SetIPBasedFlow(QPConnectionAttr& attr);
+    IPBasedFlow mIPBasedFlow;
+    std::vector<Ptr<RdmaQueuePair>> m_QPs;
+
+   private:
+    uint32_t m_lastQP = 0;
 };
 
 }  // namespace ns3

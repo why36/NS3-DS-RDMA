@@ -27,7 +27,7 @@ enum class OpCodeOperation {
 };
 
 struct OpCode {
-    uint8_t data;
+    uint8_t data = 0;
     OpCodeType GetOpCodeType();
     OpCodeOperation GetOpCodeOperation();
     void SetOpCodeType(OpCodeType opCodeType);

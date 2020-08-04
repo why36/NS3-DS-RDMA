@@ -573,6 +573,7 @@ public:
   Ptr<NixVector> GetNixVector (void) const; 
 
   uint8_t* GetBuffer() const;
+  inline uint32_t GetZeroFilledSize (void) const;
 
 private:
   Packet (const Buffer &buffer, const ByteTagList &byteTagList, 
@@ -584,7 +585,7 @@ private:
   ByteTagList m_byteTagList;
   PacketTagList m_packetTagList;
   PacketMetadata m_metadata;
-
+  uint32_t m_zeroFilledSize;
   /* Please see comments above about nix-vector */
   Ptr<NixVector> m_nixVector;
 
@@ -649,7 +650,11 @@ Packet::GetSize (void) const
   return m_buffer.GetSize ();
 }
 
-
+uint32_t 
+Packet::GetZeroFilledSize (void) const
+{
+  return m_zeroFilledSize;
+}
 
 } // namespace ns3
 

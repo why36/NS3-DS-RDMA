@@ -171,6 +171,7 @@ Packet::Packet (uint32_t size)
   : m_buffer (size),
     m_byteTagList (),
     m_packetTagList (),
+    m_zeroFilledSize (size),
     /* The upper 32 bits of the packet id in 
      * metadata is for the system id. For non-
      * distributed simulations, this is simply 
