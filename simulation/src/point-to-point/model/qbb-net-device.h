@@ -44,10 +44,10 @@ class RdmaEgressQueue : public Object {
     int m_qlast;
     uint32_t m_rrlast;
     Ptr<DropTailQueue> m_ackQ;                // highest priority queue
-    Ptr<RdmaCongestionControlGroup> m_qpGrp;  // queue pairs
+    Ptr<QueuePairSet> m_qpGrp;  // queue pairs
 
     // callback for get next packet
-    typedef Callback<Ptr<Packet>, Ptr<CongestionControlSender> > RdmaGetNxtPkt;
+    typedef Callback<Ptr<Packet>, Ptr<RdmaQueuePair> > RdmaGetNxtPkt;
     RdmaGetNxtPkt m_rdmaGetNxtPkt;
 
     static TypeId GetTypeId(void);
@@ -57,7 +57,7 @@ class RdmaEgressQueue : public Object {
     int GetLastQueue();
     uint32_t GetNBytes(uint32_t qIndex);
     uint32_t GetFlowCount(void);
-    Ptr<CongestionControlSender> GetQp(uint32_t i);
+    Ptr<RdmaQueuePair> GetQp(uint32_t i);
     // void RecoverQueue(uint32_t i);
     void EnqueueHighPrioQ(Ptr<Packet> p);
     void CleanHighPrio(TracedCallback<Ptr<const Packet>, uint32_t> dropCb);
@@ -194,7 +194,7 @@ class QbbNetDevice : public PointToPointNetDevice {
     typedef Callback<void, Ptr<QbbNetDevice> > RdmaLinkDownCb;
     RdmaLinkDownCb m_rdmaLinkDownCb;
     // callback for sent a packet
-    typedef Callback<void, Ptr<CongestionControlSender>, Ptr<Packet>, Time> RdmaPktSent;
+    typedef Callback<void, Ptr<RdmaQueuePair>, Ptr<Packet>, Time> RdmaPktSent;
     RdmaPktSent m_rdmaPktSent;
 
     Ptr<RdmaEgressQueue> GetRdmaQueue();

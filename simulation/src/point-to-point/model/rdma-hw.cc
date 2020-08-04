@@ -126,10 +126,12 @@ Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &a
     // create qp
 
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(attr);
+
     qp->SetSize(size);
-    qp->SetWin(win);
-    qp->SetBaseRtt(baseRtt);
-    qp->SetVarWin(m_var_win);
+    
+    qp->m_CCEntity->SetWin(win);
+    qp->m_CCEntity->SetBaseRtt(baseRtt);
+    qp->m_CCEntity->SetVarWin(m_var_win);
     qp->SetAppNotifyCallback(notifyAppFinish);
 
     // add qp
@@ -147,19 +149,20 @@ Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &a
 
     // set init variables
     DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
-    qp->m_rate = m_bps;
-    qp->m_max_rate = m_bps;
+    Ptr<CongestionControlEntity> cc_entity = qp->m_CCEntity;
+    cc_entity->m_rate = m_bps;
+    cc_entity->m_max_rate = m_bps;
     if (m_cc_mode == 1) {
-        qp->mlx.m_targetRate = m_bps;
+        cc_entity->mlx.m_targetRate = m_bps;
     } else if (m_cc_mode == 3) {
-        qp->hp.m_curRate = m_bps;
+        cc_entity->hp.m_curRate = m_bps;
         if (m_multipleRate) {
-            for (uint32_t i = 0; i < IntHeader::maxHop; i++) qp->hp.hopState[i].Rc = m_bps;
+            for (uint32_t i = 0; i < IntHeader::maxHop; i++) cc_entity->hp.hopState[i].Rc = m_bps;
         }
     } else if (m_cc_mode == 7) {
-        qp->tmly.m_curRate = m_bps;
+        cc_entity->tmly.m_curRate = m_bps;
     } else if (m_cc_mode == 10) {
-        qp->hpccPint.m_curRate = m_bps;
+        cc_entity->hpccPint.m_curRate = m_bps;
     }
 
     // Notify Nic
@@ -192,10 +195,10 @@ void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
 
     if (ecnbits != 0) {
-        rxQp->m_ecn_source.ecnbits |= ecnbits;
-        rxQp->m_ecn_source.qfb++;
+        rxQp->m_CCEntity->m_ecn_source.ecnbits |= ecnbits;
+        rxQp->m_CCEntity->m_ecn_source.qfb++;
     }
-    rxQp->m_ecn_source.total++;
+    rxQp->m_CCEntity->m_ecn_source.total++;
     rxQp->m_milestone_rx = m_ack_interval;
 
     RCSeqState x = RCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
@@ -238,10 +241,10 @@ void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &
 
     // TODO find corresponding rx queue pair
     if (ecnbits != 0) {
-        rxQp->m_ecn_source.ecnbits |= ecnbits;
-        rxQp->m_ecn_source.qfb++;
+        rxQp->m_CCEntity->m_ecn_source.ecnbits |= ecnbits;
+        rxQp->m_CCEntity->m_ecn_source.qfb++;
     }
-    rxQp->m_ecn_source.total++;
+    rxQp->m_CCEntity->m_ecn_source.total++;
     rxQp->m_milestone_rx = m_ack_interval;
 
     // TO DO Krayecho Yx: implement UC receiver logic
@@ -279,20 +282,20 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
     uint32_t nic_idx = GetNicIdxOfQp(qp);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
 
-    if (qp->m_rate == 0)  // lazy initialization
+    if (qp->m_CCEntity->m_rate == 0)  // lazy initialization
     {
-        qp->m_rate = dev->GetDataRate();
+        qp->m_CCEntity->m_rate = dev->GetDataRate();
         if (m_cc_mode == 1) {
-            qp->mlx.m_targetRate = dev->GetDataRate();
+            qp->m_CCEntity->mlx.m_targetRate = dev->GetDataRate();
         } else if (m_cc_mode == 3) {
-            qp->hp.m_curRate = dev->GetDataRate();
+            qp->m_CCEntity->hp.m_curRate = dev->GetDataRate();
             if (m_multipleRate) {
-                for (uint32_t i = 0; i < IntHeader::maxHop; i++) qp->hp.hopState[i].Rc = dev->GetDataRate();
+                for (uint32_t i = 0; i < IntHeader::maxHop; i++) qp->m_CCEntity->hp.hopState[i].Rc = dev->GetDataRate();
             }
         } else if (m_cc_mode == 7) {
-            qp->tmly.m_curRate = dev->GetDataRate();
+            qp->m_CCEntity->tmly.m_curRate = dev->GetDataRate();
         } else if (m_cc_mode == 10) {
-            qp->hpccPint.m_curRate = dev->GetDataRate();
+            qp->m_CCEntity->hpccPint.m_curRate = dev->GetDataRate();
         }
     }
     return 0;
@@ -339,18 +342,18 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     // handle cnp
     if (cnp) {
         if (m_cc_mode == 1) {  // mlx version
-            cnp_received_mlx(qp);
+            cnp_received_mlx(qp->m_CCEntity);
         }
     }
 
     if (m_cc_mode == 3) {
-        HandleAckHp(qp, p, ch);
+        HandleAckHp(qp->m_CCEntity, p, ch);
     } else if (m_cc_mode == 7) {
-        HandleAckTimely(qp, p, ch);
+        HandleAckTimely(qp->m_CCEntity, p, ch);
     } else if (m_cc_mode == 8) {
-        HandleAckDctcp(qp, p, ch);
+        HandleAckDctcp(qp->m_CCEntity, p, ch);
     } else if (m_cc_mode == 10) {
-        HandleAckHpPint(qp, p, ch);
+        HandleAckHpPint(qp->m_CCEntity, p, ch);
     }
     // ACK may advance the on-the-fly window, allowing more packets to send
     dev->TriggerTransmit();
@@ -503,9 +506,9 @@ void RdmaHw::RecoverQueue(Ptr<RdmaQueuePair> qp) { qp->snd_nxt = qp->snd_una; }
 void RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp) {
     NS_ASSERT(!m_qpCompleteCallback.IsNull());
     if (m_cc_mode == 1) {
-        Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
-        Simulator::Cancel(qp->mlx.m_eventDecreaseRate);
-        Simulator::Cancel(qp->mlx.m_rpTimer);
+        Simulator::Cancel(qp->m_CCEntity->mlx.m_eventUpdateAlpha);
+        Simulator::Cancel(qp->m_CCEntity->mlx.m_eventDecreaseRate);
+        Simulator::Cancel(qp->m_CCEntity->mlx.m_rpTimer);
     }
 
     // This callback will log info
@@ -544,8 +547,8 @@ void RdmaHw::RedistributeQp() {
     }
 }
 
-Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<CongestionControlSender> sender) {
-    Ptr<RdmaQueuePair> qp = sender->GetNextQp();
+Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp) {
+
     uint32_t payload_size = qp->GetBytesLeft();
     if (m_mtu < payload_size) payload_size = m_mtu;
     Ptr<Packet> p = Create<Packet>(payload_size);
@@ -582,29 +585,30 @@ Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<CongestionControlSender> sender) {
     return p;
 }
 
-void RdmaHw::PktSent(Ptr<CongestionControlSender> qp, Ptr<Packet> pkt, Time interframeGap) {
-    qp->lastPktSize = pkt->GetSize();
+void RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap) {
+    qp->m_CCEntity->lastPktSize = pkt->GetSize();
     UpdateNextAvail(qp, interframeGap, pkt->GetSize());
 }
 
-void RdmaHw::UpdateNextAvail(Ptr<CongestionControlSender> qp, Time interframeGap, uint32_t pkt_size) {
+void RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size) {
     Time sendingTime;
     if (m_rateBound)
-        sendingTime = interframeGap + Seconds(qp->m_rate.CalculateTxTime(pkt_size));
+        sendingTime = interframeGap + Seconds(qp->m_CCEntity->m_rate.CalculateTxTime(pkt_size));
     else
-        sendingTime = interframeGap + Seconds(qp->m_max_rate.CalculateTxTime(pkt_size));
+        sendingTime = interframeGap + Seconds(qp->m_CCEntity->m_max_rate.CalculateTxTime(pkt_size));
     qp->m_nextAvail = Simulator::Now() + sendingTime;
 }
 
-void RdmaHw::ChangeRate(Ptr<CongestionControlSender> qp, DataRate new_rate) {
+void RdmaHw::ChangeRate(Ptr<CongestionControlEntity> qp, DataRate new_rate) {
 #if 1
     Time sendingTime = Seconds(qp->m_rate.CalculateTxTime(qp->lastPktSize));
     Time new_sendintTime = Seconds(new_rate.CalculateTxTime(qp->lastPktSize));
-    qp->m_nextAvail = qp->m_nextAvail + new_sendintTime - sendingTime;
+    
     // update nic's next avail event
     // TO DO Krayecho Yx: fix me: bug for QP distributed on NICs
-    uint32_t nic_idx = GetNicIdxOfQp(qp->GetNextQp());
-    m_nic[nic_idx].dev->UpdateNextAvail(qp->m_nextAvail);
+    //qp->m_nextAvail = qp->m_nextAvail + new_sendintTime - sendingTime;
+    //uint32_t nic_idx = GetNicIdxOfQp(qp);
+    //m_nic[nic_idx].dev->UpdateNextAvail(qp->m_nextAvail);
 #endif
 
     // change to new rate
@@ -615,7 +619,7 @@ void RdmaHw::ChangeRate(Ptr<CongestionControlSender> qp, DataRate new_rate) {
 /******************************
  * Mellanox's version of DCQCN
  *****************************/
-void RdmaHw::UpdateAlphaMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::UpdateAlphaMlx(Ptr<CongestionControlEntity> q) {
 #if PRINT_LOG
 // std::cout << Simulator::Now() << " alpha update:" << m_node->GetId() << ' ' << q->mlx.m_alpha << ' ' << (int)q->mlx.m_alpha_cnp_arrived << '\n';
 // printf("%lu alpha update: %08x %08x %u %u %.6lf->", Simulator::Now().GetTimeStep(), q->m_connectionAttr.sip.Get(), q->m_connectionAttr.dip.Get(),
@@ -632,11 +636,11 @@ void RdmaHw::UpdateAlphaMlx(Ptr<CongestionControlSender> q) {
     q->mlx.m_alpha_cnp_arrived = false;  // clear the CNP_arrived bit
     ScheduleUpdateAlphaMlx(q);
 }
-void RdmaHw::ScheduleUpdateAlphaMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::ScheduleUpdateAlphaMlx(Ptr<CongestionControlEntity> q) {
     q->mlx.m_eventUpdateAlpha = Simulator::Schedule(MicroSeconds(m_alpha_resume_interval), &RdmaHw::UpdateAlphaMlx, this, q);
 }
 
-void RdmaHw::cnp_received_mlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::cnp_received_mlx(Ptr<CongestionControlEntity> q) {
     q->mlx.m_alpha_cnp_arrived = true;     // set CNP_arrived bit for alpha update
     q->mlx.m_decrease_cnp_arrived = true;  // set CNP_arrived bit for rate decrease
     if (q->mlx.m_first_cnp) {
@@ -653,7 +657,7 @@ void RdmaHw::cnp_received_mlx(Ptr<CongestionControlSender> q) {
     }
 }
 
-void RdmaHw::CheckRateDecreaseMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::CheckRateDecreaseMlx(Ptr<CongestionControlEntity> q) {
     ScheduleDecreaseRateMlx(q, 0);
     if (q->mlx.m_decrease_cnp_arrived) {
 #if PRINT_LOG
@@ -677,17 +681,17 @@ void RdmaHw::CheckRateDecreaseMlx(Ptr<CongestionControlSender> q) {
 #endif
     }
 }
-void RdmaHw::ScheduleDecreaseRateMlx(Ptr<CongestionControlSender> q, uint32_t delta) {
+void RdmaHw::ScheduleDecreaseRateMlx(Ptr<CongestionControlEntity> q, uint32_t delta) {
     q->mlx.m_eventDecreaseRate =
         Simulator::Schedule(MicroSeconds(m_rateDecreaseInterval) + NanoSeconds(delta), &RdmaHw::CheckRateDecreaseMlx, this, q);
 }
 
-void RdmaHw::RateIncEventTimerMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::RateIncEventTimerMlx(Ptr<CongestionControlEntity> q) {
     q->mlx.m_rpTimer = Simulator::Schedule(MicroSeconds(m_rpgTimeReset), &RdmaHw::RateIncEventTimerMlx, this, q);
     RateIncEventMlx(q);
     q->mlx.m_rpTimeStage++;
 }
-void RdmaHw::RateIncEventMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::RateIncEventMlx(Ptr<CongestionControlEntity> q) {
     // check which increase phase: fast recovery, active increase, hyper increase
     if (q->mlx.m_rpTimeStage < m_rpgThreshold) {  // fast recovery
         FastRecoveryMlx(q);
@@ -698,7 +702,7 @@ void RdmaHw::RateIncEventMlx(Ptr<CongestionControlSender> q) {
     }
 }
 
-void RdmaHw::FastRecoveryMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::FastRecoveryMlx(Ptr<CongestionControlEntity> q) {
 #if PRINT_LOG
     printf("%lu fast recovery: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(), q->m_connectionAttr.sip.Get(),
            q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport, q->m_connectionAttr.dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
@@ -709,7 +713,7 @@ void RdmaHw::FastRecoveryMlx(Ptr<CongestionControlSender> q) {
     printf("(%.3lf %.3lf)\n", q->mlx.m_targetRate.GetBitRate() * 1e-9, q->m_rate.GetBitRate() * 1e-9);
 #endif
 }
-void RdmaHw::ActiveIncreaseMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::ActiveIncreaseMlx(Ptr<CongestionControlEntity> q) {
 #if PRINT_LOG
     printf("%lu active inc: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(), q->m_connectionAttr.sip.Get(),
            q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport, q->m_connectionAttr.dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
@@ -727,7 +731,7 @@ void RdmaHw::ActiveIncreaseMlx(Ptr<CongestionControlSender> q) {
     printf("(%.3lf %.3lf)\n", q->mlx.m_targetRate.GetBitRate() * 1e-9, q->m_rate.GetBitRate() * 1e-9);
 #endif
 }
-void RdmaHw::HyperIncreaseMlx(Ptr<CongestionControlSender> q) {
+void RdmaHw::HyperIncreaseMlx(Ptr<CongestionControlEntity> q) {
 #if PRINT_LOG
     printf("%lu hyper inc: %08x %08x %u %u (%0.3lf %.3lf)->", Simulator::Now().GetTimeStep(), q->m_connectionAttr.sip.Get(),
            q->m_connectionAttr.dip.Get(), q->m_connectionAttr.sport, q->m_connectionAttr.dport, q->mlx.m_targetRate.GetBitRate() * 1e-9,
@@ -748,7 +752,7 @@ void RdmaHw::HyperIncreaseMlx(Ptr<CongestionControlSender> q) {
 /***********************
  * High Precision CC
  ***********************/
-void RdmaHw::HandleAckHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch) {
+void RdmaHw::HandleAckHp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {
     uint32_t ack_seq = ch.ack.seq;
     // update rate
     if (ack_seq > qp->hp.m_lastUpdateSeq) {  // if full RTT feedback is ready, do full update
@@ -758,16 +762,16 @@ void RdmaHw::HandleAckHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomH
     }
 }
 
-void RdmaHw::UpdateRateHp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, CustomHeader &ch, bool fast_react) {
-    Ptr<RdmaQueuePair> qp = sender->GetNextQp();
+void RdmaHw::UpdateRateHp(Ptr<CongestionControlEntity> sender, Ptr<Packet> p, CustomHeader &ch, bool fast_react) {
+    Ptr<RdmaQueuePair> qp = DynamicCast<RdmaQueuePair,CongestionControlEntity>(sender);
     uint32_t next_seq = qp->snd_nxt;
     bool print = !fast_react || true;
-    if (qp->hp.m_lastUpdateSeq == 0) {  // first RTT
-        qp->hp.m_lastUpdateSeq = next_seq;
+    if (sender->hp.m_lastUpdateSeq == 0) {  // first RTT
+        sender->hp.m_lastUpdateSeq = next_seq;
         // store INT
         IntHeader &ih = ch.ack.ih;
         NS_ASSERT(ih.nhop <= IntHeader::maxHop);
-        for (uint32_t i = 0; i < ih.nhop; i++) qp->hp.hop[i] = ih.hop[i];
+        for (uint32_t i = 0; i < ih.nhop; i++) sender->hp.hop[i] = ih.hop[i];
 #if PRINT_LOG
         if (print) {
             printf("%lu %s %08x %08x %u %u [%u,%u,%u]", Simulator::Now().GetTimeStep(), fast_react ? "fast" : "update",
@@ -801,15 +805,15 @@ void RdmaHw::UpdateRateHp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, Cu
                 updated[i] = updated_any = true;
 #if PRINT_LOG
                 if (print)
-                    printf(" %u(%u) %lu(%lu) %lu(%lu)", ih.hop[i].GetQlen(), qp->hp.hop[i].GetQlen(), ih.hop[i].GetBytes(), qp->hp.hop[i].GetBytes(),
-                           ih.hop[i].GetTime(), qp->hp.hop[i].GetTime());
+                    printf(" %u(%u) %lu(%lu) %lu(%lu)", ih.hop[i].GetQlen(), sender->hp.hop[i].GetQlen(), ih.hop[i].GetBytes(),sender->hp.hop[i].GetBytes(),
+                           ih.hop[i].GetTime(), sender->hp.hop[i].GetTime());
 #endif
-                uint64_t tau = ih.hop[i].GetTimeDelta(qp->hp.hop[i]);
+                uint64_t tau = ih.hop[i].GetTimeDelta(sender->hp.hop[i]);
                 ;
                 double duration = tau * 1e-9;
-                double txRate = (ih.hop[i].GetBytesDelta(qp->hp.hop[i])) * 8 / duration;
-                double u = txRate / ih.hop[i].GetLineRate() + (double)std::min(ih.hop[i].GetQlen(), qp->hp.hop[i].GetQlen()) *
-                                                                  qp->m_max_rate.GetBitRate() / ih.hop[i].GetLineRate() / qp->m_win;
+                double txRate = (ih.hop[i].GetBytesDelta(sender->hp.hop[i])) * 8 / duration;
+                double u = txRate / ih.hop[i].GetLineRate() + (double)std::min(ih.hop[i].GetQlen(), sender->hp.hop[i].GetQlen()) *
+                                                                  sender->m_max_rate.GetBitRate() / ih.hop[i].GetLineRate() / sender->m_win;
 #if PRINT_LOG
                 if (print) printf(" %.3lf %.3lf", txRate, u);
 #endif
@@ -821,10 +825,10 @@ void RdmaHw::UpdateRateHp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, Cu
                     }
                 } else {
                     // for per hop (per hop R)
-                    if (tau > qp->m_baseRtt) tau = qp->m_baseRtt;
-                    qp->hp.hopState[i].u = (qp->hp.hopState[i].u * (qp->m_baseRtt - tau) + u * tau) / double(qp->m_baseRtt);
+                    if (tau > sender->m_baseRtt) tau = sender->m_baseRtt;
+                    sender->hp.hopState[i].u = (sender->hp.hopState[i].u * (sender->m_baseRtt - tau) + u * tau) / double(sender->m_baseRtt);
                 }
-                qp->hp.hop[i] = ih.hop[i];
+                sender->hp.hop[i] = ih.hop[i];
             }
 
             DataRate new_rate;
@@ -834,89 +838,89 @@ void RdmaHw::UpdateRateHp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, Cu
             if (!m_multipleRate) {
                 // for aggregate (single R)
                 if (updated_any) {
-                    if (dt > qp->m_baseRtt) dt = qp->m_baseRtt;
-                    qp->hp.u = (qp->hp.u * (qp->m_baseRtt - dt) + U * dt) / double(qp->m_baseRtt);
-                    max_c = qp->hp.u / m_targetUtil;
+                    if (dt > sender->m_baseRtt) dt = sender->m_baseRtt;
+                    sender->hp.u = (sender->hp.u * (sender->m_baseRtt - dt) + U * dt) / double(sender->m_baseRtt);
+                    max_c = sender->hp.u / m_targetUtil;
 
-                    if (max_c >= 1 || qp->hp.m_incStage >= m_miThresh) {
-                        new_rate = qp->hp.m_curRate / max_c + m_rai;
+                    if (max_c >= 1 || sender->hp.m_incStage >= m_miThresh) {
+                        new_rate = sender->hp.m_curRate / max_c + m_rai;
                         new_incStage = 0;
                     } else {
-                        new_rate = qp->hp.m_curRate + m_rai;
-                        new_incStage = qp->hp.m_incStage + 1;
+                        new_rate = sender->hp.m_curRate + m_rai;
+                        new_incStage = sender->hp.m_incStage + 1;
                     }
                     if (new_rate < m_minRate) new_rate = m_minRate;
-                    if (new_rate > qp->m_max_rate) new_rate = qp->m_max_rate;
+                    if (new_rate > sender->m_max_rate) new_rate = sender->m_max_rate;
 #if PRINT_LOG
-                    if (print) printf(" u=%.6lf U=%.3lf dt=%u max_c=%.3lf", qp->hp.u, U, dt, max_c);
+                    if (print) printf(" u=%.6lf U=%.3lf dt=%u max_c=%.3lf", sender->hp.u, U, dt, max_c);
 #endif
 #if PRINT_LOG
-                    if (print) printf(" rate:%.3lf->%.3lf\n", qp->hp.m_curRate.GetBitRate() * 1e-9, new_rate.GetBitRate() * 1e-9);
+                    if (print) printf(" rate:%.3lf->%.3lf\n", sender->hp.m_curRate.GetBitRate() * 1e-9, new_rate.GetBitRate() * 1e-9);
 #endif
                 }
             } else {
                 // for per hop (per hop R)
-                new_rate = qp->m_max_rate;
+                new_rate = sender->m_max_rate;
                 for (uint32_t i = 0; i < ih.nhop; i++) {
                     if (updated[i]) {
-                        double c = qp->hp.hopState[i].u / m_targetUtil;
-                        if (c >= 1 || qp->hp.hopState[i].incStage >= m_miThresh) {
-                            new_rate_per_hop[i] = qp->hp.hopState[i].Rc / c + m_rai;
+                        double c = sender->hp.hopState[i].u / m_targetUtil;
+                        if (c >= 1 || sender->hp.hopState[i].incStage >= m_miThresh) {
+                            new_rate_per_hop[i] = sender->hp.hopState[i].Rc / c + m_rai;
                             new_incStage_per_hop[i] = 0;
                         } else {
-                            new_rate_per_hop[i] = qp->hp.hopState[i].Rc + m_rai;
-                            new_incStage_per_hop[i] = qp->hp.hopState[i].incStage + 1;
+                            new_rate_per_hop[i] = sender->hp.hopState[i].Rc + m_rai;
+                            new_incStage_per_hop[i] = sender->hp.hopState[i].incStage + 1;
                         }
                         // bound rate
                         if (new_rate_per_hop[i] < m_minRate) new_rate_per_hop[i] = m_minRate;
-                        if (new_rate_per_hop[i] > qp->m_max_rate) new_rate_per_hop[i] = qp->m_max_rate;
+                        if (new_rate_per_hop[i] > sender->m_max_rate) new_rate_per_hop[i] = sender->m_max_rate;
                         // find min new_rate
                         if (new_rate_per_hop[i] < new_rate) new_rate = new_rate_per_hop[i];
 #if PRINT_LOG
-                        if (print) printf(" [%u]u=%.6lf c=%.3lf", i, qp->hp.hopState[i].u, c);
+                        if (print) printf(" [%u]u=%.6lf c=%.3lf", i, sender->hp.hopState[i].u, c);
 #endif
 #if PRINT_LOG
-                        if (print) printf(" %.3lf->%.3lf", qp->hp.hopState[i].Rc.GetBitRate() * 1e-9, new_rate.GetBitRate() * 1e-9);
+                        if (print) printf(" %.3lf->%.3lf", sender->hp.hopState[i].Rc.GetBitRate() * 1e-9, new_rate.GetBitRate() * 1e-9);
 #endif
                     } else {
-                        if (qp->hp.hopState[i].Rc < new_rate) new_rate = qp->hp.hopState[i].Rc;
+                        if (sender->hp.hopState[i].Rc < new_rate) new_rate = sender->hp.hopState[i].Rc;
                     }
                 }
 #if PRINT_LOG
                 printf("\n");
 #endif
             }
-            if (updated_any) ChangeRate(qp, new_rate);
+            if (updated_any) ChangeRate(sender, new_rate);
             if (!fast_react) {
                 if (updated_any) {
-                    qp->hp.m_curRate = new_rate;
-                    qp->hp.m_incStage = new_incStage;
+                    sender->hp.m_curRate = new_rate;
+                    sender->hp.m_incStage = new_incStage;
                 }
                 if (m_multipleRate) {
                     // for per hop (per hop R)
                     for (uint32_t i = 0; i < ih.nhop; i++) {
                         if (updated[i]) {
-                            qp->hp.hopState[i].Rc = new_rate_per_hop[i];
-                            qp->hp.hopState[i].incStage = new_incStage_per_hop[i];
+                            sender->hp.hopState[i].Rc = new_rate_per_hop[i];
+                            sender->hp.hopState[i].incStage = new_incStage_per_hop[i];
                         }
                     }
                 }
             }
         }
         if (!fast_react) {
-            if (next_seq > qp->hp.m_lastUpdateSeq) qp->hp.m_lastUpdateSeq = next_seq;  //+ rand() % 2 * m_mtu;
+            if (next_seq > sender->hp.m_lastUpdateSeq) sender->hp.m_lastUpdateSeq = next_seq;  //+ rand() % 2 * m_mtu;
         }
     }
 }
 
-void RdmaHw::FastReactHp(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch) {
+void RdmaHw::FastReactHp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {
     if (m_fast_react) UpdateRateHp(qp, p, ch, true);
 }
 
 /**********************
  * TIMELY
  *********************/
-void RdmaHw::HandleAckTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch) {
+void RdmaHw::HandleAckTimely(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {
     uint32_t ack_seq = ch.ack.seq;
     // update rate
     if (ack_seq > qp->tmly.m_lastUpdateSeq) {  // if full RTT feedback is ready, do full update
@@ -925,21 +929,21 @@ void RdmaHw::HandleAckTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, Cus
         FastReactTimely(qp, p, ch);
     }
 }
-void RdmaHw::UpdateRateTimely(Ptr<CongestionControlSender> sender, Ptr<Packet> p, CustomHeader &ch, bool us) {
-    Ptr<RdmaQueuePair> qp = sender->GetNextQp();
+void RdmaHw::UpdateRateTimely(Ptr<CongestionControlEntity> sender, Ptr<Packet> p, CustomHeader &ch, bool us) {
+    Ptr<RdmaQueuePair> qp = DynamicCast<RdmaQueuePair,CongestionControlEntity>(sender);
     uint32_t next_seq = qp->snd_nxt;
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
     bool print = !us;
-    if (qp->tmly.m_lastUpdateSeq != 0) {  // not first RTT
-        int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
-        double rtt_diff = (1 - m_tmly_alpha) * qp->tmly.rttDiff + m_tmly_alpha * new_rtt_diff;
+    if (sender->tmly.m_lastUpdateSeq != 0) {  // not first RTT
+        int64_t new_rtt_diff = (int64_t)rtt - (int64_t)sender->tmly.lastRtt;
+        double rtt_diff = (1 - m_tmly_alpha) * sender->tmly.rttDiff + m_tmly_alpha * new_rtt_diff;
         double gradient = rtt_diff / m_tmly_minRtt;
         bool inc = false;
         double c = 0;
 #if PRINT_LOG
         if (print)
             printf("%lu node:%u rtt:%lu rttDiff:%.0lf gradient:%.3lf rate:%.3lf", Simulator::Now().GetTimeStep(), m_node->GetId(), rtt, rtt_diff,
-                   gradient, qp->tmly.m_curRate.GetBitRate() * 1e-9);
+                   gradient, sender->tmly.m_curRate.GetBitRate() * 1e-9);
 #endif
         if (rtt < m_tmly_TLow) {
             inc = true;
@@ -954,44 +958,44 @@ void RdmaHw::UpdateRateTimely(Ptr<CongestionControlSender> sender, Ptr<Packet> p
             inc = false;
         }
         if (inc) {
-            if (qp->tmly.m_incStage < 5) {
-                qp->m_rate = qp->tmly.m_curRate + m_rai;
+            if (sender->tmly.m_incStage < 5) {
+                sender->m_rate = sender->tmly.m_curRate + m_rai;
             } else {
-                qp->m_rate = qp->tmly.m_curRate + m_rhai;
+                sender->m_rate = sender->tmly.m_curRate + m_rhai;
             }
-            if (qp->m_rate > qp->m_max_rate) qp->m_rate = qp->m_max_rate;
+            if (sender->m_rate > sender->m_max_rate) sender->m_rate = sender->m_max_rate;
             if (!us) {
-                qp->tmly.m_curRate = qp->m_rate;
-                qp->tmly.m_incStage++;
-                qp->tmly.rttDiff = rtt_diff;
+                sender->tmly.m_curRate = sender->m_rate;
+                sender->tmly.m_incStage++;
+                sender->tmly.rttDiff = rtt_diff;
             }
         } else {
-            qp->m_rate = std::max(m_minRate, qp->tmly.m_curRate * c);
+            sender->m_rate = std::max(m_minRate, sender->tmly.m_curRate * c);
             if (!us) {
-                qp->tmly.m_curRate = qp->m_rate;
-                qp->tmly.m_incStage = 0;
-                qp->tmly.rttDiff = rtt_diff;
+                sender->tmly.m_curRate = sender->m_rate;
+                sender->tmly.m_incStage = 0;
+                sender->tmly.rttDiff = rtt_diff;
             }
         }
 #if PRINT_LOG
         if (print) {
-            printf(" %c %.3lf\n", inc ? '^' : 'v', qp->m_rate.GetBitRate() * 1e-9);
+            printf(" %c %.3lf\n", inc ? '^' : 'v', sender->m_rate.GetBitRate() * 1e-9);
         }
 #endif
     }
-    if (!us && next_seq > qp->tmly.m_lastUpdateSeq) {
-        qp->tmly.m_lastUpdateSeq = next_seq;
+    if (!us && next_seq > sender->tmly.m_lastUpdateSeq) {
+        sender->tmly.m_lastUpdateSeq = next_seq;
         // update
-        qp->tmly.lastRtt = rtt;
+        sender->tmly.lastRtt = rtt;
     }
 }
-void RdmaHw::FastReactTimely(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch) {}
+void RdmaHw::FastReactTimely(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {}
 
 /**********************
  * DCTCP
  *********************/
-void RdmaHw::HandleAckDctcp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, CustomHeader &ch) {
-    Ptr<RdmaQueuePair> qp = sender->GetNextQp();
+void RdmaHw::HandleAckDctcp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {
+    Ptr<RdmaQueuePair> real_qp = DynamicCast<RdmaQueuePair,CongestionControlEntity>(qp);
     uint32_t ack_seq = ch.ack.seq;
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     bool new_batch = false;
@@ -1000,20 +1004,20 @@ void RdmaHw::HandleAckDctcp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, 
     qp->dctcp.m_ecnCnt += (cnp > 0);
     if (ack_seq > qp->dctcp.m_lastUpdateSeq) {  // if full RTT feedback is ready, do alpha update
 #if PRINT_LOG
-        printf("%lu %s %08x %08x %u %u [%u,%u,%u] %.3lf->", Simulator::Now().GetTimeStep(), "alpha", qp->m_connectionAttr.sip.Get(),
-               qp->m_connectionAttr.dip.Get(), qp->m_connectionAttr.sport, qp->m_connectionAttr.dport, qp->dctcp.m_lastUpdateSeq, ch.ack.seq,
+        printf("%lu %s %08x %08x %u %u [%u,%u,%u] %.3lf->", Simulator::Now().GetTimeStep(), "alpha", real_qp->m_connectionAttr.sip.Get(),
+               real_qp->m_connectionAttr.dip.Get(), real_qp->m_connectionAttr.sport, real_qp->m_connectionAttr.dport, real_qp->dctcp.m_lastUpdateSeq, ch.ack.seq,
                qp->snd_nxt, qp->dctcp.m_alpha);
 #endif
         new_batch = true;
         if (qp->dctcp.m_lastUpdateSeq == 0) {  // first RTT
-            qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
-            qp->dctcp.m_batchSizeOfAlpha = qp->snd_nxt / m_mtu + 1;
+            qp->dctcp.m_lastUpdateSeq = real_qp->snd_nxt;
+            qp->dctcp.m_batchSizeOfAlpha = real_qp->snd_nxt / m_mtu + 1;
         } else {
             double frac = std::min(1.0, double(qp->dctcp.m_ecnCnt) / qp->dctcp.m_batchSizeOfAlpha);
             qp->dctcp.m_alpha = (1 - m_g) * qp->dctcp.m_alpha + m_g * frac;
-            qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
+            qp->dctcp.m_lastUpdateSeq = real_qp->snd_nxt;
             qp->dctcp.m_ecnCnt = 0;
-            qp->dctcp.m_batchSizeOfAlpha = (qp->snd_nxt - ack_seq) / m_mtu + 1;
+            qp->dctcp.m_batchSizeOfAlpha = (real_qp->snd_nxt - ack_seq) / m_mtu + 1;
 #if PRINT_LOG
             printf("%.3lf F:%.3lf", qp->dctcp.m_alpha, frac);
 #endif
@@ -1039,7 +1043,7 @@ void RdmaHw::HandleAckDctcp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, 
         printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
 #endif
         qp->dctcp.m_caState = 1;
-        qp->dctcp.m_highSeq = qp->snd_nxt;
+        qp->dctcp.m_highSeq = real_qp->snd_nxt;
     }
 
     // additive inc
@@ -1050,7 +1054,7 @@ void RdmaHw::HandleAckDctcp(Ptr<CongestionControlSender> sender, Ptr<Packet> p, 
  * HPCC-PINT
  ********************/
 void RdmaHw::SetPintSmplThresh(double p) { pint_smpl_thresh = (uint32_t)(65536 * p); }
-void RdmaHw::HandleAckHpPint(Ptr<CongestionControlSender> qp, Ptr<Packet> p, CustomHeader &ch) {
+void RdmaHw::HandleAckHpPint(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch) {
     uint32_t ack_seq = ch.ack.seq;
     if (rand() % 65536 >= pint_smpl_thresh) return;
     // update rate
@@ -1061,9 +1065,9 @@ void RdmaHw::HandleAckHpPint(Ptr<CongestionControlSender> qp, Ptr<Packet> p, Cus
     }
 }
 
-void RdmaHw::UpdateRateHpPint(Ptr<CongestionControlSender> sender, Ptr<Packet> p, CustomHeader &ch, bool fast_react) {
-    Ptr<RdmaQueuePair> qp = sender->GetNextQp();
-    uint32_t next_seq = qp->snd_nxt;
+void RdmaHw::UpdateRateHpPint(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react) {
+    Ptr<RdmaQueuePair> real_qp = DynamicCast<RdmaQueuePair,CongestionControlEntity>(qp);
+    uint32_t next_seq = real_qp->snd_nxt;
     if (qp->hpccPint.m_lastUpdateSeq == 0) {  // first RTT
         qp->hpccPint.m_lastUpdateSeq = next_seq;
     } else {

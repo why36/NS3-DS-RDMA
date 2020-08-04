@@ -22,16 +22,9 @@ namespace ns3 {
  * RdmaQueuePair
  *************************/
 TypeId RdmaQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<CongestionControlSender>();
+    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
     return tid;
 }
-
-void CongestionControlSender::SetWin(uint32_t win) { m_win = win; }
-
-void CongestionControlSender::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
-
-void CongestionControlSender::SetVarWin(bool v) { m_var_win = v; }
-
 
 RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(attr) {
     {
@@ -46,12 +39,24 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(at
     snd_nxt = snd_una = 0;
 
     m_ipid = 0;
+    m_nextAvail = Time(0);
+}
+
+void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
+
+void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
+
+void CongestionControlEntity::SetVarWin(bool v) { m_var_win = v; }
+
+CongestionControlEntity::CongestionControlEntity()
+{
     m_win = 0;
     m_baseRtt = 0;
     m_max_rate = 0;
     m_var_win = false;
     m_rate = 0;
-    m_nextAvail = Time(0);
+    
+    
     mlx.m_alpha = 1;
     mlx.m_alpha_cnp_arrived = false;
     mlx.m_first_cnp = true;
@@ -83,12 +88,12 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(at
     hpccPint.m_incStage = 0;
 }
 
-bool CongestionControlSender::IsWinBound() {
+bool CongestionControlEntity::IsWinBound() {
     uint64_t w = GetWin();
     return w != 0 && GetOnTheFly() >= w;
 }
 
-uint64_t CongestionControlSender::GetWin() {
+uint64_t CongestionControlEntity::GetWin() {
     if (m_win == 0) return 0;
     uint64_t w;
     if (m_var_win) {
@@ -100,11 +105,11 @@ uint64_t CongestionControlSender::GetWin() {
     return w;
 }
 
-uint64_t CongestionControlSender::GetOnTheFly() { return 0; }
-uint64_t CongestionControlSender::GetBytesLeft() { return 0; }
-bool CongestionControlSender::IsFinished() { return true; }
+uint64_t CongestionControlEntity::GetOnTheFly() { return 0; }
+uint64_t CongestionControlEntity::GetBytesLeft() { return 0; }
+bool CongestionControlEntity::IsFinished() { return true; }
 
-uint64_t CongestionControlSender::HpGetCurWin() {
+uint64_t CongestionControlEntity::HpGetCurWin() {
     if (m_win == 0) return 0;
     uint64_t w;
     if (m_var_win) {
@@ -124,7 +129,7 @@ void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion&> not
 
 uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
 
-Ptr<RdmaQueuePair> RdmaQueuePair::GetNextQp() { return this; };
+//Ptr<RdmaQueuePair> RdmaQueuePair::GetNextQp() { return this; };
 
 uint32_t RdmaQueuePair::GetHash(void) {
     union {
@@ -242,35 +247,33 @@ bool RdmaQueuePair::GetNextIbvRequest_AssemblePacket_Finished(
     return false;
 }
 
-TypeId CongestionControlReceiver::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::CongestionControlReceiver").SetParent<Object>();
-    return tid;
-}
 
 /*********************
- * RdmaCongestionControlGroup
+ * QueuePairSet
  ********************/
-TypeId RdmaCongestionControlGroup::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaCongestionControlGroup").SetParent<Object>();
+TypeId QueuePairSet::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::QueuePairSet").SetParent<Object>();
     return tid;
 }
 
-RdmaCongestionControlGroup::RdmaCongestionControlGroup(void):mCCType(CongestionControlType::FlowBase) {};
+QueuePairSet::QueuePairSet(void):mCCType(CongestionControlType::FlowBase) {};
 
-uint32_t RdmaCongestionControlGroup::GetN(void) { return m_qps.size(); }
+uint32_t QueuePairSet::GetN(void) { return m_qps.size(); }
 
-Ptr<CongestionControlSender> RdmaCongestionControlGroup::Get(uint32_t idx) { return m_qps[idx]; }
+Ptr<RdmaQueuePair> QueuePairSet::Get(uint32_t idx) { return m_qps[idx]; }
 
-Ptr<CongestionControlSender> RdmaCongestionControlGroup::operator[](uint32_t idx) { return m_qps[idx]; }
+Ptr<RdmaQueuePair> QueuePairSet::operator[](uint32_t idx) { return m_qps[idx]; }
 
-void RdmaCongestionControlGroup::AddQp(Ptr<RdmaQueuePair> qp) {
+void QueuePairSet::AddQp(Ptr<RdmaQueuePair> qp) {
+    m_qps.push_back(qp);
+    /*
     if (mCCType == CongestionControlType::FlowBase) {
         m_qps.push_back(qp);
     } else {
         NS_ASSERT(mCCType == CongestionControlType::IPBase);
 
         for (int i = 0; i < m_qps.size(); i++) {
-            Ptr<IPBasedCongestionControlSender> ipCCSender = DynamicCast<IPBasedCongestionControlSender,CongestionControlSender>(m_qps[i]);
+            Ptr<IPBasedCongestionControlEntity> ipCCSender = DynamicCast<IPBasedCongestionControlEntity,CongestionControlEntity>(m_qps[i]);
             if (qp->m_connectionAttr.sip == ipCCSender->mIPBasedFlow.sip && qp->m_connectionAttr.dip == ipCCSender->mIPBasedFlow.dip &&
                 qp->m_connectionAttr.pg == ipCCSender->mIPBasedFlow.pg) {
                 ipCCSender->m_QPs.push_back(qp);
@@ -278,36 +281,36 @@ void RdmaCongestionControlGroup::AddQp(Ptr<RdmaQueuePair> qp) {
             }
         }
 
-        Ptr<IPBasedCongestionControlSender> ipCCSender = Create<IPBasedCongestionControlSender>();
+        Ptr<IPBasedCongestionControlEntity> ipCCSender = Create<IPBasedCongestionControlEntity>();
         ipCCSender->mIPBasedFlow.sip = qp->m_connectionAttr.sip;
         ipCCSender->mIPBasedFlow.dip = qp->m_connectionAttr.dip;
         ipCCSender->mIPBasedFlow.pg = qp->m_connectionAttr.pg;
         ipCCSender->m_QPs.push_back(qp);
         m_qps.push_back(ipCCSender);
     }
+    */
 }
 
-void RdmaCongestionControlGroup::Clear(void) { m_qps.clear(); }
+void QueuePairSet::Clear(void) { m_qps.clear(); }
 
-CongestionControlSender::CongestionControlSender(){};
 
-TypeId CongestionControlSender::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::CongestionControlSender").SetParent<Object>();
+TypeId CongestionControlEntity::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::CongestionControlEntity").SetParent<Object>();
     return tid;
 }
 
-TypeId IPBasedCongestionControlSender::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::IPBasedCongestionControlSender").SetParent<CongestionControlSender>();
+TypeId IPBasedCongestionControlEntity::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::IPBasedCongestionControlEntity").SetParent<CongestionControlEntity>();
     return tid;
 }
 
-void IPBasedCongestionControlSender::SetIPBasedFlow(QPConnectionAttr& attr) {
+void IPBasedCongestionControlEntity::SetIPBasedFlow(QPConnectionAttr& attr) {
     mIPBasedFlow.sip = attr.sip;
     mIPBasedFlow.dip = attr.dip;
     mIPBasedFlow.pg = attr.pg;
 };
 
-Ptr<RdmaQueuePair> IPBasedCongestionControlSender::GetNextQp() {
+Ptr<RdmaQueuePair> IPBasedCongestionControlEntity::GetNextQp() {
     NS_ASSERT(!m_QPs.empty());
     return m_QPs[m_lastQP++ % m_QPs.size()];
 }
