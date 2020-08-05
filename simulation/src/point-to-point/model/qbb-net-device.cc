@@ -62,9 +62,9 @@ namespace ns3
     {
         static TypeId tid =
             TypeId("ns3::RdmaEgressQueue")
-                .SetParent<Object>()
-                .AddTraceSource("RdmaEnqueue", "Enqueue a packet in the RdmaEgressQueue.", MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaEnqueue))
-                .AddTraceSource("RdmaDequeue", "Dequeue a packet in the RdmaEgressQueue.", MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaDequeue));
+            .SetParent<Object>()
+            .AddTraceSource("RdmaEnqueue", "Enqueue a packet in the RdmaEgressQueue.", MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaEnqueue))
+            .AddTraceSource("RdmaDequeue", "Dequeue a packet in the RdmaEgressQueue.", MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaDequeue));
         return tid;
     }
 
@@ -90,6 +90,8 @@ namespace ns3
             Ptr<Packet> p = m_rdmaGetNxtPkt(m_qpGrp->Get(qIndex));
             m_rrlast = qIndex;
             m_qlast = qIndex;
+
+            m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)->m_connectionAttr.pg);
             // TO DO: Krayecho Yx: add traceRdmaDequeue
             // /m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)-shqotes rataed>);
             return p;
@@ -99,15 +101,24 @@ namespace ns3
 
     int RdmaEgressQueue::GetNextQindex(bool paused[])
     {
-        bool found = false;
-        uint32_t qIndex;
         if (!paused[ack_q_idx] && m_ackQ->GetNPackets() > 0)
             return -1;
 
-        // no pkt in highest priority queue, do rr for each qp
+        if (static_cast<SchedulingMode>(m_schedulingMode) == SchedulingMode::BurstMode)
+        {
+            return GetNextQindexInBurst(paused);
+        }
+        else
+        {
+            return GetNextQindexInFluid(paused);
+        }
+    }
+
+    int RdmaEgressQueue::GetNextQindexInFluid(bool paused[]) {
         int res = -1024;
+        bool found = false;
+        uint32_t qIndex;
         uint32_t fcount = m_qpGrp->GetN();
-        //uint32_t min_finish_id = 0xffffffff;
         for (qIndex = 1; qIndex <= fcount; qIndex++)
         {
             uint32_t idx = (qIndex + m_rrlast) % fcount;
@@ -120,32 +131,48 @@ namespace ns3
                 res = idx;
                 break;
             }
-            /*
-        else if (ccSender->IsFinished()) {
-            min_finish_id = idx < min_finish_id ? idx : min_finish_id;
         }
-        */
-        }
-
-        // clear the finished qp
-        /*
-    if (min_finish_id < 0xffffffff) {
-        int nxt = min_finish_id;
-        auto &qps = m_qpGrp->m_qps;
-        for (int i = min_finish_id + 1; i < fcount; i++)
-            if (!qps[i]->IsFinished()) {
-                if (i == res)  // update res to the idx after removing finished qp
-                    res = nxt;
-                qps[nxt] = qps[i];
-                nxt++;
-            }
-        qps.resize(nxt);
-    }
-    */
         return res;
-    }
+    };
 
-    int RdmaEgressQueue::GetLastQueue() { return m_qlast; }
+    int RdmaEgressQueue::GetNextQindexInBurst(bool paused[]) {
+        int res = -1024;
+        bool found = false;
+        uint32_t qIndex;
+        uint32_t fcount = m_qpGrp->GetN();
+        if (m_lastBurstRemainingSize)
+        {
+            Ptr<RdmaQueuePair> qp = m_qpGrp->Get(m_rrlast);
+            if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->m_CCEntity->IsWinBound())
+            {
+                return m_rrlast;
+            }
+            else
+            {
+                //change QP, reset m_lastBurstRemainingSize
+                m_lastBurstRemainingSize = 0;
+            }
+        }
+
+        for (qIndex = 1; qIndex <= fcount; qIndex++)
+        {
+            uint32_t idx = (qIndex + m_rrlast) % fcount;
+            Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
+            if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->m_CCEntity->IsWinBound())
+            {
+                if (qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep()) // not available now
+                    continue;
+
+                res = idx;
+                break;
+            }
+        }
+        return res;
+    };
+
+    int RdmaEgressQueue::GetLastQueue() {
+        return m_qlast;
+    }
 
     uint32_t RdmaEgressQueue::GetNBytes(uint32_t qIndex)
     {
@@ -153,9 +180,13 @@ namespace ns3
         return m_qpGrp->Get(qIndex)->GetBytesLeft();
     }
 
-    uint32_t RdmaEgressQueue::GetFlowCount(void) { return m_qpGrp->GetN(); }
+    uint32_t RdmaEgressQueue::GetFlowCount(void) {
+        return m_qpGrp->GetN();
+    }
 
-    Ptr<RdmaQueuePair> RdmaEgressQueue::GetQp(uint32_t i) { return m_qpGrp->Get(i); }
+    Ptr<RdmaQueuePair> RdmaEgressQueue::GetQp(uint32_t i) {
+        return m_qpGrp->Get(i);
+    }
 
     /*
 void RdmaEgressQueue::RecoverQueue(uint32_t i) {
@@ -187,25 +218,25 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
     {
         static TypeId tid =
             TypeId("ns3::QbbNetDevice")
-                .SetParent<PointToPointNetDevice>()
-                .AddConstructor<QbbNetDevice>()
-                .AddAttribute("QbbEnabled", "Enable the generation of PAUSE packet.", BooleanValue(true),
-                              MakeBooleanAccessor(&QbbNetDevice::m_qbbEnabled), MakeBooleanChecker())
-                .AddAttribute("QcnEnabled", "Enable the generation of PAUSE packet.", BooleanValue(false),
-                              MakeBooleanAccessor(&QbbNetDevice::m_qcnEnabled), MakeBooleanChecker())
-                .AddAttribute("DynamicThreshold", "Enable dynamic threshold.", BooleanValue(false), MakeBooleanAccessor(&QbbNetDevice::m_dynamicth),
-                              MakeBooleanChecker())
-                .AddAttribute("PauseTime", "Number of microseconds to pause upon congestion", UintegerValue(5),
-                              MakeUintegerAccessor(&QbbNetDevice::m_pausetime), MakeUintegerChecker<uint32_t>())
-                .AddAttribute("TxBeQueue", "A queue to use as the transmit queue in the device.", PointerValue(),
-                              MakePointerAccessor(&QbbNetDevice::m_queue), MakePointerChecker<Queue>())
-                .AddAttribute("RdmaEgressQueue", "A queue to use as the transmit queue in the device.", PointerValue(),
-                              MakePointerAccessor(&QbbNetDevice::m_rdmaEQ), MakePointerChecker<Object>())
-                .AddTraceSource("QbbEnqueue", "Enqueue a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceEnqueue))
-                .AddTraceSource("QbbDequeue", "Dequeue a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceDequeue))
-                .AddTraceSource("QbbDrop", "Drop a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceDrop))
-                .AddTraceSource("RdmaQpDequeue", "A qp dequeue a packet.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceQpDequeue))
-                .AddTraceSource("QbbPfc", "get a PFC packet. 0: resume, 1: pause", MakeTraceSourceAccessor(&QbbNetDevice::m_tracePfc));
+            .SetParent<PointToPointNetDevice>()
+            .AddConstructor<QbbNetDevice>()
+            .AddAttribute("QbbEnabled", "Enable the generation of PAUSE packet.", BooleanValue(true),
+                MakeBooleanAccessor(&QbbNetDevice::m_qbbEnabled), MakeBooleanChecker())
+            .AddAttribute("QcnEnabled", "Enable the generation of PAUSE packet.", BooleanValue(false),
+                MakeBooleanAccessor(&QbbNetDevice::m_qcnEnabled), MakeBooleanChecker())
+            .AddAttribute("DynamicThreshold", "Enable dynamic threshold.", BooleanValue(false), MakeBooleanAccessor(&QbbNetDevice::m_dynamicth),
+                MakeBooleanChecker())
+            .AddAttribute("PauseTime", "Number of microseconds to pause upon congestion", UintegerValue(5),
+                MakeUintegerAccessor(&QbbNetDevice::m_pausetime), MakeUintegerChecker<uint32_t>())
+            .AddAttribute("TxBeQueue", "A queue to use as the transmit queue in the device.", PointerValue(),
+                MakePointerAccessor(&QbbNetDevice::m_queue), MakePointerChecker<Queue>())
+            .AddAttribute("RdmaEgressQueue", "A queue to use as the transmit queue in the device.", PointerValue(),
+                MakePointerAccessor(&QbbNetDevice::m_rdmaEQ), MakePointerChecker<Object>())
+            .AddTraceSource("QbbEnqueue", "Enqueue a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceEnqueue))
+            .AddTraceSource("QbbDequeue", "Dequeue a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceDequeue))
+            .AddTraceSource("QbbDrop", "Drop a packet in the QbbNetDevice.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceDrop))
+            .AddTraceSource("RdmaQpDequeue", "A qp dequeue a packet.", MakeTraceSourceAccessor(&QbbNetDevice::m_traceQpDequeue))
+            .AddTraceSource("QbbPfc", "get a PFC packet. 0: resume, 1: pause", MakeTraceSourceAccessor(&QbbNetDevice::m_tracePfc));
 
         return tid;
     }
@@ -222,7 +253,9 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
         m_rdmaEQ = CreateObject<RdmaEgressQueue>();
     }
 
-    QbbNetDevice::~QbbNetDevice() { NS_LOG_FUNCTION(this); }
+    QbbNetDevice::~QbbNetDevice() {
+        NS_LOG_FUNCTION(this);
+    }
 
     void QbbNetDevice::DoDispose()
     {
@@ -477,17 +510,25 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
         return result;
     }
 
-    Ptr<Channel> QbbNetDevice::GetChannel(void) const { return m_channel; }
+    Ptr<Channel> QbbNetDevice::GetChannel(void) const {
+        return m_channel;
+    }
 
-    bool QbbNetDevice::IsQbb(void) const { return true; }
+    bool QbbNetDevice::IsQbb(void) const {
+        return true;
+    }
 
     void QbbNetDevice::NewQp(Ptr<RdmaQueuePair> qp)
     {
         qp->m_nextAvail = Simulator::Now();
         DequeueAndTransmit();
     }
-    void QbbNetDevice::ReassignedQp(Ptr<RdmaQueuePair> qp) { DequeueAndTransmit(); }
-    void QbbNetDevice::TriggerTransmit(void) { DequeueAndTransmit(); }
+    void QbbNetDevice::ReassignedQp(Ptr<RdmaQueuePair> qp) {
+        DequeueAndTransmit();
+    }
+    void QbbNetDevice::TriggerTransmit(void) {
+        DequeueAndTransmit();
+    }
 
     void QbbNetDevice::SetQueue(Ptr<BEgressQueue> q)
     {
@@ -495,9 +536,13 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
         m_queue = q;
     }
 
-    Ptr<BEgressQueue> QbbNetDevice::GetQueue() { return m_queue; }
+    Ptr<BEgressQueue> QbbNetDevice::GetQueue() {
+        return m_queue;
+    }
 
-    Ptr<RdmaEgressQueue> QbbNetDevice::GetRdmaQueue() { return m_rdmaEQ; }
+    Ptr<RdmaEgressQueue> QbbNetDevice::GetRdmaQueue() {
+        return m_rdmaEQ;
+    }
 
     void QbbNetDevice::RdmaEnqueueHighPrioQ(Ptr<Packet> p)
     {

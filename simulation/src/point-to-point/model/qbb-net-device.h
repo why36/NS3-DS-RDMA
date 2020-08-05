@@ -22,7 +22,7 @@
 
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/qbb-channel.h"
-//#include "ns3/fivetuple.h"
+ //#include "ns3/fivetuple.h"
 #include <ns3/rdma.h>
 
 #include <map>
@@ -45,6 +45,8 @@ namespace ns3
         static uint32_t ack_q_idx;
         int m_qlast;
         uint32_t m_rrlast;
+        uint32_t m_lastBurstRemainingSize;
+        uint8_t Congeston;
         Ptr<DropTailQueue> m_ackQ; // highest priority queue
         Ptr<QueuePairSet> m_qpGrp; // queue pairs
 
@@ -52,7 +54,8 @@ namespace ns3
         typedef Callback<Ptr<Packet>, Ptr<RdmaQueuePair>> RdmaGetNxtPkt;
         RdmaGetNxtPkt m_rdmaGetNxtPkt;
 
-        static TypeId GetTypeId(void);
+        static TypeId
+            GetTypeId(void);
         RdmaEgressQueue();
         Ptr<Packet> DequeueQindex(int qIndex);
         int GetNextQindex(bool paused[]);
@@ -66,6 +69,19 @@ namespace ns3
 
         TracedCallback<Ptr<const Packet>, uint32_t> m_traceRdmaEnqueue;
         TracedCallback<Ptr<const Packet>, uint32_t> m_traceRdmaDequeue;
+
+    private:
+        enum class SchedulingMode
+        {
+            FluidMode = 0,
+            BurstMode = 1
+        };
+        uint8_t m_schedulingMode;
+
+        static const uint32_t kBurstSize = 8 * 1024;
+        int GetNextQindexInBurst(bool paused[]);
+        int GetNextQindexInFluid(bool paused[]);
+
     };
 
     /**
@@ -110,11 +126,11 @@ namespace ns3
      *
      * @return buffer available in bytes
      */
-        // virtual uint32_t GetTxAvailable(unsigned) const;
+     // virtual uint32_t GetTxAvailable(unsigned) const;
 
-        /**
-     * TracedCallback hooks
-     */
+     /**
+  * TracedCallback hooks
+  */
         void ConnectWithoutContext(const CallbackBase &callback);
         void DisconnectWithoutContext(const CallbackBase &callback);
 

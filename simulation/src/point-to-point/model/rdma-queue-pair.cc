@@ -15,258 +15,299 @@
 #include <queue>
 
 #include "ns3/ppp-header.h"
-namespace ns3 {
+namespace ns3
+{
 
-
-/**************************
+    /**************************
  * RdmaQueuePair
  *************************/
-TypeId RdmaQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
-    return tid;
-}
-
-RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr& attr) : m_connectionAttr(attr) {
+    TypeId RdmaQueuePair::GetTypeId(void)
     {
-        ReceiverNextExpectedSeq = 0;
-        m_nackTimer = Time(0);
-        m_milestone_rx = 0;
-        m_lastNACK = 0;
+        static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
+        return tid;
     }
 
-    startTime = Simulator::Now();
-    m_size = 0;
-    snd_nxt = snd_una = 0;
+    RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(attr)
+    {
+        {
+            ReceiverNextExpectedSeq = 0;
+            m_nackTimer = Time(0);
+            m_milestone_rx = 0;
+            m_lastNACK = 0;
+        }
 
-    m_ipid = 0;
-    m_nextAvail = Time(0);
-}
+        startTime = Simulator::Now();
+        m_size = 0;
+        snd_nxt = snd_una = 0;
 
-void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
-
-void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
-
-void CongestionControlEntity::SetVarWin(bool v) { m_var_win = v; }
-
-CongestionControlEntity::CongestionControlEntity()
-{
-    m_win = 0;
-    m_baseRtt = 0;
-    m_max_rate = 0;
-    m_var_win = false;
-    m_rate = 0;
-    
-    
-    mlx.m_alpha = 1;
-    mlx.m_alpha_cnp_arrived = false;
-    mlx.m_first_cnp = true;
-    mlx.m_decrease_cnp_arrived = false;
-    mlx.m_rpTimeStage = 0;
-    hp.m_lastUpdateSeq = 0;
-    for (uint32_t i = 0; i < sizeof(hp.keep) / sizeof(hp.keep[0]); i++) hp.keep[i] = 0;
-    hp.m_incStage = 0;
-    hp.m_lastGap = 0;
-    hp.u = 1;
-    for (uint32_t i = 0; i < IntHeader::maxHop; i++) {
-        hp.hopState[i].u = 1;
-        hp.hopState[i].incStage = 0;
+        m_ipid = 0;
+        m_nextAvail = Time(0);
     }
 
-    tmly.m_lastUpdateSeq = 0;
-    tmly.m_incStage = 0;
-    tmly.lastRtt = 0;
-    tmly.rttDiff = 0;
+    void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
 
-    dctcp.m_lastUpdateSeq = 0;
-    dctcp.m_caState = 0;
-    dctcp.m_highSeq = 0;
-    dctcp.m_alpha = 1;
-    dctcp.m_ecnCnt = 0;
-    dctcp.m_batchSizeOfAlpha = 0;
+    void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
 
-    hpccPint.m_lastUpdateSeq = 0;
-    hpccPint.m_incStage = 0;
-}
+    void CongestionControlEntity::SetVarWin(bool v) { m_var_win = v; }
 
-bool CongestionControlEntity::IsWinBound() {
-    uint64_t w = GetWin();
-    return w != 0 && GetOnTheFly() >= w;
-}
+    CongestionControlEntity::CongestionControlEntity()
+    {
+        m_win = 0;
+        m_baseRtt = 0;
+        m_max_rate = 0;
+        m_var_win = false;
+        m_rate = 0;
 
-uint64_t CongestionControlEntity::GetWin() {
-    if (m_win == 0) return 0;
-    uint64_t w;
-    if (m_var_win) {
-        w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0) w = 1;  // must > 0
-    } else {
-        w = m_win;
+        mlx.m_alpha = 1;
+        mlx.m_alpha_cnp_arrived = false;
+        mlx.m_first_cnp = true;
+        mlx.m_decrease_cnp_arrived = false;
+        mlx.m_rpTimeStage = 0;
+        hp.m_lastUpdateSeq = 0;
+        for (uint32_t i = 0; i < sizeof(hp.keep) / sizeof(hp.keep[0]); i++)
+            hp.keep[i] = 0;
+        hp.m_incStage = 0;
+        hp.m_lastGap = 0;
+        hp.u = 1;
+        for (uint32_t i = 0; i < IntHeader::maxHop; i++)
+        {
+            hp.hopState[i].u = 1;
+            hp.hopState[i].incStage = 0;
+        }
+
+        tmly.m_lastUpdateSeq = 0;
+        tmly.m_incStage = 0;
+        tmly.lastRtt = 0;
+        tmly.rttDiff = 0;
+
+        dctcp.m_lastUpdateSeq = 0;
+        dctcp.m_caState = 0;
+        dctcp.m_highSeq = 0;
+        dctcp.m_alpha = 1;
+        dctcp.m_ecnCnt = 0;
+        dctcp.m_batchSizeOfAlpha = 0;
+
+        hpccPint.m_lastUpdateSeq = 0;
+        hpccPint.m_incStage = 0;
     }
-    return w;
-}
 
-uint64_t CongestionControlEntity::GetOnTheFly() { return 0; }
-uint64_t CongestionControlEntity::GetBytesLeft() { return 0; }
-bool CongestionControlEntity::IsFinished() { return true; }
-
-uint64_t CongestionControlEntity::HpGetCurWin() {
-    if (m_win == 0) return 0;
-    uint64_t w;
-    if (m_var_win) {
-        w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
-        if (w == 0) w = 1;  // must > 0
-    } else {
-        w = m_win;
+    bool CongestionControlEntity::IsWinBound()
+    {
+        uint64_t w = GetWin();
+        return w != 0 && GetOnTheFly() >= w;
     }
-    return w;
-}
 
-void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
-
-void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
-
-void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion&> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
-
-uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
-
-//Ptr<RdmaQueuePair> RdmaQueuePair::GetNextQp() { return this; };
-
-uint32_t RdmaQueuePair::GetHash(void) {
-    union {
-        struct {
-            uint32_t sip, dip;
-            uint16_t sport, dport;
-        };
-        char c[12];
-    } buf;
-    buf.sip = m_connectionAttr.sip.Get();
-    buf.dip = m_connectionAttr.dip.Get();
-    buf.sport = m_connectionAttr.sport;
-    buf.dport = m_connectionAttr.dport;
-    return Hash32(buf.c, 12);
-}
-
-void RdmaQueuePair::Acknowledge(uint64_t ack) {
-    if (ack > snd_una) {
-        snd_una = ack;
+    uint64_t CongestionControlEntity::GetWin()
+    {
+        if (m_win == 0)
+            return 0;
+        uint64_t w;
+        if (m_var_win)
+        {
+            w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
+            if (w == 0)
+                w = 1; // must > 0
+        }
+        else
+        {
+            w = m_win;
+        }
+        return w;
     }
-}
 
-uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
+    uint64_t CongestionControlEntity::GetOnTheFly() { return 0; }
+    uint64_t CongestionControlEntity::GetBytesLeft() { return 0; }
+    bool CongestionControlEntity::IsFinished() { return true; }
 
-bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
+    uint64_t CongestionControlEntity::HpGetCurWin()
+    {
+        if (m_win == 0)
+            return 0;
+        uint64_t w;
+        if (m_var_win)
+        {
+            w = m_win * hp.m_curRate.GetBitRate() / m_max_rate.GetBitRate();
+            if (w == 0)
+                w = 1; // must > 0
+        }
+        else
+        {
+            w = m_win;
+        }
+        return w;
+    }
 
-// data path
-Ptr<Packet> RdmaQueuePair::GetNextPacket() {
-    NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
-    uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
-    m_remainingSize -= size;
+    void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
 
-    IBHeader ibheader;
-    ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
+    void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
 
-    if (m_sendingWr->size == size) {
-        ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-    } else if (m_remainingSize == 0 && m_sendingWr->size != size) {
-        ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
-    } else if (m_remainingSize != 0) {
-        if (size + m_remainingSize == m_sendingWr->size) {
-            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
-        } else {
-            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
+    void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion &> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
+
+    uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
+
+    uint32_t RdmaQueuePair::GetHash(void)
+    {
+        union {
+            struct
+            {
+                uint32_t sip, dip;
+                uint16_t sport, dport;
+            };
+            char c[12];
+        } buf;
+        buf.sip = m_connectionAttr.sip.Get();
+        buf.dip = m_connectionAttr.dip.Get();
+        buf.sport = m_connectionAttr.sport;
+        buf.dport = m_connectionAttr.dport;
+        return Hash32(buf.c, 12);
+    }
+
+    void RdmaQueuePair::Acknowledge(uint64_t ack)
+    {
+        if (ack > snd_una)
+        {
+            snd_una = ack;
         }
     }
 
-    if (m_remainingSize == 0) {
-        if (!m_wrs.empty()) {
-            m_sendingWr = m_wrs.front();
-            m_remainingSize = m_sendingWr->size;
-        } else {
-            m_sendingWr = nullptr;
+    uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
+
+    bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
+
+    // data path
+    Ptr<Packet> RdmaQueuePair::GetNextPacket()
+    {
+        NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
+        uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
+        m_remainingSize -= size;
+
+        IBHeader ibheader;
+        ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
+
+        if (m_sendingWr->size == size)
+        {
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
         }
+        else if (m_remainingSize == 0 && m_sendingWr->size != size)
+        {
+            ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
+        }
+        else if (m_remainingSize != 0)
+        {
+            if (size + m_remainingSize == m_sendingWr->size)
+            {
+                ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
+            }
+            else
+            {
+                ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
+            }
+        }
+
+        if (m_remainingSize == 0)
+        {
+            if (!m_wrs.empty())
+            {
+                m_sendingWr = m_wrs.front();
+                m_remainingSize = m_sendingWr->size;
+            }
+            else
+            {
+                m_sendingWr = nullptr;
+            }
+        }
+
+        Ptr<Packet> packet = Create<Packet>(size);
+
+        // add IBHeader
+        packet->AddHeader(ibheader);
+
+        // add SeqTsHeader
+        SeqTsHeader seqTs;
+        seqTs.SetSeq(snd_nxt);
+        seqTs.SetPG(m_connectionAttr.pg);
+        packet->AddHeader(seqTs);
+
+        // add udp header
+        UdpHeader udpHeader;
+        udpHeader.SetDestinationPort(m_connectionAttr.dport);
+        udpHeader.SetSourcePort(m_connectionAttr.sport);
+        packet->AddHeader(udpHeader);
+        // add ipv4 header
+        Ipv4Header ipHeader;
+        ipHeader.SetSource(m_connectionAttr.sip);
+        ipHeader.SetDestination(m_connectionAttr.dip);
+        ipHeader.SetProtocol(0x11);
+        ipHeader.SetPayloadSize(packet->GetSize());
+        ipHeader.SetTtl(64);
+        ipHeader.SetTos(0);
+        ipHeader.SetIdentification(m_ipid);
+        packet->AddHeader(ipHeader);
+        // add ppp header
+        PppHeader ppp;
+        ppp.SetProtocol(0x0021); // EtherToPpp(0x800), see point-to-point-net-device.cc
+        packet->AddHeader(ppp);
+
+        // update state
+        snd_nxt += size;
+        m_ipid++;
+
+        return packet;
     }
 
-    Ptr<Packet> packet = Create<Packet>(size);
+    bool RdmaQueuePair::GetNextIbvRequest_AssemblePacket_Finished(
+        Ptr<Packet> packet, Ptr<IBVWorkRequest> &m_receiveWr)
+    { // The assembly and completion of m_receiveWr.The input packet is exactly what we want
+        NS_ASSERT_MSG(packet != nullptr, "packet is NULL");
 
-    // add IBHeader
-    packet->AddHeader(ibheader);
+        IBHeader ibheader;
+        packet->PeekHeader(ibheader);
 
-    // add SeqTsHeader
-    SeqTsHeader seqTs;
-    seqTs.SetSeq(snd_nxt);
-    seqTs.SetPG(m_connectionAttr.pg);
-    packet->AddHeader(seqTs);
+        uint32_t payload_size = packet->GetZeroFilledSize();
 
-    // add udp header
-    UdpHeader udpHeader;
-    udpHeader.SetDestinationPort(m_connectionAttr.dport);
-    udpHeader.SetSourcePort(m_connectionAttr.sport);
-    packet->AddHeader(udpHeader);
-    // add ipv4 header
-    Ipv4Header ipHeader;
-    ipHeader.SetSource(m_connectionAttr.sip);
-    ipHeader.SetDestination(m_connectionAttr.dip);
-    ipHeader.SetProtocol(0x11);
-    ipHeader.SetPayloadSize(packet->GetSize());
-    ipHeader.SetTtl(64);
-    ipHeader.SetTos(0);
-    ipHeader.SetIdentification(m_ipid);
-    packet->AddHeader(ipHeader);
-    // add ppp header
-    PppHeader ppp;
-    ppp.SetProtocol(0x0021);  // EtherToPpp(0x800), see point-to-point-net-device.cc
-    packet->AddHeader(ppp);
-
-    // update state
-    snd_nxt += size;
-    m_ipid++;
-
-    return packet;
-}
-
-bool RdmaQueuePair::GetNextIbvRequest_AssemblePacket_Finished(
-    Ptr<Packet> packet, Ptr<IBVWorkRequest>& m_receiveWr) {  // The assembly and completion of m_receiveWr.The input packet is exactly what we want
-    NS_ASSERT_MSG(packet != nullptr, "packet is NULL");
-
-    IBHeader ibheader;
-    packet->PeekHeader(ibheader);
-
-    uint32_t payload_size = packet->GetZeroFilledSize();
-
-    if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {
-        m_receiveWr->size += payload_size;
-    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_MIDDLE) {
-        m_receiveWr->size += payload_size;
-    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM) {
-        m_receiveWr->size += payload_size;
-        return true;
-    } else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM) {
-        m_receiveWr->size += payload_size;
-        return true;
+        if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST)
+        {
+            m_receiveWr->size += payload_size;
+        }
+        else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_MIDDLE)
+        {
+            m_receiveWr->size += payload_size;
+        }
+        else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM)
+        {
+            m_receiveWr->size += payload_size;
+            return true;
+        }
+        else if (ibheader.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM)
+        {
+            m_receiveWr->size += payload_size;
+            return true;
+        }
+        return false;
     }
-    return false;
-}
 
-
-/*********************
+    /*********************
  * QueuePairSet
  ********************/
-TypeId QueuePairSet::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::QueuePairSet").SetParent<Object>();
-    return tid;
-}
+    TypeId QueuePairSet::GetTypeId(void)
+    {
+        static TypeId tid = TypeId("ns3::QueuePairSet").SetParent<Object>();
+        return tid;
+    }
 
-QueuePairSet::QueuePairSet(void):mCCType(CongestionControlType::FlowBase) {};
+    QueuePairSet::QueuePairSet(void) : mCCType(CongestionControlType::FlowBase){};
 
-uint32_t QueuePairSet::GetN(void) { return m_qps.size(); }
+    uint32_t QueuePairSet::GetN(void) { return m_qps.size(); }
 
-Ptr<RdmaQueuePair> QueuePairSet::Get(uint32_t idx) { return m_qps[idx]; }
+    Ptr<RdmaQueuePair> QueuePairSet::Get(uint32_t idx) { return m_qps[idx]; }
 
-Ptr<RdmaQueuePair> QueuePairSet::operator[](uint32_t idx) { return m_qps[idx]; }
+    Ptr<RdmaQueuePair> QueuePairSet::operator[](uint32_t idx) { return m_qps[idx]; }
 
-void QueuePairSet::AddQp(Ptr<RdmaQueuePair> qp) {
-    m_qps.push_back(qp);
-    /*
+    void QueuePairSet::AddQp(Ptr<RdmaQueuePair> qp)
+    {
+        m_qps.push_back(qp);
+
+        /*
     if (mCCType == CongestionControlType::FlowBase) {
         m_qps.push_back(qp);
     } else {
@@ -289,16 +330,17 @@ void QueuePairSet::AddQp(Ptr<RdmaQueuePair> qp) {
         m_qps.push_back(ipCCSender);
     }
     */
-}
+    }
 
-void QueuePairSet::Clear(void) { m_qps.clear(); }
+    void QueuePairSet::Clear(void) { m_qps.clear(); }
 
+    TypeId CongestionControlEntity::GetTypeId(void)
+    {
+        static TypeId tid = TypeId("ns3::CongestionControlEntity").SetParent<Object>();
+        return tid;
+    }
 
-TypeId CongestionControlEntity::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::CongestionControlEntity").SetParent<Object>();
-    return tid;
-}
-
+    /*
 TypeId IPBasedCongestionControlEntity::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::IPBasedCongestionControlEntity").SetParent<CongestionControlEntity>();
     return tid;
@@ -310,8 +352,5 @@ void IPBasedCongestionControlEntity::SetIPBasedFlow(QPConnectionAttr& attr) {
     mIPBasedFlow.pg = attr.pg;
 };
 
-Ptr<RdmaQueuePair> IPBasedCongestionControlEntity::GetNextQp() {
-    NS_ASSERT(!m_QPs.empty());
-    return m_QPs[m_lastQP++ % m_QPs.size()];
-}
-}  // namespace ns3
+*/
+} // namespace ns3
