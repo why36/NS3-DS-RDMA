@@ -88,7 +88,9 @@ namespace ns3
             uint16_t qfb;
             uint16_t total;
 
-            ecn_account() { memset(this, 0, sizeof(ecn_account)); }
+            ecn_account() {
+                memset(this, 0, sizeof(ecn_account));
+            }
         };
 
     } // namespace CongestionControlAlgorithms

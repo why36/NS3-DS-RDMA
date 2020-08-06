@@ -289,7 +289,7 @@ void QbbHelper::GetTraceFromPacket(TraceFormat &tr, Ptr<QbbNetDevice> dev, Ptr<c
             // SeqTsHeader
             tr.data.seq = hdr.udp.seq;
             tr.data.ts = hdr.udp.ih.GetTs();
-            tr.data.pg = hdr.udp.pg;
+            tr.data.pg = hdr.;
             break;
         case 0xFC:
         case 0xFD:
