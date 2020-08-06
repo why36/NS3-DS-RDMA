@@ -173,6 +173,8 @@ class RdmaQueuePair : public CongestionControlSender, public CongestionControlRe
     Ptr<IBVWorkRequest> m_receiveWr;
     uint32_t m_remainingSize;
     OpCodeOperation m_sendingOperation;
+    // the initialization value is max opcodeoperation + 1
+    OpCodeOperation m_lastReceiveOperation = static_cast<OpCodeOperation>(33);
 
     RdmaHw* m_rdma;
     // uint32_t m_mtu;

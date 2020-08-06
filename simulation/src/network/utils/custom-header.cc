@@ -146,8 +146,9 @@ void CustomHeader::Serialize(Buffer::Iterator start) const {
             // SeqTsHeader
             i.WriteHtonU32(udp.seq);
             i.WriteHtonU16(udp.pg);
-            // udp.ibh.Serialize(i);
-            // udp.ih.Serialize(i);
+            udp.ih.Serialize(i);
+            // IBHeader
+            udp.ibh.Serialize(i);
         } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_CNP)) {  // CNP
             i.WriteU8(cnp.qIndex);
             i.WriteU16(cnp.fid);
@@ -257,7 +258,7 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
                 i.Read(tcp.optionBuf, optionLen);
             }
             l4Size = tcp.length * 4;
-        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_UDP)) {  // UDP + SeqTsHeader
+        } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_UDP)) {  // UDP + SeqTsHeader + IBHeader
             i = start;
             i.Next(l2Size + l3Size);
             // udp header
@@ -275,7 +276,7 @@ uint32_t CustomHeader::Deserialize(Buffer::Iterator start) {
             udp.pg = i.ReadNtohU16();
             // udp.ibh.Deserialize(i);
             if (getInt) udp.ih.Deserialize(i);
-
+            udp.ibh.Deserialize(i);
             l4Size = GetUdpHeaderSize();
         } else if (l3Prot == static_cast<uint32_t>(L3Protocol::PROTO_CNP)) {
             cnp.qIndex = i.ReadU8();
@@ -309,7 +310,7 @@ uint32_t CustomHeader::GetAckSerializedSize(void) {
     return sizeof(ack.sport) + sizeof(ack.dport) + sizeof(ack.flags) + sizeof(ack.pg) + sizeof(ack.seq) + IntHeader::GetStaticSize();
 }
 
-uint32_t CustomHeader::GetUdpHeaderSize(void) { return 8 + sizeof(udp.pg) + sizeof(udp.seq) + IntHeader::GetStaticSize(); }
+uint32_t CustomHeader::GetUdpHeaderSize(void) { return 8 + sizeof(udp.pg) + sizeof(udp.seq) + IntHeader::GetStaticSize() + 1; }
 
 uint32_t CustomHeader::GetStaticWholeHeaderSize(void) { return 14 + 20 + GetUdpHeaderSize(); }
 

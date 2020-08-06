@@ -187,6 +187,7 @@ void RdmaHw::DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport
     m_qpMap.erase(tuple);
 }
 
+/* change to RCReceiveInboundRequest()
 void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
     uint8_t ecnbits = ch.GetIpv4EcnBits();
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
@@ -230,7 +231,154 @@ void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &
         }
     }
 }
+*/
 
+bool RdmaHw::CheckOpcodeValid(IBHeader ibh, OpCodeType type) {
+    switch (ibh.GetOpCode().GetOpCodeType()) {
+        case OpCodeType::RC:
+            break;
+        case OpCodeType::UC:
+            break;
+        default: {
+            NS_ASSERT_MSG(false, "OpCodeType is not RC or UC.");
+            return false;
+        }
+    }
+    if (ibh.GetOpCode().GetOpCodeType() == type) {
+        return true;
+    }
+    return false;
+}
+
+bool RdmaHw::CheckOpcodeOperationSupported(IBHeader ibh) {
+    switch (ibh.GetOpCode().GetOpCodeOperation()) {
+        case OpCodeOperation::SEND_FIRST:
+            break;
+        case OpCodeOperation::SEND_MIDDLE:
+            break;
+        case OpCodeOperation::SEND_LAST:
+            break;
+        case OpCodeOperation::SEND_LAST_WITH_IMM:
+            break;
+        case OpCodeOperation::SEND_ONLY:
+            break;
+        case OpCodeOperation::SEND_ONLY_WITH_IMM:
+            break;
+        default: {
+            NS_ASSERT_MSG(false, "OpCodeOperation is wrong.");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RdmaHw::UCCheckOpcodeSequence(IBHeader ibh, Ptr<RdmaQueuePair> rxQp) {
+    if (rxQp->m_lastReceiveOperation == static_cast<OpCodeOperation>(33)) {  // the first packet
+        if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            return true;
+        } else {
+            return false;
+        }
+    } else if (rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_FIRST || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_MIDDLE) {
+        if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_MIDDLE ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST) {
+            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            return true;
+        } else {
+            return false;
+        }
+    } else if (rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_LAST_WITH_IMM || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_LAST ||
+               rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_ONLY_WITH_IMM || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_ONLY) {
+        if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    NS_ASSERT_MSG(false, "OpCodeOperation is out of scope.");
+    return false;
+}
+
+void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
+    uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+    rxQp->m_milestone_rx = m_ack_interval;
+
+    /*
+        uint8_t ecnbits = ch.GetIpv4EcnBits();
+
+        if (ecnbits != 0) {
+            rxQp->m_ecn_source.ecnbits |= ecnbits;
+            rxQp->m_ecn_source.qfb++;
+        }
+        rxQp->m_ecn_source.total++;
+    */
+    RCSeqState x = RCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+
+    if (x == RCSeqState::GENERATE_ACK || x == NOT_GENERATE_ACK) {
+        CheckOpcodeValid(ch.ibh, OpCodeType::RC);
+        if (!CheckOpcodeOperationSupported(ch.ibh)) {
+            x = RCSeqState::GENERATE_NACK;
+        }
+        if (ch.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
+            ch.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST) {
+            // need to do something about completion
+        }
+    } else if (x == RCSeqState::GENERATE_NACK) {
+        qbbHeader seqh;
+        seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
+        seqh.SetPG(ch.udp.pg);
+        seqh.SetSport(ch.udp.dport);
+        seqh.SetDport(ch.udp.sport);
+        seqh.SetIntHeader(ch.udp.ih);
+        if (ecnbits) seqh.SetCnp();
+
+        Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
+        newp->AddHeader(seqh);
+
+        Ipv4Header head;  // Prepare IPv4 header
+        head.SetDestination(Ipv4Address(ch.sip));
+        head.SetSource(Ipv4Address(ch.dip));
+        head.SetProtocol(x == RCSeqState::GENERATE_ACK ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
+        head.SetTtl(64);
+        head.SetPayloadSize(newp->GetSize());
+        head.SetIdentification(rxQp->m_ipid++);
+
+        newp->AddHeader(head);
+        AddHeader(newp, 0x800);  // Attach PPP header
+        // send
+        uint32_t nic_idx = GetNicIdxOfQp(rxQp);
+        m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
+        m_nic[nic_idx].dev->TriggerTransmit();
+    }
+}
+
+void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
+    uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+    rxQp->m_milestone_rx = m_ack_interval;
+    /*
+        uint8_t ecnbits = ch.GetIpv4EcnBits();
+        // TODO find corresponding rx queue pair
+        if (ecnbits != 0) {
+            rxQp->m_ecn_source.ecnbits |= ecnbits;
+            rxQp->m_ecn_source.qfb++;
+        }
+        rxQp->m_ecn_source.total++;
+        rxQp->m_milestone_rx = m_ack_interval;
+    */
+    RCSeqState x = UCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+    if(x == UCSeqState::OK){
+        //need to do something to complete
+    }
+}
+
+/* change to UCReceiveInboundRequest
 void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
     uint8_t ecnbits = ch.GetIpv4EcnBits();
 
@@ -248,6 +396,7 @@ void RdmaHw::UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &
     UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
     return;
 }
+*/
 
 int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
     // QCN on NIC
@@ -370,9 +519,11 @@ int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
             };
             Ptr<RdmaQueuePair> rxQp = GetQp(rxTuple);
             if (rxQp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
-                RCReceiveUdp(p, rxQp, ch);
+                // RCReceiveUdp(p, rxQp, ch);
+                RCReceiveInboundRequest(p, rxQp, ch);
             } else {
-                UCReceiveUdp(p, rxQp, ch);
+                // UCReceiveUdp(p, rxQp, ch);
+                UCReceiveInboundRequest(p, rxQp, ch);
             }
         }
         /*
@@ -391,6 +542,37 @@ int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
 
     return 0;
 }
+
+/*  //ago
+RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size) {
+    uint32_t expected = q->ReceiverNextExpectedSeq;
+    if (seq == expected) {
+        q->ReceiverNextExpectedSeq = expected + size;
+        if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
+            q->m_milestone_rx += m_ack_interval;
+            return RCSeqState::GENERATE_ACK;  // Generate ACK
+        } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
+            return RCSeqState::GENERATE_ACK;
+        } else {
+            return RCSeqState::NOT_GENERATE_ACK;
+        }
+    } else if (seq > expected) {
+        // Generate NACK
+        if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
+            q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
+            q->m_lastNACK = expected;
+            if (m_backto0) {
+                q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
+            }
+            return RCSeqState::GENERATE_NACK;
+        } else
+            return RCSeqState::NOT_GENERATE_NACK;
+    } else {
+        // Duplicate.
+        return RCSeqState::DUPLICATED;
+    }
+}
+*/
 
 RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size) {
     uint32_t expected = q->ReceiverNextExpectedSeq;
@@ -421,6 +603,7 @@ RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32
     }
 }
 
+/*  //ago
 UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size) {
     uint32_t seq = header.udp.seq;
     uint32_t expected = q->ReceiverNextExpectedSeq;
@@ -442,42 +625,91 @@ UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q
                 NS_ASSERT_MSG(false, " INVALID OP CODE");
         }
         */
-        return UCSeqState::OOS;
+// return UCSeqState::OOS;
+// }
+/*
+if (seq == exp) {
+    return UCSeqState::OK;
+}
+*/
+// q->ReceiverNextExpectedSeq;
+/*
+if (seq == expected) {
+    q->ReceiverNextExpectedSeq = expected + size;
+    if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
+        q->m_milestone_rx += m_ack_interval;
+        return UCSeqState::GENERATE_ACK;  // Generate ACK
+    } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
+        return UCSeqState::GENERATE_ACK;
+    } else {
+
+        return CheckSeqState::NOT_GENERATE_ACK;
     }
-    /*
-    if (seq == exp) {
-        return UCSeqState::OK;
+} else if (seq > expected) {
+    // Generate NACK
+    if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
+        q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
+        q->m_lastNACK = expected;
+        if (m_backto0) {
+            q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
+        }
+        return CheckSeqState::GENERATE_NACK;
+    } else
+        return CheckSeqState::NOT_GENERATE_NACK;
+} else {
+    // Duplicate.
+    return CheckSeqState::DUPLICATED;
+}
+*/
+//}
+
+UCSeqState RdmaHw::MatchFirstOrOnly(IBHeader ibh) {
+    if (header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
+        header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+        header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+        if (CheckOpcodeOperationSupported(header.ibh)) {
+            // need to do something to complete
+            return UCSeqState::OK;
+        } else {
+            return UCSeqState::DUPLICATED;
+        }
+    } else {
+        return UCSeqState::DUPLICATED;
     }
-    */
-    q->ReceiverNextExpectedSeq;
-    /*
+}
+
+UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size) {
+    uint32_t seq = header.udp.seq;
+    uint32_t expected = q->ReceiverNextExpectedSeq;
     if (seq == expected) {
         q->ReceiverNextExpectedSeq = expected + size;
-        if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
-            q->m_milestone_rx += m_ack_interval;
-            return UCSeqState::GENERATE_ACK;  // Generate ACK
-        } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
-            return UCSeqState::GENERATE_ACK;
-        } else {
-
-            return CheckSeqState::NOT_GENERATE_ACK;
-        }
-    } else if (seq > expected) {
-        // Generate NACK
-        if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
-            q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
-            q->m_lastNACK = expected;
-            if (m_backto0) {
-                q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
+        if (CheckOpcodeValid(header.ibh, OpCodeType::UC)) {
+            if (UCCheckOpcodeSequence(header.ibh, q)) {
+                if (CheckOpcodeOperationSupported(header.ibh)) {
+                    // need to do something to complete
+                    return UCSeqState::OK;
+                } else {
+                    return UCSeqState::DUPLICATED;
+                }
+            } else {
+                expected = seq;
+                return MatchFirstOrOnly(header.ibh);
             }
-            return CheckSeqState::GENERATE_NACK;
-        } else
-            return CheckSeqState::NOT_GENERATE_NACK;
-    } else {
-        // Duplicate.
-        return CheckSeqState::DUPLICATED;
+            /*
+            if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
+                q->m_milestone_rx += m_ack_interval;
+                return UCSeqState::GENERATE_ACK;  // Generate ACK
+            } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
+                return UCSeqState::GENERATE_ACK;
+            } else {
+                return CheckSeqState::NOT_GENERATE_ACK;
+            }
+            */
+        }
+    } else if (seq != expected) {
+        expected = seq;
+        return MatchFirstOrOnly(header.ibh);
     }
-    */
 }
 
 void RdmaHw::AddHeader(Ptr<Packet> p, uint16_t protocolNumber) {

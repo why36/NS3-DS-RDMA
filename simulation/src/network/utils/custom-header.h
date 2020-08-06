@@ -105,8 +105,9 @@ class CustomHeader : public Header {
             // SeqTsHeader
             uint16_t pg;
             uint32_t seq;
+            IntHeader ih;            
             // IBHeader ibh;
-            IntHeader ih;
+            IBHeader ibh;
         } udp;
         // CnHeader
         struct {
