@@ -23,46 +23,90 @@
 #define USER_SPACE_CONGESTION_CONTROL_H
 
 #include "ns3/uinteger.h"
+#include "ns3/pointer.h"
 
 namespace ns3 {
 
-class CongestionSignal {
-    // To do
-};
+    class CongestionSignal {
+    public:
+        CongestionControlSignalType mType;
+    };
 
-enum CongestionControlType { WINDOW_BASE = 0 << 0, RATE_BASE = 1 << 0, RTT_SIGNAL = 1 << 1, ECN_SIGNAL = (1 << 1) | (1 << 0) };
 
-class UserSpaceCongestionControl {
-   public:
-    UserSpaceCongestionControl() = delete;
-    CongestionControlType GetCongestionContorlType() { return mType; };
+    class RTTSignal :public CongestionSignal {
+    public:
+        RTTSignal() :mType(CongestionControlSignalType::RTT_SIGNAL) {};
+        uint8_t mRtt;
+    };
 
-    void UpdateSignal(CongestionSignal& signal);
+    enum class CongestionControlSignalType {
+        RTT_SIGNAL = 0,
+        ECN_SIGNAL = 1
+    };
 
-   private:
-    CongestionControlType mType;
-};
+    enum class CongestionControlPacingType {
+        WINDOW_BASE = 0,
+        RATE_BASE = 1
+    };
 
-class WindowCongestionControl : public UserSpaceCongestionControl {
-   public:
-    virtual void UpdateSignal(CongestionSignal& signal);
-    virtual uint32_t GetCongestionWindow() = 0;
+    using CongestionControlType = struct cctype {
+        CongestionControlSignalType signalType;
+        CongestionControlPacingType pacingType;
+        CongestionControlType(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) :signalType(signal_t), pacingType(pacing_t) {};
+    };
 
-   protected:
-    // forbids to construct
-    WindowCongestionControl() { mType |= WINDOW_BASE; }
-};
+    class UserSpaceCongestionControl {
+    public:
+        UserSpaceCongestionControl() = delete;
+        CongestionControlType GetCongestionContorlType() {
+            return mType;
+        };
 
-class RttWindowCongestionControl : public object,
-                                   public WindowCongestionControl {
-   public:
-    RttWindowCongestionControl() : WindowCongestionControl() { mType |= RTT_SIGNAL; }
-};
+        virtual void UpdateSignal(CongestionSignal& signal)=0;
+    protected:
+        CongestionControlType mType;
+    };
 
-inline CongestionControlType
-UserSpaceCongestionControl::GetCongestionContorlType() {
-    return mType;
-};
+    inline CongestionControlType
+        UserSpaceCongestionControl::GetCongestionContorlType() {
+        return mType;
+    };
+
+    class WindowCongestionControl : public UserSpaceCongestionControl {
+    public:
+        virtual void UpdateSignal(CongestionSignal& signal);
+        virtual uint32_t GetCongestionWindow();
+
+    protected:
+        // forbids to construct
+        WindowCongestionControl() {
+            mType.pacingType = CongestionControlPacingType::WINDOW_BASE;
+        }
+    };
+
+    class RttWindowCongestionControl : public Object,
+        public WindowCongestionControl {
+    public:
+        RttWindowCongestionControl() : WindowCongestionControl() {
+            mType.signalType = CongestionControlSignalType::RTT_SIGNAL;
+        }
+
+        void UpdateSignal(CongestionSignal& signal)=0;
+        virtual uint32_t GetCongestionWindow() = 0;
+    };
+
+
+    class RttWindowCongestionControl : public Object,
+        public WindowCongestionControl {
+    public:
+        RttWindowCongestionControl() : WindowCongestionControl() {
+            mType.signalType = CongestionControlSignalType::RTT_SIGNAL;
+        }
+
+        void UpdateSignal(CongestionSignal& signal)=0;
+        virtual uint32_t GetCongestionWindow() = 0;
+    };
+
 
 }  // namespace ns3
 #endif /* USER_SPACE_CONGESTION_CONTROL_H */

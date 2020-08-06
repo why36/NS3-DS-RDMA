@@ -19,10 +19,10 @@
  *                      <amine.ismail@udcast.com>
  */
 
-/*
- * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
- * date:     202000707
- */
+ /*
+  * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
+  * date:     202000707
+  */
 
 #include "ns3/distributed-storage-client.h"
 
@@ -48,53 +48,69 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
-NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
+    NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
+    NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
-TypeId DistributedStorageClient::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();
-    return tid;
-}
+    TypeId DistributedStorageClient::GetTypeId(void) {
+        static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();
+        return tid;
+    }
 
-DistributedStorageClient::DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS(); }
+    DistributedStorageClient::DistributedStorageClient() {
+        NS_LOG_FUNCTION_NOARGS();
+    }
 
-DistributedStorageClient::~DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS(); }
+    DistributedStorageClient::~DistributedStorageClient() {
+        NS_LOG_FUNCTION_NOARGS();
+    }
 
-static void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
-    uint16_t sport = client->GetNextAvailablePort();
-    uint16_t dport = server->GetNextAvailablePort();
-    NS_ASSERT(sport && dport);
+    void SendRpc() {
 
-    Ptr<Node> client_node = client->GetNode();
-    Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
-                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
-    client->AddQP(srcRdmaAppQP);
+        Ptr<UserSpaceConnection> connection;
+        uint32_t seg_size = connection->flowseg->GetSegSize();
+        Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest>();
+        wr->verb = IBVerb::IBV_SEND_WITH_IMM;
+        wr->size = seg_size;
+        uint32_t imm;
+        TagPayload tags;
+    };
 
-    Ptr<Node> server_node = server->GetNode();
-    Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
-                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
-    server->AddQP(dstRdmaAppQP);
 
-    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
-    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
-    QPConnectionAttr srcConnAttr(pg, client_node.m_ip, server_node.m_ip, sport, dport, QPType::RDMA_RC);
-    RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
-};
+    static void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
+        uint16_t sport = client->GetNextAvailablePort();
+        uint16_t dport = server->GetNextAvailablePort();
+        NS_ASSERT(sport && dport);
 
-void DistributedStorageClient::AddQP(Ptr<RdmaQueuePair> qp){};
+        Ptr<Node> client_node = client->GetNode();
+        Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+        client->AddQP(srcRdmaAppQP);
 
-void DistributedStorageClient::StartApplication(void) override {
-    NS_LOG_FUNCTION_NOARGS();
-    //
-    // Get window size and  data Segment
-    //
-    // qp->ibv_post_send(segment_id, size);
-    //
-}
+        Ptr<Node> server_node = server->GetNode();
+        Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+        server->AddQP(dstRdmaAppQP);
 
-void DistributedStorageClient::StopApplication() override {
-    NS_LOG_FUNCTION_NOARGS();
-    // TODO stop the queue pair
-}
+        QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
+        QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
+        QPConnectionAttr srcConnAttr(pg, client_node.m_ip, server_node.m_ip, sport, dport, QPType::RDMA_RC);
+        RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
+    };
+
+    void DistributedStorageClient::AddQP(Ptr<RdmaQueuePair> qp) {};
+
+    void DistributedStorageClient::StartApplication(void) override {
+        NS_LOG_FUNCTION_NOARGS();
+        //
+        // Get window size and  data Segment
+        //
+        // qp->ibv_post_send(segment_id, size);
+        //
+    }
+
+    void DistributedStorageClient::StopApplication() override {
+        NS_LOG_FUNCTION_NOARGS();
+        // TODO stop the queue pair
+    }
 
 }  // Namespace ns3

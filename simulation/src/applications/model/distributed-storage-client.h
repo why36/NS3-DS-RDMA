@@ -20,10 +20,10 @@
  *
  */
 
-/*
- * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
- * date:     202000707
- */
+ /*
+  * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
+  * date:     202000707
+  */
 
 #ifndef DISTRIBUTED_STORAGE_CLIENT_H
 #define DISTRIBUTED_STORAGE_CLIENT_H
@@ -39,69 +39,69 @@
 
 namespace ns3 {
 
-class Socket;
-class Packet;
+    class Socket;
+    class Packet;
 
-/**
- * \ingroup distributedStorage
- * \class DistributedStorageClient
- * \brief A distributed storage client.
- *
- */
-
-class SendCompeltionReturnValue;
-class RpcResponse;
-
-class UserSpaceConnection {
-    UserSpaceCongestionControl ucc;
-    DropBasedFlowseg flowseg;
-    Ptr<RdmaQueuePair> qp;
-};
-
-class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
-   public:
-    static TypeId GetTypeId(void);
-    DistributedStorageClient();
-    virtual ~DistributedStorageClient();
-
-    /*
-     *  public interfaces
+    /**
+     * \ingroup distributedStorage
+     * \class DistributedStorageClient
+     * \brief A distributed storage client.
+     *
      */
-    static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
-    // Rdma
-    virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) override;
-    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
-    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
+    class SendCompeltionReturnValue;
+    class RpcResponse;
 
-    /*
-     *  application interface
-     */
-    // RPC-level interface
-    void SendRpc(uint32_t size);
+    class UserSpaceConnection {
+        Ptr<UserSpaceCongestionControl> ucc;
+        Ptr<FlowsegInterface> flowseg;
+        Ptr<RdmaAppQP> qp;
+    };
 
-    // Used for port Management
-    void GetNextAvailablePort();
-    //
+    class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
+    public:
+        static TypeId GetTypeId(void);
+        DistributedStorageClient();
+        virtual ~DistributedStorageClient();
 
-   protected:
-    virtual void DoDispose(void);
+        /*
+         *  public interfaces
+         */
+        static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
-   private:
-    virtual void StartApplication(void);
-    virtual void StopApplication(void);
+        // Rdma
+        virtual void OnResponse(Ptr<RpcResponses> rpcResponse, Ptr<RdmaQueuePair> qp) override;
+        virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
+        virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
 
-    void AddQP(Ptr<RdmaAppQP> qp);
-    // need maintain a QP collection:
-    // somthing like key-value storage <qp,ip>
-    std::hash_map<RdmaAppQP> m_QPs;
+        /*
+         *  application interface
+         */
+         // RPC-level interface
+        void SendRpc(uint32_t size);
 
-    /*
-     *  basic attributes
-     */
-    Ipv4Address m_ip;
-    //
-};
+        // Used for port Management
+        void GetNextAvailablePort();
+        //
+
+    protected:
+        virtual void DoDispose(void);
+
+    private:
+        virtual void StartApplication(void);
+        virtual void StopApplication(void);
+
+        void AddQP(Ptr<RdmaAppQP> qp);
+        // need maintain a QP collection:
+        // somthing like key-value storage <qp,ip>
+        std::hash_map<UserSpaceConnection> m_Connections;
+
+        /*
+         *  basic attributes
+         */
+        Ipv4Address m_ip;
+        //
+    };
 
 }  // namespace ns3
 
