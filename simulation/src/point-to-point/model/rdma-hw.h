@@ -21,7 +21,9 @@ namespace ns3
         Ptr<QueuePairSet> qpGrp;
 
         RdmaInterfaceMgr() : dev(NULL), qpGrp(NULL) {}
-        RdmaInterfaceMgr(Ptr<QbbNetDevice> _dev) { dev = _dev; }
+        RdmaInterfaceMgr(Ptr<QbbNetDevice> _dev) {
+            dev = _dev;
+        }
     };
 
     enum class RCSeqState
@@ -75,7 +77,7 @@ namespace ns3
         uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp); // get the NIC index of the qp
 
         Ptr<RdmaQueuePair> AddQueuePair(uint64_t size, const QPConnectionAttr &conn_attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
-                                        Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion); // add a new qp (new send)
+            Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion); // add a new qp (new send)
         void DeleteQueuePair(Ptr<RdmaQueuePair> qp);
         void DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);
 
@@ -150,33 +152,33 @@ namespace ns3
         uint32_t m_miThresh;
         bool m_multipleRate;
         bool m_sampleFeedback; // only react to feedback every RTT, or qlen > 0
-        void HandleAckHp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
-        void UpdateRateHp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
-        void UpdateRateHpTest(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
-        void FastReactHp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
+        void HandleAckHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+        void UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+        void UpdateRateHpTest(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+        void FastReactHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
         /**********************
      * TIMELY
      *********************/
         double m_tmly_alpha, m_tmly_beta;
         uint64_t m_tmly_TLow, m_tmly_THigh, m_tmly_minRtt;
-        void HandleAckTimely(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
-        void UpdateRateTimely(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch, bool us);
-        void FastReactTimely(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
+        void HandleAckTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+        void UpdateRateTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool us);
+        void FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
         /**********************
      * DCTCP
      *********************/
         DataRate m_dctcp_rai;
-        void HandleAckDctcp(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
+        void HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
         /*********************
      * HPCC-PINT
      ********************/
         uint32_t pint_smpl_thresh;
         void SetPintSmplThresh(double p);
-        void HandleAckHpPint(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch);
-        void UpdateRateHpPint(Ptr<CongestionControlEntity> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+        void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+        void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
     };
 
 } /* namespace ns3 */
