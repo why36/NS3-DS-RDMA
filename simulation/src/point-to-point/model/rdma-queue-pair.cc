@@ -44,11 +44,17 @@ namespace ns3
         m_nextAvail = Time(0);
     }
 
-    void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
+    void CongestionControlEntity::SetWin(uint32_t win) {
+        m_win = win;
+    }
 
-    void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
+    void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) {
+        m_baseRtt = baseRtt;
+    }
 
-    void CongestionControlEntity::SetVarWin(bool v) { m_var_win = v; }
+    void CongestionControlEntity::SetVarWin(bool v) {
+        m_var_win = v;
+    }
 
     CongestionControlEntity::CongestionControlEntity()
     {
@@ -115,9 +121,15 @@ namespace ns3
         return w;
     }
 
-    uint64_t CongestionControlEntity::GetOnTheFly() { return 0; }
-    uint64_t CongestionControlEntity::GetBytesLeft() { return 0; }
-    bool CongestionControlEntity::IsFinished() { return true; }
+    uint64_t CongestionControlEntity::GetOnTheFly() {
+        return 0;
+    }
+    uint64_t CongestionControlEntity::GetBytesLeft() {
+        return 0;
+    }
+    bool CongestionControlEntity::IsFinished() {
+        return true;
+    }
 
     uint64_t CongestionControlEntity::HpGetCurWin()
     {
@@ -137,13 +149,21 @@ namespace ns3
         return w;
     }
 
-    void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
+    void RdmaQueuePair::SetSize(uint64_t size) {
+        m_size = size;
+    }
 
-    void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
+    void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) {
+        m_notifyAppFinish = notifyAppFinish;
+    }
 
-    void RdmaQueuePair::SetCompletionCallback(Callback<void, IBVWorkCompletion &> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
+    void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion> notifyCompletion) {
+        m_notifyCompletion = notifyCompletion;
+    }
 
-    uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
+    uint64_t RdmaQueuePair::GetBytesLeft() {
+        return m_size >= snd_nxt ? m_size - snd_nxt : 0;
+    }
 
     uint32_t RdmaQueuePair::GetHash(void)
     {
@@ -170,9 +190,13 @@ namespace ns3
         }
     }
 
-    uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
+    uint64_t RdmaQueuePair::GetOnTheFly() {
+        return snd_nxt - snd_una;
+    }
 
-    bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
+    bool RdmaQueuePair::IsFinished() {
+        return snd_una >= m_size;
+    }
 
     // data path
     Ptr<Packet> RdmaQueuePair::GetNextPacket()
@@ -206,6 +230,18 @@ namespace ns3
 
         if (m_remainingSize == 0)
         {
+            {
+                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
+                wc->imm = m_sendingWr->imm;
+                wc->isTx = true;
+                wc->qp = this;
+                wc->size = m_sendingWr->size;
+                wc->tags = m_sendingWr->tags;
+                wc->time_in_us = Simulator::Now().GetMicroSeconds();
+                wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+                m_notifyCompletion(wc);
+            }
+
             if (!m_wrs.empty())
             {
                 m_sendingWr = m_wrs.front();
@@ -295,13 +331,19 @@ namespace ns3
         return tid;
     }
 
-    QueuePairSet::QueuePairSet(void) : mCCType(CongestionControlType::FlowBase){};
+    QueuePairSet::QueuePairSet(void) : mCCType(CongestionControlType::FlowBase) {};
 
-    uint32_t QueuePairSet::GetN(void) { return m_qps.size(); }
+    uint32_t QueuePairSet::GetN(void) {
+        return m_qps.size();
+    }
 
-    Ptr<RdmaQueuePair> QueuePairSet::Get(uint32_t idx) { return m_qps[idx]; }
+    Ptr<RdmaQueuePair> QueuePairSet::Get(uint32_t idx) {
+        return m_qps[idx];
+    }
 
-    Ptr<RdmaQueuePair> QueuePairSet::operator[](uint32_t idx) { return m_qps[idx]; }
+    Ptr<RdmaQueuePair> QueuePairSet::operator[](uint32_t idx) {
+        return m_qps[idx];
+    }
 
     void QueuePairSet::AddQp(Ptr<RdmaQueuePair> qp)
     {
@@ -332,7 +374,9 @@ namespace ns3
     */
     }
 
-    void QueuePairSet::Clear(void) { m_qps.clear(); }
+    void QueuePairSet::Clear(void) {
+        m_qps.clear();
+    }
 
     TypeId CongestionControlEntity::GetTypeId(void)
     {

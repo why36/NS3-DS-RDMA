@@ -178,7 +178,7 @@ namespace ns3
         // app-specified
         Time startTime;
         Callback<void> m_notifyAppFinish;
-        Callback<void, IBVWorkCompletion &> m_notifyCompletion;
+        Callback<void, Ptr<IBVWorkCompletion>> m_notifyCompletion;
 
         // connection
         QPConnectionAttr m_connectionAttr;
@@ -219,7 +219,7 @@ namespace ns3
 
         void SetSize(uint64_t size);
         void SetAppNotifyCallback(Callback<void> notifyAppFinish);
-        void SetCompletionCallback(Callback<void, IBVWorkCompletion &> notifyAPPCompletion);
+        void SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyAPPCompletion);
         virtual uint64_t GetBytesLeft();
         virtual bool IsFinished();
         virtual uint64_t GetOnTheFly();
