@@ -157,7 +157,7 @@ namespace ns3
         m_notifyAppFinish = notifyAppFinish;
     }
 
-    void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion> notifyCompletion) {
+    void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) {
         m_notifyCompletion = notifyCompletion;
     }
 
@@ -228,8 +228,21 @@ namespace ns3
             }
         }
 
+        Ptr<Packet> packet = Create<Packet>(size);
+
         if (m_remainingSize == 0)
         {
+            LastPacketTag last_pack_tag;
+            IBVWorkRequest tmp_sendingWr;
+            tmp_sendingWr.verb = IBVerb::IBV_SEND_WITH_IMM;
+            tmp_sendingWr.size = m_sendingWr->size;
+            tmp_sendingWr.imm = m_sendingWr->imm;
+            tmp_sendingWr.tags = m_sendingWr->tags;
+
+            last_pack_tag.SetIBV_WR(tmp_sendingWr);
+            packet->AddPacketTag(last_pack_tag);            
+            
+            if(m_connectionAttr.qp_type== QPType::RDMA_UC)
             {
                 Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
                 wc->imm = m_sendingWr->imm;
@@ -241,7 +254,6 @@ namespace ns3
                 wc->verb = IBVerb::IBV_SEND_WITH_IMM;
                 m_notifyCompletion(wc);
             }
-
             if (!m_wrs.empty())
             {
                 m_sendingWr = m_wrs.front();
@@ -252,8 +264,6 @@ namespace ns3
                 m_sendingWr = nullptr;
             }
         }
-
-        Ptr<Packet> packet = Create<Packet>(size);
 
         // add IBHeader
         packet->AddHeader(ibheader);

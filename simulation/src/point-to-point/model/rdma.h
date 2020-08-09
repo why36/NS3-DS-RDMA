@@ -47,7 +47,7 @@ namespace ns3 {
         TagPayload tags;
     };
 
-    using IBVWorkCompletion = struct ibv_wc {
+    using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
         Ptr<RdmaQueuePair> qp;
         IBVerb verb;
         bool isTx;

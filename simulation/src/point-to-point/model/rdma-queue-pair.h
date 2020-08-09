@@ -10,7 +10,7 @@
 #include <ns3/packet.h>
 #include <ns3/rdma.h>
 #include <ns3/tag.h>
-
+#include <ns3/last-packet-tag.h>
 #include <queue>
 #include <vector>
 
@@ -207,6 +207,9 @@ namespace ns3
         Ptr<IBVWorkRequest> m_receiveWr;
         uint32_t m_remainingSize;
         OpCodeOperation m_sendingOperation;
+        // the initialization value is max opcodeoperation + 1
+        OpCodeOperation m_lastReceiveOperation = static_cast<OpCodeOperation>(33);
+
 
         RdmaHw *m_rdma;
         // uint32_t m_mtu;

@@ -43,6 +43,7 @@ class CustomHeader : public Header {
      * \brief Construct a null custom header
      */
     CustomHeader();
+    virtual ~CustomHeader();
     CustomHeader(uint32_t _headerType);
     /**
      * \enum EcnType

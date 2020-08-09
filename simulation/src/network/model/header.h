@@ -19,7 +19,7 @@
  */
 
 #ifndef HEADER_H
-#define HEADER_H'
+#define HEADER_H
 
 #include "chunk.h"
 #include "buffer.h"
