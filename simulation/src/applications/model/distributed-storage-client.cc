@@ -51,6 +51,26 @@ namespace ns3 {
     NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
     NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
+    void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
+        m_queuingRPCs.push_back(rpc)
+            SendRPC();
+
+    }
+
+    void UserSpaceConnection::SendRPC() {
+        if (m)
+        {
+            Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest> wr;
+            wr->imm;
+            uint32_t flowsegSize =  m_flowseg.GetSize();
+            wr->size = m_remainingSendingSize > flowsegSize?flowsegSize:m_remainingSendingSize;
+            wr->verb = IBVerb::IBV_SEND_WITH_IMM;
+            wr->tags;
+            m_appQP->PostSend(wr);
+            m_remainingSendingSize = m_remainingSendingSize>size?
+        }
+    }
+
     TypeId DistributedStorageClient::GetTypeId(void) {
         static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();
         return tid;
@@ -64,15 +84,13 @@ namespace ns3 {
         NS_LOG_FUNCTION_NOARGS();
     }
 
-    void SendRpc() {
+    void SendRpc(Ptr<RPC> rpc) {
+
+        // find user-space connection
+        // send rpc
 
         Ptr<UserSpaceConnection> connection;
-        uint32_t seg_size = connection->flowseg->GetSegSize();
-        Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest>();
-        wr->verb = IBVerb::IBV_SEND_WITH_IMM;
-        wr->size = seg_size;
-        uint32_t imm;
-        TagPayload tags;
+        connection->SendRpc(rpc);
     };
 
 

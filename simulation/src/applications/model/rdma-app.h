@@ -62,7 +62,7 @@ namespace ns3 {
 
     private:
         /**
-         * \brief add a qp to this application, only can be called by RdmaApplicationInstaller;
+         * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
          * \param create_attr connect attr for this QP;
          */
         void CreateQP(QPCreateAttribute& create_attr);
@@ -78,6 +78,7 @@ namespace ns3 {
          */
         Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
+        uint32_t;
     };
 
     inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
