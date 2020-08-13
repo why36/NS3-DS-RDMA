@@ -84,8 +84,16 @@ namespace ns3
         // TO DO Krayecho Yx: these fuunctions should be moved into QPs
         int Receive(Ptr<Packet> p, CustomHeader &ch); // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this
                                                       // function. And do not call this upon PFC
-        void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
-        void UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+        //void RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+        //void UCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+        bool CheckOpcodeValid(IBHeader ibh, OpCodeType type);
+        bool CheckOpcodeOperationSupported(IBHeader ibh);
+        UCSeqState MatchFirstOrOnly(IBHeader ibh);
+        bool UCCheckOpcodeSequence(IBHeader ibh, Ptr<RdmaQueuePair> rxQp);
+
+        void RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+        void UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+
         int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
         int ReceiveAck(Ptr<Packet> p, CustomHeader &ch); // handle both ACK and NACK
 

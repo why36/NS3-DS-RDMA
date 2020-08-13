@@ -22,6 +22,7 @@ def build(bld):
 		'model/switch-node.cc',
 		'model/switch-mmu.cc',
 		'model/pint.cc',
+        'model/last-packet-tag.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('point-to-point')
@@ -53,6 +54,7 @@ def build(bld):
 		'model/switch-mmu.h',
 		'model/pint.h',
 		'helper/sim-setting.h',
+        'model/last-packet-tag.h',
         ]
 
     if (bld.env['ENABLE_EXAMPLES']):

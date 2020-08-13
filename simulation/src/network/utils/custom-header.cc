@@ -63,6 +63,10 @@ namespace ns3 {
         m_checksum(0),
         m_headerSize(5 * 4) {}
 
+    CustomHeader::~CustomHeader(){
+        
+    }
+
     TypeId CustomHeader::GetTypeId(void) {
         static TypeId tid = TypeId("ns3::CustomHeader").SetParent<Header>().SetGroupName("Network").AddConstructor<CustomHeader>();
         return tid;

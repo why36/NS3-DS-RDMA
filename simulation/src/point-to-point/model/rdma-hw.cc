@@ -6,6 +6,7 @@
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 
+#include "ns3/last-packet-tag.h"
 #include "cn-header.h"
 #include "ns3/assert.h"
 #include "ns3/boolean.h"
@@ -226,6 +227,7 @@ namespace ns3
         m_qpMap.erase(tuple);
     }
 
+    /* change to RCReceiveInboundRequest
     void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch)
     {
         uint8_t ecnbits = ch.GetIpv4EcnBits();
@@ -274,7 +276,7 @@ namespace ns3
         }
         }
     }
-
+    */
     bool RdmaHw::CheckOpcodeValid(IBHeader ibh, OpCodeType type) {
         switch (ibh.GetOpCode().GetOpCodeType()) {
         case OpCodeType::RC:
@@ -309,7 +311,7 @@ namespace ns3
         default: {
             NS_ASSERT_MSG(false, "OpCodeOperation is wrong.");
             return false;
-        }
+            }
         }
         return true;
     }
@@ -357,116 +359,234 @@ namespace ns3
         uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
         rxQp->m_milestone_rx = m_ack_interval;
 
+        
+        uint8_t ecnbits = ch.GetIpv4EcnBits();
         /*
-            uint8_t ecnbits = ch.GetIpv4EcnBits();
-
-            if (ecnbits != 0) {
-                rxQp->m_ecn_source.ecnbits |= ecnbits;
-                rxQp->m_ecn_source.qfb++;
-            }
-            rxQp->m_ecn_source.total++;
+        if (ecnbits != 0) {
+            rxQp->m_ecn_source.ecnbits |= ecnbits;
+            rxQp->m_ecn_source.qfb++;
+        }
+        rxQp->m_ecn_source.total++;
         */
         RCSeqState x = RCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
 
-        if (x == RCSeqState::GENERATE_ACK || x == NOT_GENERATE_ACK) {
-            CheckOpcodeValid(ch.ibh, OpCodeType::RC);
-            if (!CheckOpcodeOperationSupported(ch.ibh)) {
-                x = RCSeqState::GENERATE_NACK;
+        if(CheckOpcodeValid(ch.udp.ibh, OpCodeType::RC)){
+            if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::NOT_GENERATE_ACK) {
+                if (!CheckOpcodeOperationSupported(ch.udp.ibh)) {
+                    x = RCSeqState::GENERATE_NACK;
+                }
+                if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
+                    ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST ||
+                    ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+                    ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+                    // need to do something about completion
+                    LastPacketTag tag;
+                    p->PeekPacketTag (tag);
+                    Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
+                    wc->imm = tag.GetIBV_WR().imm;
+                    wc->isTx = false;
+                    wc->qp = rxQp;
+                    wc->size = tag.GetIBV_WR().size;
+                    wc->tags = tag.GetIBV_WR().tags;
+                    wc->time_in_us = Simulator::Now().GetMicroSeconds();
+                    wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+                    rxQp->m_notifyCompletion(wc);
+                }
             }
-            if (ch.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
-                ch.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST) {
-                // need to do something about completion
-                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
-                wc->imm =;
-                wc->isTx = false;
-                wc->qp = rxQp;
-                wc->size =;
-                wc->tags =;
-                wc->time_in_us = Simulator::Now().GetMicroSeconds();
-                wc->verb = IBVerb::IBV_SEND_WITH_IMM;
-                rxQp->m_notifyCompletion(wc);
+            else if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
+                qbbHeader seqh;
+                seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
+                seqh.SetPG(ch.udp.pg);
+                seqh.SetSport(ch.udp.dport);
+                seqh.SetDport(ch.udp.sport);
+                seqh.SetIntHeader(ch.udp.ih);
+                if (ecnbits) seqh.SetCnp();
+
+                Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
+                newp->AddHeader(seqh);
+
+                Ipv4Header head;  // Prepare IPv4 header
+                head.SetDestination(Ipv4Address(ch.sip));
+                head.SetSource(Ipv4Address(ch.dip));
+                head.SetProtocol(x == RCSeqState::GENERATE_ACK ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
+                head.SetTtl(64);
+                head.SetPayloadSize(newp->GetSize());
+                head.SetIdentification(rxQp->m_ipid++);
+
+                newp->AddHeader(head);
+                AddHeader(newp, 0x800);  // Attach PPP header
+                // send
+                uint32_t nic_idx = GetNicIdxOfQp(rxQp);
+                m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
+                m_nic[nic_idx].dev->TriggerTransmit();
             }
-        }
-        else if (x == RCSeqState::GENERATE_NACK) {
-            qbbHeader seqh;
-            seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
-            seqh.SetPG(ch.udp.pg);
-            seqh.SetSport(ch.udp.dport);
-            seqh.SetDport(ch.udp.sport);
-            seqh.SetIntHeader(ch.udp.ih);
-            if (ecnbits) seqh.SetCnp();
-
-            Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
-            newp->AddHeader(seqh);
-
-            Ipv4Header head;  // Prepare IPv4 header
-            head.SetDestination(Ipv4Address(ch.sip));
-            head.SetSource(Ipv4Address(ch.dip));
-            head.SetProtocol(x == RCSeqState::GENERATE_ACK ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
-            head.SetTtl(64);
-            head.SetPayloadSize(newp->GetSize());
-            head.SetIdentification(rxQp->m_ipid++);
-
-            newp->AddHeader(head);
-            AddHeader(newp, 0x800);  // Attach PPP header
-            // send
-            uint32_t nic_idx = GetNicIdxOfQp(rxQp);
-            m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
-            m_nic[nic_idx].dev->TriggerTransmit();
         }
     }
 
     void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
         uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
         rxQp->m_milestone_rx = m_ack_interval;
+        
+        uint8_t ecnbits = ch.GetIpv4EcnBits();
+        // TODO find corresponding rx queue pair
         /*
-            uint8_t ecnbits = ch.GetIpv4EcnBits();
-            // TODO find corresponding rx queue pair
-            if (ecnbits != 0) {
-                rxQp->m_ecn_source.ecnbits |= ecnbits;
-                rxQp->m_ecn_source.qfb++;
-            }
-            rxQp->m_ecn_source.total++;
-            rxQp->m_milestone_rx = m_ack_interval;
+        if (ecnbits != 0) {
+            rxQp->m_ecn_source.ecnbits |= ecnbits;
+            rxQp->m_ecn_source.qfb++;
+        }
+        rxQp->m_ecn_source.total++;
         */
-        RCSeqState x = UCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
+        
+        UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
         if (x == UCSeqState::OK) {
             //need to do something to complete
         }
     }
 
 
-    int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
+    int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch)
+    {
         // QCN on NIC
         // This is a Congestion signal
         // Then, extract data from the congestion packet.
         // We assume, without verify, the packet is destinated to me
         uint32_t qIndex = ch.cnp.qIndex;
-        if (qIndex == 1) {  // DCTCP
+        if (qIndex == 1)
+        { // DCTCP
             std::cout << "TCP--ignore\n";
             return 0;
-            >>>>>>> b13004ecd140106e6c5e8297de810232d8a51671
+        }
+        uint16_t udpport = ch.cnp.fid; // corresponds to the sport
+        uint8_t ecnbits = ch.cnp.ecnBits;
+        uint16_t qfb = ch.cnp.qfb;
+        uint16_t total = ch.cnp.total;
+
+        uint32_t i;
+        // get qp
+        SimpleTuple rxTuple ={
+            .sip = ch.dip,
+            .dip = ch.sip,
+            .sport = ch.udp.dport,
+            .dport = ch.udp.sport,
+            .prio = ch.udp.pg,
+        };
+        Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
+        if (qp == NULL)
+            std::cout << "ERROR: QCN NIC cannot find the flow\n";
+        // get nic
+        uint32_t nic_idx = GetNicIdxOfQp(qp);
+        Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+
+        if (qp->m_CCEntity->m_rate == 0) // lazy initialization
+        {
+            qp->m_CCEntity->m_rate = dev->GetDataRate();
+            if (m_cc_mode == 1)
+            {
+                qp->m_CCEntity->mlx.m_targetRate = dev->GetDataRate();
+            }
+            else if (m_cc_mode == 3)
+            {
+                qp->m_CCEntity->hp.m_curRate = dev->GetDataRate();
+                if (m_multipleRate)
+                {
+                    for (uint32_t i = 0; i < IntHeader::maxHop; i++)
+                        qp->m_CCEntity->hp.hopState[i].Rc = dev->GetDataRate();
+                }
+            }
+            else if (m_cc_mode == 7)
+            {
+                qp->m_CCEntity->tmly.m_curRate = dev->GetDataRate();
+            }
+            else if (m_cc_mode == 10)
+            {
+                qp->m_CCEntity->hpccPint.m_curRate = dev->GetDataRate();
+            }
+        }
+            return 0;
+    } // namespace ns3
+
+    int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch)
+    {
+        uint16_t qIndex = ch.ack.pg;
+        uint16_t port = ch.ack.dport;
+        uint32_t seq = ch.ack.seq;
+        uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
+        int i;
+        SimpleTuple rxTuple ={
+            .sip = ch.sip,
+            .dip = ch.dip,
+            .sport = ch.udp.sport,
+            .dport = ch.udp.dport,
+            .prio = ch.udp.pg,
+        };
+        Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
+        if (qp == NULL)
+        {
+            std::cout << "ERROR: "
+                << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
+            return 0;
         }
 
-        int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch)
+        uint32_t nic_idx = GetNicIdxOfQp(qp);
+        Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+        if (m_ack_interval == 0)
+           std::cout << "ERROR: shouldn't receive ack\n";
+        else
         {
-            // QCN on NIC
-            // This is a Congestion signal
-            // Then, extract data from the congestion packet.
-            // We assume, without verify, the packet is destinated to me
-            uint32_t qIndex = ch.cnp.qIndex;
-            if (qIndex == 1)
-            { // DCTCP
-                std::cout << "TCP--ignore\n";
-                return 0;
+            if (!m_backto0)
+            {
+                qp->Acknowledge(seq);
             }
-            uint16_t udpport = ch.cnp.fid; // corresponds to the sport
-            uint8_t ecnbits = ch.cnp.ecnBits;
-            uint16_t qfb = ch.cnp.qfb;
-            uint16_t total = ch.cnp.total;
+            else
+            {
+                uint32_t goback_seq = seq / m_chunk * m_chunk;
+                qp->Acknowledge(goback_seq);
+            }
+            if (qp->IsFinished())
+            {
+                QpComplete(qp);
+            }
+        }
+        if (ch.l3Prot == 0xFD) // NACK
+            RecoverQueue(qp);
 
-            uint32_t i;
-            // get qp
+        // handle cnp
+        if (cnp)
+        {
+            if (m_cc_mode == 1)
+            { // mlx version
+                cnp_received_mlx(qp->m_CCEntity);
+            }
+        }
+
+        if (m_cc_mode == 3)
+        {
+            HandleAckHp(qp, p, ch);
+        }
+        else if (m_cc_mode == 7)
+        {
+            HandleAckTimely(qp, p, ch);
+        }
+        else if (m_cc_mode == 8)
+        {
+            HandleAckDctcp(qp, p, ch);
+        }
+        else if (m_cc_mode == 10)
+        {
+            HandleAckHpPint(qp, p, ch);
+        }
+        // ACK may advance the on-the-fly window, allowing more packets to send
+        dev->TriggerTransmit();
+        return 0;
+    }
+
+    int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch)
+    {
+        L3Protocol proto = static_cast<L3Protocol>(ch.l3Prot);
+        switch (proto)
+        {
+        case L3Protocol::PROTO_UDP:
+        {
             SimpleTuple rxTuple ={
                 .sip = ch.dip,
                 .dip = ch.sip,
@@ -474,314 +594,124 @@ namespace ns3
                 .dport = ch.udp.sport,
                 .prio = ch.udp.pg,
             };
-            Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
-            if (qp == NULL)
-                std::cout << "ERROR: QCN NIC cannot find the flow\n";
-            // get nic
-            uint32_t nic_idx = GetNicIdxOfQp(qp);
-            Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+            Ptr<RdmaQueuePair> rxQp = GetQp(rxTuple);
 
-            if (qp->m_CCEntity->m_rate == 0) // lazy initialization
-            {
-                qp->m_CCEntity->m_rate = dev->GetDataRate();
-                if (m_cc_mode == 1)
-                {
-                    qp->m_CCEntity->mlx.m_targetRate = dev->GetDataRate();
-                }
-                else if (m_cc_mode == 3)
-                {
-                    qp->m_CCEntity->hp.m_curRate = dev->GetDataRate();
-                    if (m_multipleRate)
-                    {
-                        for (uint32_t i = 0; i < IntHeader::maxHop; i++)
-                            qp->m_CCEntity->hp.hopState[i].Rc = dev->GetDataRate();
-                    }
-                }
-                else if (m_cc_mode == 7)
-                {
-                    qp->m_CCEntity->tmly.m_curRate = dev->GetDataRate();
-                }
-                else if (m_cc_mode == 10)
-                {
-                    qp->m_CCEntity->hpccPint.m_curRate = dev->GetDataRate();
-                }
+            if (rxQp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
+                // RCReceiveUdp(p, rxQp, ch);
+                RCReceiveInboundRequest(p, rxQp, ch);
             }
-            return 0;
-        } // namespace ns3
-
-        int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch)
-        {
-            uint16_t qIndex = ch.ack.pg;
-            uint16_t port = ch.ack.dport;
-            uint32_t seq = ch.ack.seq;
-            uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
-            int i;
-            SimpleTuple rxTuple ={
-                .sip = ch.sip,
-                .dip = ch.dip,
-                .sport = ch.udp.sport,
-                .dport = ch.udp.dport,
-                .prio = ch.udp.pg,
-            };
-            Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
-            if (qp == NULL)
-            {
-                std::cout << "ERROR: "
-                    << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
-                return 0;
-            }
-
-            uint32_t nic_idx = GetNicIdxOfQp(qp);
-            Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
-            if (m_ack_interval == 0)
-                std::cout << "ERROR: shouldn't receive ack\n";
-            else
-            {
-                if (!m_backto0)
-                {
-                    qp->Acknowledge(seq);
-                }
-                else
-                {
-                    uint32_t goback_seq = seq / m_chunk * m_chunk;
-                    qp->Acknowledge(goback_seq);
-                }
-                if (qp->IsFinished())
-                {
-                    QpComplete(qp);
-                }
-            }
-            if (ch.l3Prot == 0xFD) // NACK
-                RecoverQueue(qp);
-
-            // handle cnp
-            if (cnp)
-            {
-                if (m_cc_mode == 1)
-                { // mlx version
-                    cnp_received_mlx(qp->m_CCEntity);
-                }
-            }
-
-            if (m_cc_mode == 3)
-            {
-                HandleAckHp(qp, p, ch);
-            }
-            else if (m_cc_mode == 7)
-            {
-                HandleAckTimely(qp, p, ch);
-            }
-            else if (m_cc_mode == 8)
-            {
-                HandleAckDctcp(qp, p, ch);
-            }
-            else if (m_cc_mode == 10)
-            {
-                HandleAckHpPint(qp, p, ch);
-            }
-            // ACK may advance the on-the-fly window, allowing more packets to send
-            dev->TriggerTransmit();
-            return 0;
-        }
-
-        int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch)
-        {
-            L3Protocol proto = static_cast<L3Protocol>(ch.l3Prot);
-            switch (proto)
-            {
-            case L3Protocol::PROTO_UDP:
-            {
-                SimpleTuple rxTuple ={
-                    .sip = ch.dip,
-                    .dip = ch.sip,
-                    .sport = ch.udp.dport,
-                    .dport = ch.udp.sport,
-                    .prio = ch.udp.pg,
-                };
-                Ptr<RdmaQueuePair> rxQp = GetQp(rxTuple);
-
-                if (rxQp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
-                    // RCReceiveUdp(p, rxQp, ch);
-                    RCReceiveInboundRequest(p, rxQp, ch);
-                }
-                else {
-                    // UCReceiveUdp(p, rxQp, ch);
-                    UCReceiveInboundRequest(p, rxQp, ch);
-                }
-            }
-            /*
             else {
-
+                // UCReceiveUdp(p, rxQp, ch);
+                UCReceiveInboundRequest(p, rxQp, ch);
             }
-            */
-            break;
-            case L3Protocol::PROTO_NACK:
-                ReceiveAck(p, ch);
-                break;
-            case L3Protocol::PROTO_ACK:
-                ReceiveAck(p, ch);
-                break;
-            } // namespace ns3
-
-            return 0;
-        }
-
-        RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size)
-        {
-            uint32_t expected = q->ReceiverNextExpectedSeq;
-            if (seq == expected)
-            {
-                q->ReceiverNextExpectedSeq = expected + size;
-                if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx)
-                {
-                    q->m_milestone_rx += m_ack_interval;
-                    return RCSeqState::GENERATE_ACK; // Generate ACK
-                }
-                else if (q->ReceiverNextExpectedSeq % m_chunk == 0)
-                {
-                    return RCSeqState::GENERATE_ACK;
-                }
-                else
-                {
-                    return RCSeqState::NOT_GENERATE_ACK;
-                }
-
-                RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size) {
-                    uint32_t expected = q->ReceiverNextExpectedSeq;
-                    if (seq == expected) {
-                        q->ReceiverNextExpectedSeq = expected + size;
-                        if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
-                            q->m_milestone_rx += m_ack_interval;
-                            return RCSeqState::GENERATE_ACK;  // Generate ACK
-                        }
-                        else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
-                            return RCSeqState::GENERATE_ACK;
-                        }
-                        else {
-                            return RCSeqState::NOT_GENERATE_ACK;
-                        }
-                    }
-                    else if (seq > expected) {
-                        // Generate NACK
-                        if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
-                            q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
-                            q->m_lastNACK = expected;
-                            if (m_backto0) {
-                                q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
-                            }
-                            return RCSeqState::GENERATE_NACK;
-                        }
-                        else
-                            return RCSeqState::NOT_GENERATE_NACK;
-                    }
-                    else {
-                        // Duplicate.
-                        return RCSeqState::DUPLICATED;
-                    }
-                }
-                return UCSeqState::OOS;
-            }
-            /*
-        if (seq == exp) {
-            return UCSeqState::OK;
-        }
-        */
-            q->ReceiverNextExpectedSeq;
         }
         /*
-=======
-// return UCSeqState::OOS;
-// }
-/*
-if (seq == exp) {
-    return UCSeqState::OK;
-}
-*/
-// q->ReceiverNextExpectedSeq;
-/*
-if (seq == expected) {
-    q->ReceiverNextExpectedSeq = expected + size;
-    if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
-        q->m_milestone_rx += m_ack_interval;
-        return UCSeqState::GENERATE_ACK;  // Generate ACK
-    } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
-        return UCSeqState::GENERATE_ACK;
-    } else {
+        else {
 
-        return CheckSeqState::NOT_GENERATE_ACK;
-    }
-} else if (seq > expected) {
-    // Generate NACK
-    if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
-        q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
-        q->m_lastNACK = expected;
-        if (m_backto0) {
-            q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
         }
-        return CheckSeqState::GENERATE_NACK;
-    } else
-        return CheckSeqState::NOT_GENERATE_NACK;
-} else {
-    // Duplicate.
-    return CheckSeqState::DUPLICATED;
-}
-*/
-//}
+        */
+        break;
+        case L3Protocol::PROTO_NACK:
+            ReceiveAck(p, ch);
+            break;
+        case L3Protocol::PROTO_ACK:
+            ReceiveAck(p, ch);
+            break;
+        } // namespace ns3
 
-        UCSeqState RdmaHw::MatchFirstOrOnly(IBHeader ibh) {
-            if (header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
-                header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-                header.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
-                if (CheckOpcodeOperationSupported(header.ibh)) {
-                    // need to do something to complete
-                    return UCSeqState::OK;
+        return 0;
+    }
+
+    RCSeqState RdmaHw::RCReceiverCheckSeq(uint32_t seq, Ptr<RdmaQueuePair> q, uint32_t size)
+    {
+        uint32_t expected = q->ReceiverNextExpectedSeq;
+        if (seq == expected)
+        {
+            q->ReceiverNextExpectedSeq = expected + size;
+            if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx)
+            {
+                q->m_milestone_rx += m_ack_interval;
+                return RCSeqState::GENERATE_ACK; // Generate ACK
+            }
+            else if (q->ReceiverNextExpectedSeq % m_chunk == 0)
+            {
+                return RCSeqState::GENERATE_ACK;
+            }
+            else
+            {
+                return RCSeqState::NOT_GENERATE_ACK;
+            }
+        }
+        else if (seq > expected) {
+            // Generate NACK
+            if (Simulator::Now() >= q->m_nackTimer || q->m_lastNACK != expected) {
+                q->m_nackTimer = Simulator::Now() + MicroSeconds(m_nack_interval);
+                q->m_lastNACK = expected;
+                if (m_backto0) {
+                    q->ReceiverNextExpectedSeq = q->ReceiverNextExpectedSeq / m_chunk * m_chunk;
                 }
-                else {
-                    return UCSeqState::DUPLICATED;
-                }
+                return RCSeqState::GENERATE_NACK;
+            }
+            else
+                return RCSeqState::NOT_GENERATE_NACK;
+            }
+        else {
+            // Duplicate.
+            return RCSeqState::DUPLICATED;
+            }
+    }
+    
+    UCSeqState RdmaHw::MatchFirstOrOnly(IBHeader ibh) {
+        if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+            if (CheckOpcodeOperationSupported(ibh)) {
+                return UCSeqState::OK;
             }
             else {
                 return UCSeqState::DUPLICATED;
             }
         }
+        else {
+            return UCSeqState::DUPLICATED;
+        }
+    }
 
-        UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size) {
-            uint32_t seq = header.udp.seq;
-            uint32_t expected = q->ReceiverNextExpectedSeq;
-            >>>>>>> b13004ecd140106e6c5e8297de810232d8a51671
-                if (seq == expected) {
-                    q->ReceiverNextExpectedSeq = expected + size;
-                    if (CheckOpcodeValid(header.ibh, OpCodeType::UC)) {
-                        if (UCCheckOpcodeSequence(header.ibh, q)) {
-                            if (CheckOpcodeOperationSupported(header.ibh)) {
-                                // need to do something to complete
-                                return UCSeqState::OK;
-                            }
-                            else {
-                                return UCSeqState::DUPLICATED;
-                            }
+    UCSeqState RdmaHw::UCReceiverCheckSeq(CustomHeader &header, Ptr<RdmaQueuePair> q, uint32_t size) {
+        uint32_t seq = header.udp.seq;
+        uint32_t expected = q->ReceiverNextExpectedSeq;
+            if (seq == expected) {
+                q->ReceiverNextExpectedSeq = expected + size;
+                if (CheckOpcodeValid(header.udp.ibh, OpCodeType::UC)) {
+                    if (UCCheckOpcodeSequence(header.udp.ibh, q)) {
+                        if (CheckOpcodeOperationSupported(header.udp.ibh)) {
+                            // need to do something to complete
+                            return UCSeqState::OK;
                         }
                         else {
-                            expected = seq;
-                            return MatchFirstOrOnly(header.ibh);
+                            return UCSeqState::DUPLICATED;
                         }
-                        /*
-                        if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
-                            q->m_milestone_rx += m_ack_interval;
-                            return UCSeqState::GENERATE_ACK;  // Generate ACK
-                        } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
-                            return UCSeqState::GENERATE_ACK;
-                        } else {
-                            return CheckSeqState::NOT_GENERATE_ACK;
-                        }
-                        */
                     }
+                    else {
+                        expected = seq;
+                        return MatchFirstOrOnly(header.udp.ibh);
+                    }
+                    /*
+                    if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
+                        q->m_milestone_rx += m_ack_interval;
+                        return UCSeqState::GENERATE_ACK;  // Generate ACK
+                    } else if (q->ReceiverNextExpectedSeq % m_chunk == 0) {
+                        return UCSeqState::GENERATE_ACK;
+                    } else {
+                        return CheckSeqState::NOT_GENERATE_ACK;
+                    }
+                    */
                 }
-                else if (seq != expected) {
-                    expected = seq;
-                    return MatchFirstOrOnly(header.ibh);
-                }
-        }
+            }
+            else if (seq != expected) {
+                expected = seq;
+                return MatchFirstOrOnly(header.udp.ibh);
+            }
     }
 
     void RdmaHw::AddHeader(Ptr<Packet> p, uint16_t protocolNumber)
