@@ -45,6 +45,7 @@
 #include "ns3/socket-factory.h"
 #include "ns3/socket.h"
 #include "ns3/uinteger.h"
+#include "ns3/verb-tag.h"
 
 namespace ns3 {
 
@@ -52,23 +53,48 @@ namespace ns3 {
     NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
     void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
-        m_queuingRPCs.push_back(rpc)
-            SendRPC();
-
+        m_queuingRPCs.push_back(rpc);
+        SendRPC();
     }
 
     void UserSpaceConnection::SendRPC() {
-        if (m)
-        {
+        if(m_remainingSendingSize){
             Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest> wr;
-            wr->imm;
-            uint32_t flowsegSize =  m_flowseg.GetSize();
-            wr->size = m_remainingSendingSize > flowsegSize?flowsegSize:m_remainingSendingSize;
+            if(m_remainingSendingSize == m_sendingRPC->size)
+            {
+                wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
+            }     
+            else
+            {
+                m_sendingRPC->segment_id++;
+                wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
+                uint32_t flowsegSize =  m_flowseg.GetSize();
+                wr->size = m_remainingSendingSize > flowsegSize? flowsegSize : m_remainingSendingSize;
+            }     
+            Ptr<FlowSegSizeTag> flowSegSizeTag;
+            flowSegSizeTag->m_flowSegSize = flowsegSize;
+            Ptr<RPCSizeTag> rpcSizeTag;
+            rpcSizeTag->m_rpcSize = m_sendingRPC->size;
+            wr->tags[0] = flowSegSizeTag;
+            wr->tags[1] = rpcSizeTag;
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
-            wr->tags;
             m_appQP->PostSend(wr);
-            m_remainingSendingSize = m_remainingSendingSize>size?
+            m_remainingSendingSize = m_remainingSendingSize > size ? m_remainingSendingSize-size : 0;      
+        }  
+        if(m_remainingSendingSize == 0)
+        {
+            if(!m_queuingRPCs.empty())
+            {
+                m_sendingRPC = m_queuingRPCs.front();
+                m_queuingRPCs.pop();
+                m_remainingSendingSize = m_sendingRPC->size;
+            }
+            else
+            {
+                m_sendingRPC = nullptr;
+            }
         }
+
     }
 
     TypeId DistributedStorageClient::GetTypeId(void) {
@@ -84,7 +110,7 @@ namespace ns3 {
         NS_LOG_FUNCTION_NOARGS();
     }
 
-    void SendRpc(Ptr<RPC> rpc) {
+    void DistributedStorageClient::SendRpc(Ptr<RPC> rpc) {
 
         // find user-space connection
         // send rpc

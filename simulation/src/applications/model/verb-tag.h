@@ -19,8 +19,8 @@
  * Authors: yomarisgong<1054087539@qq.com>
  */
 
-#ifndef LAST_PACKET_TAG_H
-#define LAST_PACKET_TAG_H
+#ifndef VERB_TAG_H
+#define VERB_TAG_H
 
 #include "ns3/tag.h"
 
@@ -30,13 +30,13 @@ namespace ns3 {
  * \brief This class implements a tag that carries the information about verbs
  * of a SEND_LAST_WITH_IMM packet.
  */
-    class LastPacketTag : public Tag 
+
+    class FlowSegSizeTag :public Tag
     {
         public:
-            LastPacketTag();
-            void SetIBV_WR(IBVWorkRequest ibv_wr);
-            IBVWorkRequest GetIBV_WR(void) const;
-
+            FlowSegSizeTag();
+            void SetFlowSegSize(uint32_t flowSegSize);
+            uint32_t GetFlowSegSize(void) const;
             static TypeId GetTypeId(void);
             virtual TypeId GetInstanceTypeId(void) const;
             virtual uint32_t GetSerializedSize(void) const;
@@ -44,9 +44,26 @@ namespace ns3 {
             virtual void Deserialize(TagBuffer i);
             virtual void Print(std::ostream &os) const;
         private:
-            IBVWorkRequest m_ibv_wr;
-    };
+            uint32_t m_flowSegSize;
+    }
+
+    class RPCSizeTag :public Tag
+    {
+        public:
+            RPCSizeTag();
+            void SetRPCSize(uint32_t rpcSize);
+            uint32_t GetRPCSize(void) const;
+            static TypeId GetTypeId(void);
+            virtual TypeId GetInstanceTypeId(void) const;
+            virtual uint32_t GetSerializedSize(void) const;
+            virtual void Serialize(TagBuffer i) const;
+            virtual void Deserialize(TagBuffer i);
+            virtual void Print(std::ostream &os) const;
+        private:
+            uint32_t m_rpcSize;
+    }
+
 
 }  // namespace ns3
 
-#endif /* LAST_PACKET_TAG_H */
+#endif /* VERB_TAG_H */

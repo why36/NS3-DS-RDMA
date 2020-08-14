@@ -28,11 +28,11 @@
 
 namespace ns3 {
 
-    using RPCNumber = uint64_t;
+    using RPCNumber = uint24_t;
 
     using ACKSeg = struct ack_seg {
         RPCNumber rpc_id;
-        uint8_t segment_id;
+        uint16_t segment_id;
     }
 
     class ACK {

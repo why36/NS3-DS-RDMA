@@ -257,6 +257,7 @@ namespace ns3
             if (!m_wrs.empty())
             {
                 m_sendingWr = m_wrs.front();
+                m_wrs.pop();
                 m_remainingSize = m_sendingWr->size;
             }
             else

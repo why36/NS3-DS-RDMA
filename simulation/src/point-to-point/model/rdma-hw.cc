@@ -178,11 +178,11 @@ namespace ns3
         DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
         cc_entity->m_rate = m_bps;
         cc_entity->m_max_rate = m_bps;
-        if (m_cc_mode == 1)
+        if (m_cc_mode == 1) //DCQCN
         {
             cc_entity->mlx.m_targetRate = m_bps;
         }
-        else if (m_cc_mode == 3)
+        else if (m_cc_mode == 3) //HPCC
         {
             cc_entity->hp.m_curRate = m_bps;
             if (m_multipleRate)
@@ -191,11 +191,11 @@ namespace ns3
                     cc_entity->hp.hopState[i].Rc = m_bps;
             }
         }
-        else if (m_cc_mode == 7)
+        else if (m_cc_mode == 7) //TIMELY
         {
             cc_entity->tmly.m_curRate = m_bps;
         }
-        else if (m_cc_mode == 10)
+        else if (m_cc_mode == 10) //HPCC-PINT
         {
             cc_entity->hpccPint.m_curRate = m_bps;
         }
