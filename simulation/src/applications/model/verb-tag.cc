@@ -35,6 +35,7 @@ NS_LOG_COMPONENT_DEFINE("VerbTag");
 namespace ns3 {
 
 NS_OBJECT_ENSURE_REGISTERED(FlowSegSizeTag);
+
 FlowSegSizeTag::FlowSegSizeTag() { NS_LOG_FUNCTION(this); }
 
 void FlowSegSizeTag::SetFlowSegSize(uint32_t flowSegSize) { m_flowSegSize = flowSegSize; }
@@ -57,6 +58,7 @@ void FlowSegSizeTag::Deserialize(TagBuffer i) { m_flowSegSize = i.ReadU32(); }
 void FlowSegSizeTag::Print(std::ostream &os) const { os << "FlowSegSizeTag.flowSegSize(dec)=" << std::dec << m_flowSegSize; }
 
 NS_OBJECT_ENSURE_REGISTERED(RPCSizeTag);
+
 RPCSizeTag::RPCSizeTag() { NS_LOG_FUNCTION(this); }
 
 void RPCSizeTag::SetRPCSize(uint32_t rpcSize) { m_rpcSize = rpcSize; }
@@ -77,6 +79,30 @@ void RPCSizeTag::Serialize(TagBuffer i) const { i.WriteU32(m_rpcSize); }
 void RPCSizeTag::Deserialize(TagBuffer i) { m_rpcSize = i.ReadU32(); }
 
 void RPCSizeTag::Print(std::ostream &os) const { os << "RPCSizeTag.m_rpcSize(dec)=" << std::dec << m_rpcSize; }
+
+
+NS_OBJECT_ENSURE_REGISTERED(RPCTotalOffsetTag);
+
+RPCTotalOffsetTag::RPCTotalOffsetTag() { NS_LOG_FUNCTION(this); }
+
+void RPCTotalOffsetTag::SetRPCSize(uint16_t rpcTotalOffest) { m_rpcTotalOffest = rpcTotalOffest; }
+
+uint16_t RPCTotalOffsetTag::GetRPCSize(void) const { return m_rpcTotalOffest; }
+
+TypeId RPCTotalOffsetTag::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::RPCTotalOffsetTag").SetParent<Tag>().AddConstructor<RPCTotalOffsetTag>();
+    return tid;
+}
+
+TypeId RPCTotalOffsetTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+
+uint32_t RPCTotalOffsetTag::GetSerializedSize(void) const { return sizeof(uint16_t); }
+
+void RPCTotalOffsetTag::Serialize(TagBuffer i) const { i.WriteU16(m_rpcTotalOffest); }
+
+void RPCTotalOffsetTag::Deserialize(TagBuffer i) { m_rpcTotalOffest = i.ReadU16(); }
+
+void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag.m_rpcTotalOffest(dec)=" << std::dec << m_rpcTotalOffest; }
 
 }  // namespace ns3
 

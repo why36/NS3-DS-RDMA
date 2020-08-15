@@ -40,13 +40,13 @@ namespace ns3 {
     }
 
     class Reliability {
-        uint64_t GetMessageNumber() {
+        uint24_t GetMessageNumber() {
             return m_messageNumber++;
         }
 
-        std::list<>
+        //std::list<>
     private:
-        Number  m_messageNumber=0;
+        uint24_t m_messageNumber=0;
     };
 
 

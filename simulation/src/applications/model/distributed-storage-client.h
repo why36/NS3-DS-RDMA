@@ -58,11 +58,13 @@ namespace ns3 {
         Ptr<UserSpaceCongestionControl> m_UCC;
         Ptr<FlowsegInterface> m_flowseg;
         Ptr<RdmaAppQP> m_appQP;
+        Ptr<RdmaAppAckQP> m_ackQP;
         std::queue<Rpc> m_queuingRPCs;
         Ptr<Rpc> m_sendingRPC;
         uint32_t m_remainingSendingSize;
     private:
         void SendRPC();
+        void ReceiveRPC();
     };
     class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     public:

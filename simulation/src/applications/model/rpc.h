@@ -75,7 +75,7 @@ class Rpc {
 
     uint32_t m_rpc_size;
     uint24_t rpc_id;
-    uint8_t segment_id = 0;
+    uint16_t segment_id = 0;
 };
 
 }  // namespace ns3

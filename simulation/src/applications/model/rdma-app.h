@@ -114,6 +114,45 @@ namespace ns3 {
         dst->CreateQP(src_create_attr);
     };
 
+
+    class RdmaAppAckQP : Object {
+        friend class RdmaCM;
+
+    public:
+        RdmaAppAckQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
+            Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB);
+        RdmaAppAckQP(Ptr<RdmaDriver> driver);   
+        /**
+         * \param Packet p;
+         */
+        //void PostSend(IBVWorkRequest& wr);
+        void PostSendAck(Ptr<Packet> p);
+        void PostReceiveAck(Ptr<Packet> p);
+
+    private:
+        /**
+         * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
+         * \param create_attr connect attr for this QP;
+         */
+        void CreateQP(QPCreateAttribute& create_attr)
+        {
+            m_qp_ack = m_rdmaDriver->AddQueuePair(create_attr);
+            return m_qp_ack;
+        }
+
+        //void OnCompletion(Ptr<IBVWorkCompletion> completion);
+        // TO DO Krayecho Yx:
+        // void PostReceive();
+        Ptr<RdmaDriver> m_rdmaDriver;
+        Ptr<RdmaQueuePair> m_qp_ack;
+
+        /*
+         * Callback
+         */
+        //Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
+        //Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
+    };
+
 }  // namespace ns3
 
 #endif /* RDMA_APP_H */

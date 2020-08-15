@@ -59,7 +59,18 @@ namespace ns3 {
 
     void UserSpaceConnection::SendRPC() {
         if(m_remainingSendingSize){
-            Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest> wr;
+            uint32_t flowsegSize =  m_flowseg.GetSize();
+            Ptr<IBVWorkRequest> wr;
+            if(m_remainingSendingSize > flowsegSize)
+            {
+                wr = Create<IBVWorkRequest>();
+                wr->size = flowsegSize;
+            }
+            else if(m_remainingSendingSize <= flowsegSize)
+            {
+                wr = Create<IBVWorkRequest>(3);
+                wr->size = m_remainingSendingSize;
+            }
             if(m_remainingSendingSize == m_sendingRPC->size)
             {
                 wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
@@ -68,18 +79,22 @@ namespace ns3 {
             {
                 m_sendingRPC->segment_id++;
                 wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
-                uint32_t flowsegSize =  m_flowseg.GetSize();
-                wr->size = m_remainingSendingSize > flowsegSize? flowsegSize : m_remainingSendingSize;
-            }     
+            }
             Ptr<FlowSegSizeTag> flowSegSizeTag;
-            flowSegSizeTag->m_flowSegSize = flowsegSize;
+            flowSegSizeTag->SetFlowSegSize(flowsegSize);
             Ptr<RPCSizeTag> rpcSizeTag;
-            rpcSizeTag->m_rpcSize = m_sendingRPC->size;
+            rpcSizeTag->SetRPCSize(m_sendingRPC->size);
             wr->tags[0] = flowSegSizeTag;
             wr->tags[1] = rpcSizeTag;
+            if(m_remainingSendingSize == wr->size)
+            {
+                Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
+                rpcTotalOffsetTag->SetRPCTotalOffset(m_sendingRPC->segment_id);
+                wr->tags[2] = rpcTotalOffsetTag;
+            }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
-            m_remainingSendingSize = m_remainingSendingSize > size ? m_remainingSendingSize-size : 0;      
+            m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize-wr->size : 0;      
         }  
         if(m_remainingSendingSize == 0)
         {
@@ -94,7 +109,6 @@ namespace ns3 {
                 m_sendingRPC = nullptr;
             }
         }
-
     }
 
     TypeId DistributedStorageClient::GetTypeId(void) {

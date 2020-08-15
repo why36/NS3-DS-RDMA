@@ -63,6 +63,21 @@ namespace ns3 {
             uint32_t m_rpcSize;
     }
 
+    class RPCTotalOffsetTag :public Tag
+    {
+        public:
+            RPCTotalOffsetTag();
+            void SetRPCTotalOffset(uint16_t rpcTotalOffest);
+            uint16_t GetRPCTotalOffset(void) const;
+            static TypeId GetTypeId(void);
+            virtual TypeId GetInstanceTypeId(void) const;
+            virtual uint32_t GetSerializedSize(void) const;
+            virtual void Serialize(TagBuffer i) const;
+            virtual void Deserialize(TagBuffer i);
+            virtual void Print(std::ostream &os) const;
+        private:
+            uint16_t m_rpcTotalOffest;
+    }
 
 }  // namespace ns3
 

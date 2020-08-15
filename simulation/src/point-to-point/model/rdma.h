@@ -44,7 +44,10 @@ namespace ns3 {
         IBVerb verb;
         uint32_t size;
         uint32_t imm;
-        TagPayload tags;
+        TagPayload tags;        
+        int mark_tag_num;
+        ibv_wr():mark_tag_num(2){}
+        ibv_wr(int _mark_tag_num):mark_tag_num(_mark_tag_num){}
     };
 
     using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
@@ -55,6 +58,9 @@ namespace ns3 {
         uint32_t imm;
         uint64_t time_in_us;
         TagPayload tags;
+        int mark_tag_num;
+        ibv_wc():mark_tag_num(2){}
+        ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){}
     };
 
 
