@@ -195,7 +195,7 @@ namespace ns3
         {
             cc_entity->tmly.m_curRate = m_bps;
         }
-        else if (m_cc_mode == 10) //HPCC-PINT
+        else if (m_cc_mode == 10)
         {
             cc_entity->hpccPint.m_curRate = m_bps;
         }

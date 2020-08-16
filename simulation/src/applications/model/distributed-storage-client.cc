@@ -53,7 +53,7 @@ namespace ns3 {
     NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
     void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
-        m_queuingRPCs.push_back(rpc);
+        m_sendQueuingRPCs.push_back(rpc);
         SendRPC();
     }
 
@@ -80,9 +80,9 @@ namespace ns3 {
                 m_sendingRPC->segment_id++;
                 wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
             }
-            Ptr<FlowSegSizeTag> flowSegSizeTag;
+            Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
             flowSegSizeTag->SetFlowSegSize(flowsegSize);
-            Ptr<RPCSizeTag> rpcSizeTag;
+            Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
             rpcSizeTag->SetRPCSize(m_sendingRPC->size);
             wr->tags[0] = flowSegSizeTag;
             wr->tags[1] = rpcSizeTag;
@@ -98,10 +98,10 @@ namespace ns3 {
         }  
         if(m_remainingSendingSize == 0)
         {
-            if(!m_queuingRPCs.empty())
+            if(!m_sendQueuingRPCs.empty())
             {
-                m_sendingRPC = m_queuingRPCs.front();
-                m_queuingRPCs.pop();
+                m_sendingRPC = m_sendQueuingRPCs.front();
+                m_sendQueuingRPCs.pop();
                 m_remainingSendingSize = m_sendingRPC->size;
             }
             else
@@ -110,6 +110,29 @@ namespace ns3 {
             }
         }
     }
+
+    void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC){
+        m_receiveQueuingIBVWCs.push_back(receiveQueuingIBVWC);
+        ReceiveIBVWC();
+    }
+
+    void UserSpaceConnection::ReceiveIBVWC(){
+        if(!receiveQueuingIBVWC.empty())
+        {
+            m_receivingIBVWC = m_receiveQueuingIBVWCs.front();
+            m_receiveQueuingIBVWCs.pop();
+        }
+        else
+        {
+            m_receivingIBVWC = nullptr;
+            return;
+        }
+        uint24_t rpc_id = m_receivingIBVWC->imm >> 9;
+        uint16_t segment_id =  m_receivingIBVWC->imm & 0x1FF;
+        
+
+    }
+
 
     TypeId DistributedStorageClient::GetTypeId(void) {
         static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();

@@ -36,6 +36,7 @@ namespace ns3 {
     }
 
     class ACK {
+        public:
         std::vector<ACKSeg> segments;
     }
 

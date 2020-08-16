@@ -59,12 +59,20 @@ namespace ns3 {
         Ptr<FlowsegInterface> m_flowseg;
         Ptr<RdmaAppQP> m_appQP;
         Ptr<RdmaAppAckQP> m_ackQP;
-        std::queue<Rpc> m_queuingRPCs;
-        Ptr<Rpc> m_sendingRPC;
+        std::queue<Ptr<RPC>> m_sendQueuingRPCs;
+        Ptr<RPC> m_sendingRPC;
         uint32_t m_remainingSendingSize;
+
+        //void ReceiveRPC(Ptr<RPC>);
+        //std::queue<RPC> m_receiveQueuingRPCs;
+        void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
+        std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingIBVWCs;
+        Ptr<IBVWorkCompletion> m_receivingIBVWC;
+
     private:
         void SendRPC();
-        void ReceiveRPC();
+        //void ReceiveRPC();
+        void ReceiveIBVWC();
     };
     class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     public:

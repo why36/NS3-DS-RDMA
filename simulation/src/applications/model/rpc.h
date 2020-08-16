@@ -38,11 +38,11 @@
 
 namespace ns3 {
 
-class Rpc {
+class RPC {
    public:
     template <typename F>
     void Bind(std::string name, F func) {
-        funcMap[name] = std::bind(&Rpc::Execute<F>, this, func, std::placeholders::_1);
+        funcMap[name] = std::bind(&RPC::Execute<F>, this, func, std::placeholders::_1);
     }
 
     RpcResponse Send(RpcRequset request) { return funcMap[request.GetFuncName()](request); }
