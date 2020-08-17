@@ -74,8 +74,8 @@ class RPC {
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
 
     uint32_t m_rpc_size;
-    uint24_t rpc_id;
-    uint16_t segment_id = 0;
+    uint32_t rpc_id; //24 bit
+    //uint16_t segment_id = 0;
 };
 
 }  // namespace ns3

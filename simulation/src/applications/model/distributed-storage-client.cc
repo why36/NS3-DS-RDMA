@@ -58,7 +58,8 @@ namespace ns3 {
     }
 
     void UserSpaceConnection::SendRPC() {
-        if(m_remainingSendingSize){
+        if(m_remainingSendingSize)
+        {
             uint32_t flowsegSize =  m_flowseg.GetSize();
             Ptr<IBVWorkRequest> wr;
             if(m_remainingSendingSize > flowsegSize)
@@ -71,15 +72,7 @@ namespace ns3 {
                 wr = Create<IBVWorkRequest>(3);
                 wr->size = m_remainingSendingSize;
             }
-            if(m_remainingSendingSize == m_sendingRPC->size)
-            {
-                wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
-            }     
-            else
-            {
-                m_sendingRPC->segment_id++;
-                wr->imm = (m_sendingRPC->rpc_id) << 8 + m_sendingRPC->segment_id;
-            }
+            wr->imm = (m_sendingRPC->rpc_id) << 9 + m_reliability->rpc_seg[m_sendingRPC->rpc_id]++;
             Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
             flowSegSizeTag->SetFlowSegSize(flowsegSize);
             Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
@@ -102,6 +95,8 @@ namespace ns3 {
             {
                 m_sendingRPC = m_sendQueuingRPCs.front();
                 m_sendQueuingRPCs.pop();
+                m_sendingRPC->rpc_id = m_reliability.GetMessageNumber();
+                m_reliability->rpc_seg.insert((pair<uint32_t,uint16_t>(m_sendingRPC->rpc_id,0)));
                 m_remainingSendingSize = m_sendingRPC->size;
             }
             else
@@ -127,9 +122,12 @@ namespace ns3 {
             m_receivingIBVWC = nullptr;
             return;
         }
-        uint24_t rpc_id = m_receivingIBVWC->imm >> 9;
-        uint16_t segment_id =  m_receivingIBVWC->imm & 0x1FF;
+        m_rpcAckBitMap.set(m_receivingIBVWC->imm);        
+        //uint32_t rpc_id = m_receivingIBVWC->imm >> 9;
+        //uint16_t segment_id =  m_receivingIBVWC->imm & 0x1FF;
+
         
+
 
     }
 

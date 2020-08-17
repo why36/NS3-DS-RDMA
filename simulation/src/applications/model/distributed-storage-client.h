@@ -36,6 +36,7 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
 #include "ns3/user-space-congestion-control.h"
+#include "ns3/reliability.h"
 
 namespace ns3 {
 
@@ -61,6 +62,8 @@ namespace ns3 {
         Ptr<RdmaAppAckQP> m_ackQP;
         std::queue<Ptr<RPC>> m_sendQueuingRPCs;
         Ptr<RPC> m_sendingRPC;
+        Ptr<Reliability> m_reliability;
+        RpcAckBitMap m_rpcAckBitMap;
         uint32_t m_remainingSendingSize;
 
         //void ReceiveRPC(Ptr<RPC>);

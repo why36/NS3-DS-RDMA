@@ -22,34 +22,55 @@
 #ifndef RELIABILITY_H
 #define RELIABILITY_H
 
-#include "ns3/uinteger.h"
 #include "ns3/pointer.h"
+#include "ns3/uinteger.h"
 #include "ns3/vector.h"
+#include <map>
 
 namespace ns3 {
 
-    using RPCNumber = uint24_t;
+using RPCNumber = uint32_t;
 
-    using ACKSeg = struct ack_seg {
-        RPCNumber rpc_id;
-        uint16_t segment_id;
+using ACKSeg = struct ack_seg {
+    RPCNumber rpc_id;
+    uint16_t segment_id;
+}
+
+class ACK {
+   public:
+    std::vector<ACKSeg> segments;
+}
+
+class Reliability {
+   public:
+    uint32_t GetMessageNumber() { return m_messageNumber++; }
+
+    std::map<uint32_t,uint16_t> rpc_seg;
+   private:
+    uint32_t m_messageNumber = 0;
+};
+
+class RpcAckBitMap {
+   public:
+    RpcAckBitMap() {
+        this->arr = new uint8_t[REQUIRED_SIZE];
+        memset(this->arr, 0, REQUIRED_SIZE * sizeof(uint8_t));
+    }
+    ~RpcAckBitMap() { delete[] this->arr; }
+    void set(uint32_t index) {
+        uint32_t bucket = index >> 3;
+        this->arr[bucket] |= (1 << (index & 0x7));
+    }
+    bool get(uint32_t index) {
+        uint32_t bucket = index >> 3;
+        uint8_t value = this->arr[bucket];
+        return (value >> (index & 0x7)) & 1;
     }
 
-    class ACK {
-        public:
-        std::vector<ACKSeg> segments;
-    }
-
-    class Reliability {
-        uint24_t GetMessageNumber() {
-            return m_messageNumber++;
-        }
-
-        //std::list<>
-    private:
-        uint24_t m_messageNumber=0;
-    };
-
+   private:
+    int* arr;
+    const int REQUIRED_SIZE = 536870912;  // 2^32/8
+};
 
 }  // namespace ns3
 #endif /* RELIABILITY_H */
