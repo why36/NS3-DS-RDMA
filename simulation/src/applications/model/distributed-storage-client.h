@@ -71,6 +71,7 @@ namespace ns3 {
         void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
         std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingIBVWCs;
         Ptr<IBVWorkCompletion> m_receivingIBVWC;
+        uint32_t m_receive_ibv_num = 0;
 
     private:
         void SendRPC();

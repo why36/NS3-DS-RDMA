@@ -393,7 +393,7 @@ namespace ns3
                     rxQp->m_notifyCompletion(wc);
                 }
             }
-            else if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
+            if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
                 qbbHeader seqh;
                 seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
                 seqh.SetPG(ch.udp.pg);
