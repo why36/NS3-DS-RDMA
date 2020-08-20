@@ -126,8 +126,8 @@ namespace ns3 {
          * \param Packet p;
          */
         //void PostSend(IBVWorkRequest& wr);
-        void PostSendAck(Ptr<Packet> p);
-        void PostReceiveAck(Ptr<Packet> p);
+        void PostSendAck(IBVWorkRequest& wr);
+        //void PostReceiveAck(Ptr<Packet> p);
         uint32_t m_ack_qp_interval;
         uint32_t m_milestone_rx = 0;
 

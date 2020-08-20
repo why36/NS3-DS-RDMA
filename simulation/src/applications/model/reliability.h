@@ -50,9 +50,10 @@ class Reliability {
     std::map<uint32_t, uint16_t> rpc_seg;
     //key is rpc_id, value is the total seg numer of this rpc
     std::map<uint32_t,uint16_t> rpc_totalSeg;
-
+    //indicates whether the RPC is complete
     std::map<uint32_t,bool> rpc_finish;
-
+    //Save RPC's verb for repass
+    std::map<uint32_t,Ptr<IBVWorkRequest>> rpc_verb;
    private:
     uint32_t m_messageNumber = 0;
 };

@@ -79,10 +79,11 @@ void UserSpaceConnection::SendRPC() {
             Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
             rpcTotalOffsetTag->SetRPCTotalOffset(m_sendingRPC->segment_id);
             wr->tags[2] = rpcTotalOffsetTag;
-            m_reliability->rpc_totalSeg.insert((pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_sendingRPC->segment_id)));
+            m_reliability->rpc_totalSeg.insert(pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_sendingRPC->segment_id));
         }
         wr->verb = IBVerb::IBV_SEND_WITH_IMM;
         m_appQP->PostSend(wr);
+        m_reliability->rpcImm_verb.insert(pair<uint32_t, Ptr<IBVWorkRequest>>(wr->imm, wr));
         m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize - wr->size : 0;
     }
     if (m_remainingSendingSize == 0) {
@@ -90,7 +91,7 @@ void UserSpaceConnection::SendRPC() {
             m_sendingRPC = m_sendQueuingRPCs.front();
             m_sendQueuingRPCs.pop();
             m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
-            m_reliability->rpc_seg.insert((pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0)));
+            m_reliability->rpc_seg.insert(pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
             m_remainingSendingSize = m_sendingRPC->size;
         } else {
             m_sendingRPC = nullptr;
@@ -98,34 +99,57 @@ void UserSpaceConnection::SendRPC() {
     }
 }
 
+void UserSpaceConnection::SendAck(uint32_t _imm) {
+    Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(3);
+    m_sendAckWr->imm = _imm;
+    m_sendQueuingAckWr.push_back(m_sendAckWr);
+    SendAck();
+}
+
 void UserSpaceConnection::SendAck() {
-    /*
-    qbbHeader seqh;
-    seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
-    seqh.SetPG(ch.udp.pg);
-    seqh.SetSport(ch.udp.dport);
-    seqh.SetDport(ch.udp.sport);
-    seqh.SetIntHeader(ch.udp.ih);
-    if (ecnbits) seqh.SetCnp();
+    Ptr<IBVWorkRequest> m_sendingAckWr;
+    if (!m_sendQueuingAckWr.empty()) {
+        m_sendingAckWr = m_sendQueuingAckWr.front();
+        m_sendQueuingAckWr.pop();
+    } else {
+        m_sendingAckWr = nullptr;
+        return;
+    }
+    Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
+    flowSegSizeTag->SetFlowSegSize(0);
+    Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
+    rpcSizeTag->SetRPCSize(0);
+    Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
+    rpcTotalOffsetTag->SetRPCTotalOffset(1);
+    m_sendingAckWr->tags[0] = flowSegSizeTag;
+    m_sendingAckWr->tags[1] = rpcSizeTag;
+    m_sendingAckWr->tags[2] = rpcTotalOffsetTag;
+    m_ackQP->PostSendAck(m_sendingAckWr);
+}
 
-    Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
-    newp->AddHeader(seqh);
+void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc) {
+    m_receiveQueuingAckWc.push_back(m_ackWc);
+    ReceiveAck();
+}
 
-    Ipv4Header head;  // Prepare IPv4 header
-    head.SetDestination(Ipv4Address(ch.sip));
-    head.SetSource(Ipv4Address(ch.dip));
-    head.SetProtocol(0xFC);  // ack=0xFC
-    head.SetTtl(64);
-    head.SetPayloadSize(newp->GetSize());
-    head.SetIdentification(rxQp->m_ipid++);
+void UserSpaceConnection::ReceiveAck() {
+    Ptr<IBVWorkCompletion> m_receivingAckWr;
+    if (!m_receiveQueuingAckWc.empty()) {
+        m_receivingAckWr = m_receiveQueuingAckWc.front();
+        m_receiveQueuingAckWc.pop();
+    } else {
+        m_receivingAckWr = nullptr;
+        return;
+    }
+    // repass
+    uint32 ack_imm = m_receivingAckWr->imm;
 
-    newp->AddHeader(head);
-    AddHeader(newp, 0x800);  // Attach PPP header
-    // send
-    uint32_t nic_idx = GetNicIdxOfQp(rxQp);
-    m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
-    m_nic[nic_idx].dev->TriggerTransmit();
-*/
+    // If the verb has already been sent
+    if (m_reliability->rpcImm_verb.find(ack_imm) != m_reliability->rpcImm_verb.end()) {
+        m_appQP->PostSend(rpcImm_verb[ack_imm]);
+    } else {
+        //nothing to do 
+    }
 }
 
 void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC) {
@@ -148,12 +172,12 @@ void UserSpaceConnection::ReceiveIBVWC() {
         for (uint32_t i = 0; i < m_reliability->GetMessageTotalNumber(); i++) {
             if (m_reliability->rpc_finish.find(i) == rpc_finish.end()) {
                 for (uint32_t j = 0; j < m_reliability->rpc_totalSeg[i]; j++) {
-                    if (!m_rpcAckBitMap.get(i << 23 + j & 0x1FF)) {
-                        SendAck();
+                    if (!m_rpcAckBitMap.get(i << 9 + j & 0x1FF)) {
+                        SendAck(i << 9 + j & 0x1FF);  // next value want to be set
                         break;
                     }
                     if (j == m_reliability->rpc_totalSeg[i]) {
-                        m_reliability->rpc_finish.insert((pair<uint32_t, bool>(i, true)));
+                        m_reliability->rpc_finish.insert(pair<uint32_t, bool>(i, true));
                     }
                 }
             }

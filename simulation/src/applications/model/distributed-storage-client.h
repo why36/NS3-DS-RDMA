@@ -63,6 +63,8 @@ namespace ns3 {
         std::queue<Ptr<RPC>> m_sendQueuingRPCs;
         Ptr<RPC> m_sendingRPC;
         Ptr<Reliability> m_reliability;
+        
+        //Ptr<IBVWorkRequest> m_ackIbvWr;
         RpcAckBitMap m_rpcAckBitMap;
         uint32_t m_remainingSendingSize;
 
@@ -73,10 +75,19 @@ namespace ns3 {
         Ptr<IBVWorkCompletion> m_receivingIBVWC;
         uint32_t m_receive_ibv_num = 0;
 
+        std::queue<Ptr<IBVWorkRequest>> m_sendQueuingAckWr;
+        std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingAckWc;
+        void SendAck(uint32_t _imm);
+        void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);        
+
+
+
     private:
         void SendRPC();
         //void ReceiveRPC();
         void ReceiveIBVWC();
+        void SendAck();
+        void ReceiveAck();
     };
     class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     public:
@@ -98,7 +109,7 @@ namespace ns3 {
          *  application interface
          */
          // RPC-level interface
-        void SendRpc(uint32_t size);
+        void SendRpc(Ptr<RPC> rpc);
 
         // Used for port Management
         void GetNextAvailablePort();
