@@ -27,4 +27,7 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE("DropBasedFlowseg");
 NS_OBJECT_ENSURE_REGISTERED(DropBasedFlowseg);
 
+void DropBasedFlowseg::UpdateSeg(FlowsegSignal &flowsegSignal) { return; };
+
+uint32_t DropBasedFlowseg::GetSegSize() { return 4096; };
 }  // Namespace ns3

@@ -22,49 +22,50 @@
 #ifndef FLOWSEG_H
 #define FLOWSEG_H
 
+#include "ns3/object.h"
+#include "ns3/type-id.h"
 #include "ns3/uinteger.h"
 
 namespace ns3 {
 
-    enum FlowsegType {
-        DROP_BASED = 0, RTT_BASED, CONGESTION_BASED
-    };
+enum FlowsegType { DROP_BASED = 0, RTT_BASED, CONGESTION_BASED };
 
-    using FlowsegSignal = struct {
-        FlowsegType flowseg_type;
+using FlowsegSignal = struct {
+    FlowsegType flowseg_type;
 
-        // drop-based flowseg
-        uint32_t segment_size;
-        bool dropped;
-        uint64_t now_us;
+    // drop-based flowseg
+    uint32_t segment_size;
+    bool dropped;
+    uint64_t now_us;
 
-        // rtt-based flowseg
-        // congestion-based flowseg
-    };
+    // rtt-based flowseg
+    // congestion-based flowseg
+};
 
-    class FlowsegInterface : public Object {
-    public:
-        FlowsegInterface() = delete;
-        FlowsegInterface(const FlowsegInterface&) = delete;
-        virtual ~FlowsegInterface() = 0;
+class FlowsegInterface : public Object {
+   public:
+    FlowsegInterface() = delete;
+    FlowsegInterface(const FlowsegInterface &) = delete;
+    virtual ~FlowsegInterface() = 0;
 
-        virtual uint32_t GetSegSize() = 0;
-        virtual void UpdateSeg(FlowsegSignal& flowsegSignal) = 0;
+    virtual uint32_t GetSegSize() = 0;
+    virtual void UpdateSeg(FlowsegSignal &flowsegSignal) = 0;
 
-    private:
-        FlowsegType mFlowsegType;
-    };
+   private:
+    FlowsegType mFlowsegType;
+};
 
-    class DropBasedFlowseg : public FlowsegInterface {
-    public:
-        static GetTypeId() {
-            return tid;
-        }
-        DropBasedFlowseg();
-        ~DropBasedFlowseg() override;
-        uint32_t GetSegSize() override;
-        void UpdateSeg(FlowsegSignal& flowsegSignal) override;
-    } final;
+class DropBasedFlowseg : public FlowsegInterface {
+   public:
+    static TypeId GetTypeId() {
+        static TypeId tid = TypeId("ns3::DropBasedFlowseg").SetParent<Object>();
+        return tid;
+    }
+    DropBasedFlowseg();
+    ~DropBasedFlowseg() override;
+    uint32_t GetSegSize() override;
+    void UpdateSeg(FlowsegSignal &flowsegSignal) override;
+} final;
 
 }  // namespace ns3
 #endif /* FLOWSEG_H */
