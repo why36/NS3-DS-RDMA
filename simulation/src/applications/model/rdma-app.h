@@ -32,7 +32,7 @@
 #include "ns3/application.h"
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
-#include "ns3/rdma.h"
+#include "ns3/rdma-queue-pair.h"
 
 namespace ns3 {
 

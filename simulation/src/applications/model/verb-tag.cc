@@ -1,7 +1,5 @@
-*-*-Mode : C++;
-c - file - style : "gnu";
-indent - tabs - mode : nil;
-- * -* /
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+//
 /*
  * Copyright (c) 2006 Georgia Tech Research Corporation
  *               2007 INRIA
@@ -40,7 +38,7 @@ FlowSegSizeTag::FlowSegSizeTag() { NS_LOG_FUNCTION(this); }
 
 void FlowSegSizeTag::SetFlowSegSize(uint32_t flowSegSize) { m_flowSegSize = flowSegSize; }
 
-uint32_t FlowSegSizeTag::GetFlowSegSize() { return m_flowSegSize; }
+uint32_t FlowSegSizeTag::GetFlowSegSize(void) const { return m_flowSegSize; }
 
 TypeId FlowSegSizeTag::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::FlowSegSizeTag").SetParent<Tag>().AddConstructor<FlowSegSizeTag>();
@@ -85,9 +83,9 @@ NS_OBJECT_ENSURE_REGISTERED(RPCTotalOffsetTag);
 
 RPCTotalOffsetTag::RPCTotalOffsetTag() { NS_LOG_FUNCTION(this); }
 
-void RPCTotalOffsetTag::SetRPCSize(uint16_t rpcTotalOffest) { m_rpcTotalOffest = rpcTotalOffest; }
+void RPCTotalOffsetTag::SetRPCTotalOffset(uint16_t rpcTotalOffest) { m_rpcTotalOffest = rpcTotalOffest; }
 
-uint16_t RPCTotalOffsetTag::GetRPCSize(void) const { return m_rpcTotalOffest; }
+uint16_t RPCTotalOffsetTag::GetRPCTotalOffset(void) const { return m_rpcTotalOffest; }
 
 TypeId RPCTotalOffsetTag::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::RPCTotalOffsetTag").SetParent<Tag>().AddConstructor<RPCTotalOffsetTag>();

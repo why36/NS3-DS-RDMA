@@ -5,7 +5,6 @@
 #include <ns3/ipv4-flow-classifier.h>
 #include <ns3/node.h>
 #include <ns3/rdma-queue-pair.h>
-#include <ns3/rdma.h>
 
 #include <unordered_map>
 

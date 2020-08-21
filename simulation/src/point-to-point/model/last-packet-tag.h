@@ -23,8 +23,10 @@
 #define LAST_PACKET_TAG_H
 
 #include "ns3/tag.h"
+#include "ns3/rdma-queue-pair.h"
 
 namespace ns3 {
+
 
 /**
  * \brief This class implements a tag that carries the information about verbs

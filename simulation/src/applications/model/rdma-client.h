@@ -27,7 +27,7 @@
 #include "ns3/event-id.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
-#include "ns3/rdma.h"
+#include "ns3/rdma-queue-pair.h"
 
 namespace ns3 {
 

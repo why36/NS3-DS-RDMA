@@ -20,7 +20,7 @@
 #include <ns3/rdma-client-helper.h>
 #include <ns3/rdma-client.h>
 #include <ns3/rdma-driver.h>
-#include <ns3/rdma.h>
+#include <ns3/rdma-queue-pair.h>
 #include <ns3/sim-setting.h>
 #include <ns3/switch-node.h>
 #include <time.h>

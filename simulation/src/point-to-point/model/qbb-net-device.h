@@ -23,7 +23,7 @@
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/qbb-channel.h"
  //#include "ns3/fivetuple.h"
-#include <ns3/rdma.h>
+#include <ns3/rdma-queue-pair.h>
 
 #include <map>
 #include <vector>

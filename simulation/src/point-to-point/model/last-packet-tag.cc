@@ -23,8 +23,6 @@
 #include <iostream>
 
 #include "ns3/log.h"
-#include "ns3/tag.h"
-#include "ns3/rdma.h"
 #include "last-packet-tag.h"
 
 NS_LOG_COMPONENT_DEFINE("LastPacketTag");

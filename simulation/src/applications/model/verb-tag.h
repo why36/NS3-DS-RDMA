@@ -45,7 +45,7 @@ namespace ns3 {
             virtual void Print(std::ostream &os) const;
         private:
             uint32_t m_flowSegSize;
-    }
+    };
 
     class RPCSizeTag :public Tag
     {
@@ -61,7 +61,7 @@ namespace ns3 {
             virtual void Print(std::ostream &os) const;
         private:
             uint32_t m_rpcSize;
-    }
+    };
 
     class RPCTotalOffsetTag :public Tag
     {
@@ -77,7 +77,7 @@ namespace ns3 {
             virtual void Print(std::ostream &os) const;
         private:
             uint16_t m_rpcTotalOffest;
-    }
+    };
 
 }  // namespace ns3
 

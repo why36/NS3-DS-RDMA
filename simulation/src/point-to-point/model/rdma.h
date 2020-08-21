@@ -29,6 +29,7 @@
 #include "ns3/pointer.h"
 #include "ns3/tag.h"
 #include "ns3/uinteger.h"
+//#include "ns3/rdma-queue-pair.h"
 
 namespace ns3 {
 
@@ -39,7 +40,6 @@ namespace ns3 {
     using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
 
     class RdmaQueuePair;
-
     using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
         IBVerb verb;
         uint32_t size;
@@ -51,7 +51,7 @@ namespace ns3 {
     };
 
     using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
-        Ptr<RdmaQueuePair> qp;
+        RdmaQueuePair* qp;
         IBVerb verb;
         bool isTx;
         uint32_t size;
@@ -59,8 +59,8 @@ namespace ns3 {
         uint64_t time_in_us;
         TagPayload tags;
         int mark_tag_num;
-        ibv_wc():mark_tag_num(2){}
-        ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){}
+        ibv_wc():mark_tag_num(2){};
+        ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){};
     };
 
 

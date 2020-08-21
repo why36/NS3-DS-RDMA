@@ -6,12 +6,12 @@
 #include <ns3/ib-header.h>
 #include <ns3/ipv4-header.h>
 #include <ns3/rdma-hw.h>
-#include <ns3/rdma.h>
+
 #include <ns3/seq-ts-header.h>
 #include <ns3/simulator.h>
 #include <ns3/udp-header.h>
 #include <ns3/uinteger.h>
-
+#include <ns3/last-packet-tag.h>
 #include <queue>
 
 #include "ns3/ppp-header.h"

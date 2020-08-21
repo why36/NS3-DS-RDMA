@@ -5,7 +5,6 @@
 #include <ns3/qbb-net-device.h>
 #include <ns3/rdma-hw.h>
 #include <ns3/rdma-queue-pair.h>
-#include <ns3/rdma.h>
 
 #include <unordered_map>
 #include <vector>

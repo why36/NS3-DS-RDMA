@@ -28,7 +28,7 @@
 #ifndef DISTRIBUTED_STORAGE_CLIENT_H
 #define DISTRIBUTED_STORAGE_CLIENT_H
 
-#include <ns3/rdma.h>
+#include <ns3/rdma-queue-pair.h>
 
 #include "ns3/application.h"
 #include "ns3/event-id.h"
