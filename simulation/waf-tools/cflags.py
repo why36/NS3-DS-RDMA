@@ -23,7 +23,7 @@ class GccTraits(CompilerTraits):
 		self.warnings_flags = []
 
 	def get_cxx_version_flags(self):
-		return ['-std=gnu++11']
+		return ['-std=gnu++14']
 
 	def get_warnings_flags(self, level):
 		warnings = []

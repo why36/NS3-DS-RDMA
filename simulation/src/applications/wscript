@@ -28,6 +28,10 @@ def build(bld):
 		'model/rdma-client.cc',
 		'helper/rdma-client-helper.cc',
         'model/verb-tag.cc',
+        'model/reliability.cc',
+        'model/distributed-storage-client.cc',
+        'model/user-space-congestion-control.cc',
+        'model/floweg.cc',
         ]
 
     applications_test = bld.create_ns3_module_test_library('applications')
@@ -63,6 +67,14 @@ def build(bld):
 		'model/rdma-client.h',
 		'helper/rdma-client-helper.h',
         'model/verb-tag.h',
+        'model/rdma-app.h',
+        'model/rpc.h',
+        'model/reliability.h',
+        'model/rpc-request.h',
+        'model/rpc-response.h',
+        'model/distributed-storage-client.h',
+        'model/user-space-congestion-control.h',
+        'model/floweg.h',
         ]
 
     bld.ns3_python_bindings()

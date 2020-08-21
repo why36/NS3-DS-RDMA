@@ -78,7 +78,7 @@ namespace ns3 {
          */
         Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
-        uint32_t;
+        //uint32_t;
     };
 
     inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
@@ -94,7 +94,7 @@ namespace ns3 {
 
     void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
         m_qp = m_rdmaDriver->AddQueuePair(create_attr);
-        return m_qp;
+        //return m_qp;
     };
 
     //
@@ -105,8 +105,10 @@ namespace ns3 {
     };
 
     int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
-        srcParam.notifyCompletion = RdmaAppQP::OnCompletion;
-        dstParam.notifyCompletion = RdmaAppQP::OnCompletion;
+        //srcParam.notifyCompletion = src->OnCompletion;
+        //dstParam.notifyCompletion = dst->OnCompletion;
+        srcParam.notifyCompletion = MakeCallback(src->OnCompletion, src);//some mistakes
+        dstParam.notifyCompletion = MakeCallback(dst->OnCompletion, dst);
         QPCreateAttribute src_create_attr(srcAttr, srcParam);
         src->CreateQP(src_create_attr);
         src_create_attr.conAttr.operator~();

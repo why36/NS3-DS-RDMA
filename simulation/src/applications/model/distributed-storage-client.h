@@ -32,11 +32,15 @@
 
 #include "ns3/application.h"
 #include "ns3/event-id.h"
-#include "ns3/flowseg.h"
+#include "ns3/floweg.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
 #include "ns3/user-space-congestion-control.h"
 #include "ns3/reliability.h"
+#include "ns3/rpc.h"
+#include "ns3/rdma-app.h"
+#include <queue>
+#include <map>
 
 namespace ns3 {
 
@@ -55,7 +59,7 @@ namespace ns3 {
 
     class UserSpaceConnection {
     public:
-        void SendRPC(Ptr<RPC>);
+        void SendRPC(Ptr<RPC> rpc);
         Ptr<UserSpaceCongestionControl> m_UCC;
         Ptr<FlowsegInterface> m_flowseg;
         Ptr<RdmaAppQP> m_appQP;
@@ -101,7 +105,7 @@ namespace ns3 {
         static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
         // Rdma
-        virtual void OnResponse(Ptr<RpcResponses> rpcResponse, Ptr<RdmaQueuePair> qp) override;
+        virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) override;
         virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
         virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
 
@@ -125,7 +129,7 @@ namespace ns3 {
         void AddQP(Ptr<RdmaAppQP> qp);
         // need maintain a QP collection:
         // somthing like key-value storage <qp,ip>
-        std::hash_map<UserSpaceConnection> m_Connections;
+        //std::hash_map<UserSpaceConnection> m_Connections;
 
         /*
          *  basic attributes

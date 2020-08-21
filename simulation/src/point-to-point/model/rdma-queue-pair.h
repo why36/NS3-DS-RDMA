@@ -201,8 +201,8 @@ namespace ns3
         uint64_t time_in_us;
         TagPayload tags;
         int mark_tag_num;
-        ibv_wc():mark_tag_num(2){};
-        ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){};
+        ibv_wc():mark_tag_num(2){}
+        ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){}
     };
 
 

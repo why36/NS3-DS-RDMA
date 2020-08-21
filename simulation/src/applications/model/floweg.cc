@@ -20,7 +20,7 @@
  *
  */
 #include "ns3/assert.h"
-#include "ns3/flowseg.h"
+#include "ns3/floweg.h"
 #include "ns3/log.h"
 
 namespace ns3 {

@@ -27,18 +27,6 @@
 
 namespace ns3 {
 
-    class CongestionSignal {
-    public:
-        CongestionControlSignalType mType;
-    };
-
-
-    class RTTSignal :public CongestionSignal {
-    public:
-        RTTSignal() :mType(CongestionControlSignalType::RTT_SIGNAL) {};
-        uint8_t mRtt;
-    };
-
     enum class CongestionControlSignalType {
         RTT_SIGNAL = 0,
         ECN_SIGNAL = 1
@@ -47,29 +35,48 @@ namespace ns3 {
     enum class CongestionControlPacingType {
         WINDOW_BASE = 0,
         RATE_BASE = 1
+    };    
+
+    class CongestionSignal {
+    public:
+        CongestionControlSignalType mType;
+        CongestionSignal(CongestionControlSignalType _type):mType(_type){}
     };
 
-    using CongestionControlType = struct cctype {
+
+    class RTTSignal :public CongestionSignal {
+    public:
+        RTTSignal() :CongestionSignal(CongestionControlSignalType::RTT_SIGNAL){}
+        uint8_t mRtt;
+    };
+
+    using CCType = struct cctype {
         CongestionControlSignalType signalType;
         CongestionControlPacingType pacingType;
-        CongestionControlType(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) :signalType(signal_t), pacingType(pacing_t) {};
+        cctype(){}
+        cctype(CongestionControlSignalType signal_t) :signalType(signal_t) {}
+        cctype(CongestionControlPacingType pacing_t) :pacingType(pacing_t) {}
+        cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) :signalType(signal_t), pacingType(pacing_t) {}
     };
 
     class UserSpaceCongestionControl {
     public:
-        UserSpaceCongestionControl() = delete;
-        CongestionControlType GetCongestionContorlType() {
+        //UserSpaceCongestionControl() = delete;
+        UserSpaceCongestionControl(CongestionControlPacingType _pacingType){
+            mType.pacingType = _pacingType;
+        }
+
+        UserSpaceCongestionControl(CongestionControlSignalType _signalType){
+            mType.signalType = _signalType;
+        }
+
+        CCType GetCongestionContorlType() {
             return mType;
         };
 
         virtual void UpdateSignal(CongestionSignal& signal)=0;
     protected:
-        CongestionControlType mType;
-    };
-
-    inline CongestionControlType
-        UserSpaceCongestionControl::GetCongestionContorlType() {
-        return mType;
+        CCType mType;
     };
 
     class WindowCongestionControl : public UserSpaceCongestionControl {
@@ -79,33 +86,19 @@ namespace ns3 {
 
     protected:
         // forbids to construct
-        WindowCongestionControl() {
-            mType.pacingType = CongestionControlPacingType::WINDOW_BASE;
-        }
+        WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE){}
+        WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType){}
     };
 
     class RttWindowCongestionControl : public Object,
         public WindowCongestionControl {
     public:
-        RttWindowCongestionControl() : WindowCongestionControl() {
-            mType.signalType = CongestionControlSignalType::RTT_SIGNAL;
-        }
-
+        RttWindowCongestionControl() : WindowCongestionControl(CongestionControlSignalType::RTT_SIGNAL) {}
         void UpdateSignal(CongestionSignal& signal)=0;
         virtual uint32_t GetCongestionWindow() = 0;
     };
 
 
-    class RttWindowCongestionControl : public Object,
-        public WindowCongestionControl {
-    public:
-        RttWindowCongestionControl() : WindowCongestionControl() {
-            mType.signalType = CongestionControlSignalType::RTT_SIGNAL;
-        }
-
-        void UpdateSignal(CongestionSignal& signal)=0;
-        virtual uint32_t GetCongestionWindow() = 0;
-    };
 
 
 }  // namespace ns3

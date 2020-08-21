@@ -35,12 +35,12 @@ using RPCNumber = uint32_t;
 using ACKSeg = struct ack_seg {
     RPCNumber rpc_id;
     uint16_t segment_id;
-}
+};
 
 class ACK {
    public:
     std::vector<ACKSeg> segments;
-}
+};
 
 class Reliability {
    public:
@@ -53,7 +53,7 @@ class Reliability {
     //indicates whether the RPC is complete
     std::map<uint32_t,bool> rpc_finish;
     //Save RPC's verb for repass
-    std::map<uint32_t,Ptr<IBVWorkRequest>> rpc_verb;
+    std::map<uint32_t,Ptr<IBVWorkRequest>> rpcImm_verb;
    private:
     uint32_t m_messageNumber = 0;
 };
@@ -76,7 +76,7 @@ class RpcAckBitMap {
     }
 
    private:
-    int* arr;
+    uint8_t* arr;
     const int REQUIRED_SIZE = 536870912;  // 2^32/8
 };
 
