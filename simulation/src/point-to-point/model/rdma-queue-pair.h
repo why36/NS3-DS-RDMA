@@ -323,11 +323,13 @@ namespace ns3
         void Acknowledge(uint64_t ack);
 
         // data path
-        int ibv_post_send(Ptr<IBVWorkRequest> wc);
+        int ibv_post_send(Ptr<IBVWorkRequest> wr);
         Ptr<Packet> GetNextPacket();
         bool GetNextIbvRequest_AssemblePacket_Finished(Ptr<Packet> p, Ptr<IBVWorkRequest> &m_receiveWr);
         int Empty();
     };
+
+
 
     /*
 class IPBasedCongestionControlEntity : public CongestionControlEntity {

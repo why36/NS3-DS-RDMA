@@ -58,7 +58,9 @@ namespace ns3 {
          * \brief ibv_post_send;
          * \param IBVWorkRequest wr;
          */
-        void PostSend(IBVWorkRequest& wr);
+        void PostSend(IBVWorkRequest& wr){
+            m_qp->ibv_post_send(wr);
+        };
 
     private:
         /**
@@ -107,8 +109,8 @@ namespace ns3 {
     int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
         //srcParam.notifyCompletion = src->OnCompletion;
         //dstParam.notifyCompletion = dst->OnCompletion;
-        srcParam.notifyCompletion = MakeCallback(src->OnCompletion, src);//some mistakes
-        dstParam.notifyCompletion = MakeCallback(dst->OnCompletion, dst);
+        srcParam.notifyCompletion = MakeCallback(src->OnCompletion, GetPointer(src));//some mistakes
+        dstParam.notifyCompletion = MakeCallback(dst->OnCompletion, GetPointer(dst));
         QPCreateAttribute src_create_attr(srcAttr, srcParam);
         src->CreateQP(src_create_attr);
         src_create_attr.conAttr.operator~();

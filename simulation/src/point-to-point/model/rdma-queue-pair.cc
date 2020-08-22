@@ -44,6 +44,9 @@ namespace ns3
         m_nextAvail = Time(0);
     }
 
+    int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
+        return 0;
+    }
     void CongestionControlEntity::SetWin(uint32_t win) {
         m_win = win;
     }
