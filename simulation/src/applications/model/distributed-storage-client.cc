@@ -53,7 +53,7 @@ NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
-    m_sendQueuingRPCs.push_back(rpc);
+    m_sendQueuingRPCs.push(rpc);
     SendRPC();
 }
 
@@ -72,18 +72,18 @@ void UserSpaceConnection::SendRPC() {
         Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
         flowSegSizeTag->SetFlowSegSize(flowsegSize);
         Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-        rpcSizeTag->SetRPCSize(m_sendingRPC->size);
+        rpcSizeTag->SetRPCSize(m_sendingRPC->m_rpc_size);
         wr->tags[0] = flowSegSizeTag;
         wr->tags[1] = rpcSizeTag;
         if (m_remainingSendingSize == wr->size) {
             Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
-            rpcTotalOffsetTag->SetRPCTotalOffset(m_sendingRPC->segment_id);
+            rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->rpc_seg[m_sendingRPC->rpc_id]);
             wr->tags[2] = rpcTotalOffsetTag;
-            m_reliability->rpc_totalSeg.insert(pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_sendingRPC->segment_id));
+            m_reliability->rpc_totalSeg.insert(std::pair<uint32_t,uint16_t>(m_sendingRPC->rpc_id,m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
         }
         wr->verb = IBVerb::IBV_SEND_WITH_IMM;
         m_appQP->PostSend(wr);
-        m_reliability->rpcImm_verb.insert(pair<uint32_t, Ptr<IBVWorkRequest>>(wr->imm, wr));
+        m_reliability->rpcImm_verb.insert(std::pair<uint32_t, Ptr<IBVWorkRequest>>(wr->imm, wr));
         m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize - wr->size : 0;
     }
     if (m_remainingSendingSize == 0) {
@@ -91,8 +91,8 @@ void UserSpaceConnection::SendRPC() {
             m_sendingRPC = m_sendQueuingRPCs.front();
             m_sendQueuingRPCs.pop();
             m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
-            m_reliability->rpc_seg.insert(pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
-            m_remainingSendingSize = m_sendingRPC->size;
+            m_reliability->rpc_seg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
+            m_remainingSendingSize = m_sendingRPC->m_rpc_size;
         } else {
             m_sendingRPC = nullptr;
         }
@@ -102,7 +102,7 @@ void UserSpaceConnection::SendRPC() {
 void UserSpaceConnection::SendAck(uint32_t _imm) {
     Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(3);
     m_sendAckWr->imm = _imm;
-    m_sendQueuingAckWr.push_back(m_sendAckWr);
+    m_sendQueuingAckWr.push(m_sendAckWr);
     SendAck();
 }
 
@@ -128,7 +128,7 @@ void UserSpaceConnection::SendAck() {
 }
 
 void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc) {
-    m_receiveQueuingAckWc.push_back(m_ackWc);
+    m_receiveQueuingAckWc.push(m_ackWc);
     ReceiveAck();
 }
 
@@ -142,23 +142,23 @@ void UserSpaceConnection::ReceiveAck() {
         return;
     }
     // repass
-    uint32 ack_imm = m_receivingAckWr->imm;
+    uint32_t ack_imm = m_receivingAckWr->imm;
 
     // If the verb has already been sent
     if (m_reliability->rpcImm_verb.find(ack_imm) != m_reliability->rpcImm_verb.end()) {
-        m_appQP->PostSend(rpcImm_verb[ack_imm]);
+        m_appQP->PostSend(m_reliability->rpcImm_verb[ack_imm]);
     } else {
         //nothing to do 
     }
 }
 
-void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC) {
-    m_receiveQueuingIBVWCs.push_back(receiveQueuingIBVWC);
+void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
+    m_receiveQueuingIBVWCs.push(receivingIBVWC);
     ReceiveIBVWC();
 }
 
 void UserSpaceConnection::ReceiveIBVWC() {
-    if (!receiveQueuingIBVWC.empty()) {
+    if (!m_receiveQueuingIBVWCs.empty()) {
         m_receivingIBVWC = m_receiveQueuingIBVWCs.front();
         m_receiveQueuingIBVWCs.pop();
     } else {
@@ -170,14 +170,14 @@ void UserSpaceConnection::ReceiveIBVWC() {
     // receive enough ibvwc, generate ack
     if (m_receive_ibv_num > m_ackQP->m_milestone_rx + m_ackQP->m_ack_qp_interval) {
         for (uint32_t i = 0; i < m_reliability->GetMessageTotalNumber(); i++) {
-            if (m_reliability->rpc_finish.find(i) == rpc_finish.end()) {
+            if (m_reliability->rpc_finish.find(i) == m_reliability->rpc_finish.end()) {
                 for (uint32_t j = 0; j < m_reliability->rpc_totalSeg[i]; j++) {
                     if (!m_rpcAckBitMap.get(i << 9 + j & 0x1FF)) {
                         SendAck(i << 9 + j & 0x1FF);  // next value want to be set
                         break;
                     }
                     if (j == m_reliability->rpc_totalSeg[i]) {
-                        m_reliability->rpc_finish.insert(pair<uint32_t, bool>(i, true));
+                        m_reliability->rpc_finish.insert(std::pair<uint32_t, bool>(i, true));
                     }
                 }
             }
@@ -200,33 +200,39 @@ void DistributedStorageClient::SendRpc(Ptr<RPC> rpc) {
     // send rpc
 
     Ptr<UserSpaceConnection> connection;
-    connection->SendRpc(rpc);
+    connection->SendRPC(rpc);
 };
 
-static void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
+void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size) {
     uint16_t sport = client->GetNextAvailablePort();
     uint16_t dport = server->GetNextAvailablePort();
     NS_ASSERT(sport && dport);
 
     Ptr<Node> client_node = client->GetNode();
-    Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
-                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    //Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+    //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(client)),
+                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(client),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(client)));
     client->AddQP(srcRdmaAppQP);
 
     Ptr<Node> server_node = server->GetNode();
-    Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
-                                DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    //Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
+    //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+    Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(),MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(server)),
+                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(server),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(server)));
     server->AddQP(dstRdmaAppQP);
 
     QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
-    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
+    QpParam dstParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
     QPConnectionAttr srcConnAttr(pg, client_node.m_ip, server_node.m_ip, sport, dport, QPType::RDMA_RC);
     RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
 };
 
-void DistributedStorageClient::AddQP(Ptr<RdmaQueuePair> qp){};
 
-void DistributedStorageClient::StartApplication(void) override {
+
+void DistributedStorageClient::AddQP(Ptr<RdmaAppQP> qp){};
+
+void DistributedStorageClient::StartApplication(void) {
     NS_LOG_FUNCTION_NOARGS();
     //
     // Get window size and  data Segment
@@ -235,7 +241,7 @@ void DistributedStorageClient::StartApplication(void) override {
     //
 }
 
-void DistributedStorageClient::StopApplication() override {
+void DistributedStorageClient::StopApplication() {
     NS_LOG_FUNCTION_NOARGS();
     // TODO stop the queue pair
 }

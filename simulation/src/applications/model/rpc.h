@@ -38,17 +38,22 @@
 
 namespace ns3 {
 
-class RPC {
+class RPC :public Object{
    public:
+    uint32_t m_rpc_size;
+    uint32_t rpc_id; //24 bit
+    //uint16_t segment_id = 0;   
+    /*  c++14 fix it later
     template <typename F>
     void Bind(std::string name, F func) {
         funcMap[name] = std::bind(&RPC::Execute<F>, this, func, std::placeholders::_1);
     }
 
-    RpcResponse Send(RpcRequset request) { return funcMap[request.GetFuncName()](request); }
+    RpcResponse Send(RpcRequest request) { return funcMap[request.GetFuncName()](request); }
 
    private:
     template <typename F>
+        
     RpcResponse Execute(F func, RpcRequest requst) {
         return Execute_(func, requst);
     }
@@ -70,12 +75,10 @@ class RPC {
     R Invoke(std::function<R(Params... ps)> &func, Tuple &t, std::index_sequence<Index...>) {
         return func(std::get<Index>(t)...);
     }
-
+*/
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
 
-    uint32_t m_rpc_size;
-    uint32_t rpc_id; //24 bit
-    //uint16_t segment_id = 0;
+
 };
 
 }  // namespace ns3

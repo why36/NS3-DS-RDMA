@@ -88,6 +88,14 @@ void RdmaClient::DoDispose(void) {
     Application::DoDispose();
 }
 
+Ipv4Address RdmaClient::GetDip() {return m_dip; }
+
+Ipv4Address RdmaClient::GetSip() {return m_sip; }
+
+uint16_t RdmaClient::GetPG() { return m_pg; }
+
+uint64_t RdmaClient::GetSize() { return m_size; }
+
 void RdmaClient::StartApplication(void) {
     NS_LOG_FUNCTION_NOARGS();
     // get RDMA driver and add up queue pair

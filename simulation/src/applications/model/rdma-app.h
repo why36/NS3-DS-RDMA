@@ -48,7 +48,7 @@ namespace ns3 {
     /**
      * \brief RdmaAppQP is a useable QP interface for application;
      */
-    class RdmaAppQP : Object {
+    class RdmaAppQP : public Object {
         friend class RdmaCM;
 
     public:
@@ -58,7 +58,7 @@ namespace ns3 {
          * \brief ibv_post_send;
          * \param IBVWorkRequest wr;
          */
-        void PostSend(IBVWorkRequest& wr){
+        void PostSend(Ptr<IBVWorkRequest> wr){
             m_qp->ibv_post_send(wr);
         };
 
@@ -109,8 +109,8 @@ namespace ns3 {
     int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
         //srcParam.notifyCompletion = src->OnCompletion;
         //dstParam.notifyCompletion = dst->OnCompletion;
-        srcParam.notifyCompletion = MakeCallback(src->OnCompletion, GetPointer(src));//some mistakes
-        dstParam.notifyCompletion = MakeCallback(dst->OnCompletion, GetPointer(dst));
+        srcParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));//some mistakes
+        dstParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst));
         QPCreateAttribute src_create_attr(srcAttr, srcParam);
         src->CreateQP(src_create_attr);
         src_create_attr.conAttr.operator~();
@@ -130,7 +130,9 @@ namespace ns3 {
          * \param Packet p;
          */
         //void PostSend(IBVWorkRequest& wr);
-        void PostSendAck(IBVWorkRequest& wr);
+        void PostSendAck(Ptr<IBVWorkRequest> wr){    
+            m_qp_ack->ibv_post_send(wr);
+        }
         //void PostReceiveAck(Ptr<Packet> p);
         uint32_t m_ack_qp_interval;
         uint32_t m_milestone_rx = 0;
@@ -143,7 +145,7 @@ namespace ns3 {
         void CreateQP(QPCreateAttribute& create_attr)
         {
             m_qp_ack = m_rdmaDriver->AddQueuePair(create_attr);
-            return m_qp_ack;
+            //return m_qp_ack;
         }
 
         //void OnCompletion(Ptr<IBVWorkCompletion> completion);

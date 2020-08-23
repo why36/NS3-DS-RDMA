@@ -41,6 +41,7 @@
 #include "ns3/rdma-app.h"
 #include <queue>
 #include <map>
+#include "ns3/rdma-client.h"
 
 namespace ns3 {
 
@@ -57,7 +58,7 @@ namespace ns3 {
     class SendCompeltionReturnValue;
     class RpcResponse;
 
-    class UserSpaceConnection {
+    class UserSpaceConnection:public Object {
     public:
         void SendRPC(Ptr<RPC> rpc);
         Ptr<UserSpaceCongestionControl> m_UCC;
@@ -105,7 +106,7 @@ namespace ns3 {
         static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
         // Rdma
-        virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) override;
+        virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) ;
         virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
         virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
 

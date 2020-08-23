@@ -57,8 +57,15 @@ class RdmaClient : public Application {
     void SetLocal(Ipv4Address ip, uint16_t port);
     void SetPG(uint16_t pg);
     void SetSize(uint64_t size);
-    void Finish();
 
+    Ipv4Address GetDip();
+    Ipv4Address GetSip();
+    uint16_t GetPG();
+    uint64_t GetSize();
+
+    void Finish();
+    uint32_t m_win;      // bound of on-the-fly packets
+    uint64_t m_baseRtt;  // base Rtt
    protected:
     virtual void DoDispose(void);
 
@@ -71,8 +78,7 @@ class RdmaClient : public Application {
 
     Ipv4Address m_sip, m_dip;
     uint16_t m_sport, m_dport;
-    uint32_t m_win;      // bound of on-the-fly packets
-    uint64_t m_baseRtt;  // base Rtt
+    
 };
 
 }  // namespace ns3

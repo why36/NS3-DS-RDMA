@@ -46,7 +46,7 @@ class Reliability {
    public:
     uint32_t GetMessageNumber() { return m_messageNumber++; }
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
-    // key is rpc_id, value is the seg id
+    // When an RPC is sent, the SegId of the RPC sent at this time is recorded
     std::map<uint32_t, uint16_t> rpc_seg;
     //key is rpc_id, value is the total seg numer of this rpc
     std::map<uint32_t,uint16_t> rpc_totalSeg;

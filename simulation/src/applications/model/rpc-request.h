@@ -35,10 +35,10 @@
 
 namespace ns3 {
 
-class RpcRequset {
+class RpcRequest:public Object {
    public:
     template <typename... Params>
-    RpcRequset(std::string funcName, Params... args) {
+    RpcRequest(std::string funcName, Params... args) {
         WriteString(funcName);
 
         using ArgsType = std::tuple<typename std::decay<Params>::type...>;
@@ -51,6 +51,7 @@ class RpcRequset {
         return ReadString();
     }
 
+    /*C++14  fix it later
     template <typename Tuple, std::size_t... I>
     Tuple GetArgs(std::index_sequence<I...>) {
         Tuple t;
@@ -59,6 +60,7 @@ class RpcRequset {
         (Read(std::get<I>(t)), ...);
         return t;
     }
+    */
 
    private:
     template <typename T>
@@ -74,11 +76,12 @@ class RpcRequset {
         Write(t, std::index_sequence_for<Args...>{});
     }
 
+    /*C++14  fix it later
     template <typename Tuple, std::size_t... Is>
     void Write(Tuple &t, std::index_sequence<Is...>) {
         ((Write(std::get<Is>(t))), ...);
     }
-
+    */
     void WriteString(std::string s) {
         unsigned char len = s.size();
         buffer.push_back(len);
