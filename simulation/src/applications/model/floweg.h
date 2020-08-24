@@ -42,7 +42,7 @@ using FlowsegSignal = struct {
     // congestion-based flowseg
 };
 
-//need a new constructor
+// need a new constructor
 class FlowsegInterface : public Object {
    public:
     FlowsegInterface() = delete;
@@ -56,7 +56,7 @@ class FlowsegInterface : public Object {
     FlowsegType mFlowsegType;
 };
 
-class DropBasedFlowseg : public FlowsegInterface {
+class DropBasedFlowseg final : public FlowsegInterface {
    public:
     static TypeId GetTypeId() {
         static TypeId tid = TypeId("ns3::DropBasedFlowseg").SetParent<Object>();
@@ -66,7 +66,7 @@ class DropBasedFlowseg : public FlowsegInterface {
     ~DropBasedFlowseg() override;
     uint32_t GetSegSize() override;
     void UpdateSeg(FlowsegSignal &flowsegSignal) override;
-} final;
+};
 
 }  // namespace ns3
 #endif /* FLOWSEG_H */

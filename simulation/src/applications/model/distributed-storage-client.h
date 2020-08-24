@@ -20,124 +20,124 @@
  *
  */
 
- /*
-  * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
-  * date:     202000707
-  */
+/*
+ * author:   Yixiao(Krayecho) Gao <532820040@qq.com>
+ * date:     202000707
+ */
 
 #ifndef DISTRIBUTED_STORAGE_CLIENT_H
 #define DISTRIBUTED_STORAGE_CLIENT_H
 
 #include <ns3/rdma-queue-pair.h>
 
+#include <map>
+#include <queue>
+
 #include "ns3/application.h"
 #include "ns3/event-id.h"
 #include "ns3/floweg.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
-#include "ns3/user-space-congestion-control.h"
+#include "ns3/rdma-app.h"
+#include "ns3/rdma-client.h"
 #include "ns3/reliability.h"
 #include "ns3/rpc.h"
-#include "ns3/rdma-app.h"
-#include <queue>
-#include <map>
-#include "ns3/rdma-client.h"
+#include "ns3/user-space-congestion-control.h"
 
 namespace ns3 {
 
-    class Socket;
-    class Packet;
+class Socket;
+class Packet;
 
-    /**
-     * \ingroup distributedStorage
-     * \class DistributedStorageClient
-     * \brief A distributed storage client.
-     *
+/**
+ * \ingroup distributedStorage
+ * \class DistributedStorageClient
+ * \brief A distributed storage client.
+ *
+ */
+
+class SendCompeltionReturnValue;
+class RpcResponse;
+
+class UserSpaceConnection : public Object {
+   public:
+    void SendRPC(Ptr<RPC> rpc);
+    Ptr<UserSpaceCongestionControl> m_UCC;
+    Ptr<FlowsegInterface> m_flowseg;
+    Ptr<RdmaAppQP> m_appQP;
+    Ptr<RdmaAppAckQP> m_ackQP;
+    std::queue<Ptr<RPC>> m_sendQueuingRPCs;
+    Ptr<RPC> m_sendingRPC;
+    Ptr<Reliability> m_reliability;
+
+    // Ptr<IBVWorkRequest> m_ackIbvWr;
+    RpcAckBitMap m_rpcAckBitMap;
+    uint32_t m_remainingSendingSize;
+
+    // void ReceiveRPC(Ptr<RPC>);
+    // std::queue<RPC> m_receiveQueuingRPCs;
+    void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
+    std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingIBVWCs;
+    Ptr<IBVWorkCompletion> m_receivingIBVWC;
+    uint32_t m_receive_ibv_num = 0;
+
+    std::queue<Ptr<IBVWorkRequest>> m_sendQueuingAckWr;
+    std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingAckWc;
+    void SendAck(uint32_t _imm);
+    void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
+
+   private:
+    void SendRPC();
+    // void ReceiveRPC();
+    void ReceiveIBVWC();
+    void SendAck();
+    void ReceiveAck();
+};
+class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
+   public:
+    static TypeId GetTypeId(void);
+    DistributedStorageClient();
+    virtual ~DistributedStorageClient();
+
+    /*
+     *  public interfaces
      */
+    static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
 
-    class SendCompeltionReturnValue;
-    class RpcResponse;
+    // Rdma
+    virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp);
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
 
-    class UserSpaceConnection:public Object {
-    public:
-        void SendRPC(Ptr<RPC> rpc);
-        Ptr<UserSpaceCongestionControl> m_UCC;
-        Ptr<FlowsegInterface> m_flowseg;
-        Ptr<RdmaAppQP> m_appQP;
-        Ptr<RdmaAppAckQP> m_ackQP;
-        std::queue<Ptr<RPC>> m_sendQueuingRPCs;
-        Ptr<RPC> m_sendingRPC;
-        Ptr<Reliability> m_reliability;
-        
-        //Ptr<IBVWorkRequest> m_ackIbvWr;
-        RpcAckBitMap m_rpcAckBitMap;
-        uint32_t m_remainingSendingSize;
+    /*
+     *  application interface
+     */
+    // RPC-level interface
+    void SendRpc(Ptr<RPC> rpc);
 
-        //void ReceiveRPC(Ptr<RPC>);
-        //std::queue<RPC> m_receiveQueuingRPCs;
-        void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
-        std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingIBVWCs;
-        Ptr<IBVWorkCompletion> m_receivingIBVWC;
-        uint32_t m_receive_ibv_num = 0;
+    // Used for port Management
+    uint16_t GetNextAvailablePort() { return m_port++; };
+    //
 
-        std::queue<Ptr<IBVWorkRequest>> m_sendQueuingAckWr;
-        std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingAckWc;
-        void SendAck(uint32_t _imm);
-        void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);        
+   protected:
+    virtual void DoDispose(void);
 
+   private:
+    virtual void StartApplication(void);
+    virtual void StopApplication(void);
 
+    void AddQP(Ptr<RdmaAppQP> qp);
+    // need maintain a QP collection:
+    // somthing like key-value storage <qp,ip>
+    // std::hash_map<UserSpaceConnection> m_Connections;
 
-    private:
-        void SendRPC();
-        //void ReceiveRPC();
-        void ReceiveIBVWC();
-        void SendAck();
-        void ReceiveAck();
-    };
-    class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
-    public:
-        static TypeId GetTypeId(void);
-        DistributedStorageClient();
-        virtual ~DistributedStorageClient();
-
-        /*
-         *  public interfaces
-         */
-        static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
-
-        // Rdma
-        virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp) ;
-        virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
-        virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
-
-        /*
-         *  application interface
-         */
-         // RPC-level interface
-        void SendRpc(Ptr<RPC> rpc);
-
-        // Used for port Management
-        void GetNextAvailablePort();
-        //
-
-    protected:
-        virtual void DoDispose(void);
-
-    private:
-        virtual void StartApplication(void);
-        virtual void StopApplication(void);
-
-        void AddQP(Ptr<RdmaAppQP> qp);
-        // need maintain a QP collection:
-        // somthing like key-value storage <qp,ip>
-        //std::hash_map<UserSpaceConnection> m_Connections;
-
-        /*
-         *  basic attributes
-         */
-        Ipv4Address m_ip;
-        //
-    };
+    /*
+     *  basic attributes
+     */
+    Ipv4Address m_ip;
+    uint16_t m_port = 1;
+    //
+};
 
 }  // namespace ns3
 

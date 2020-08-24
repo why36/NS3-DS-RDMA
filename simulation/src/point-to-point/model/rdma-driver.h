@@ -22,11 +22,11 @@ using QpParam = struct qp_param {
     qp_param& operator=(qp_param& rhs);
 };
 
-QpParam::qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
-                  Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion)
+inline QpParam::qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
+                         Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion)
     : m_size(p_size), m_win(p_win), m_baseRtt(p_base_rtt), notifyAppFinish(p_notifyAppFinish), notifyCompletion(p_notifyCompletion){};
 
-QpParam& QpParam::operator=(QpParam& rhs) {
+inline QpParam& QpParam::operator=(QpParam& rhs) {
     m_size = rhs.m_size;
     m_win = rhs.m_win;
     m_baseRtt = rhs.m_baseRtt;
