@@ -66,6 +66,7 @@ class RdmaClient : public Application {
     void Finish();
     uint32_t m_win;      // bound of on-the-fly packets
     uint64_t m_baseRtt;  // base Rtt
+    
    protected:
     virtual void DoDispose(void);
 

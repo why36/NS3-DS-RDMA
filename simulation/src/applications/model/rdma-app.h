@@ -33,6 +33,7 @@
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
 #include "ns3/rdma-queue-pair.h"
+#include "ns3/rpc-response.h"
 
 namespace ns3 {
 
@@ -52,8 +53,9 @@ namespace ns3 {
         friend class RdmaCM;
 
     public:
-        RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
-            Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB);
+        RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair> > OnResponseCB,
+            Callback<void,Ptr<IBVWorkCompletion> > OnSendCompletionCB,Callback<void, Ptr<IBVWorkCompletion> > OnReceiveCompletionCB);
+        
         /**
          * \brief ibv_post_send;
          * \param IBVWorkRequest wr;

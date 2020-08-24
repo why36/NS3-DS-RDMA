@@ -211,20 +211,20 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
     Ptr<Node> client_node = client->GetNode();
     //Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
     //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
-    Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(client)),
-                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(client),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(client)));
+    Ptr<RdmaAppQP> srcRdmaAppQP = Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(client)),
+                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(client)),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(client)));
     client->AddQP(srcRdmaAppQP);
 
     Ptr<Node> server_node = server->GetNode();
     //Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
     //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
-    Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(),MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(server)),
-                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(server),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(server)));
+    Ptr<RdmaAppQP> dstRdmaAppQP = Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(),MakeCallback(&DistributedStorageClient::OnResponse,GetPointer(server)),
+                                MakeCallback(&DistributedStorageClient::OnSendCompletion,GetPointer(server)),MakeCallback(&DistributedStorageClient::OnReceiveCompletion,GetPointer(server)));
     server->AddQP(dstRdmaAppQP);
 
-    QpParam srcParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
-    QpParam dstParam(m_size, m_win, m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
-    QPConnectionAttr srcConnAttr(pg, client_node.m_ip, server_node.m_ip, sport, dport, QPType::RDMA_RC);
+    QpParam srcParam(client->GetSize(), client->m_win, client->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
+    QpParam dstParam(server->GetSize(), server->m_win, server->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
+    QPConnectionAttr srcConnAttr(pg, client->m_ip, server->m_ip, sport, dport, QPType::RDMA_RC);
     RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
 };
 

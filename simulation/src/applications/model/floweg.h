@@ -42,6 +42,7 @@ using FlowsegSignal = struct {
     // congestion-based flowseg
 };
 
+//need a new constructor
 class FlowsegInterface : public Object {
    public:
     FlowsegInterface() = delete;
