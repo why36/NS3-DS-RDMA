@@ -54,7 +54,7 @@ namespace ns3 {
 
     public:
         RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair> > OnResponseCB,
-            Callback<void,Ptr<IBVWorkCompletion> > OnSendCompletionCB,Callback<void, Ptr<IBVWorkCompletion> > OnReceiveCompletionCB);
+            Callback<void,Ptr<IBVWorkCompletion> > OnSendCompletionCB,Callback<void, Ptr<IBVWorkCompletion> > OnReceiveCompletionCB){}
         
         /**
          * \brief ibv_post_send;

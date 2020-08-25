@@ -31,37 +31,45 @@
 
 #include <vector>
 
-namespace ns3 {
+namespace ns3
+{
 
-class RpcResponse:public Object {
-   public:
+class RpcResponse : public Object
+{
+public:
     template <typename T>
-    RpcResponse(T result) {
+    RpcResponse(T result)
+    {
         Write(result);
     }
 
     template <typename T>
-    T getResult() {
+    T getResult()
+    {
         T t;
         index = 0;
         Read(t);
         return t;
     }
 
-   private:
+private:
     template <typename T>
-    void Write(T &t) {
+    void Write(T &t)
+    {
         unsigned char len = sizeof(t);
         buffer.push_back(len);
         char *p = reinterpret_cast<char *>(&t);
-        for (unsigned char i = 0; i < len; i++) buffer.push_back(p[i]);
+        for (unsigned char i = 0; i < len; i++)
+            buffer.push_back(p[i]);
     }
 
     template <typename T>
-    void Read(T &t) {
+    void Read(T &t)
+    {
         unsigned char len = buffer[index++];
         char *d = new char[len];
-        for (unsigned char i = 0; i < len; i++) d[i] = buffer[index++];
+        for (unsigned char i = 0; i < len; i++)
+            d[i] = buffer[index++];
         t = *reinterpret_cast<T *>(&d[0]);
         delete[] d;
     }
@@ -70,6 +78,6 @@ class RpcResponse:public Object {
     int index;
 };
 
-}  // namespace ns3
+} // namespace ns3
 
 #endif /* RPC_RESPONSE_H */

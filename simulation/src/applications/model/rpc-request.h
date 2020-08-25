@@ -33,12 +33,15 @@
 #include <tuple>
 #include <vector>
 
-namespace ns3 {
+namespace ns3
+{
 
-class RpcRequest:public Object {
-   public:
+class RpcRequest : public Object
+{
+public:
     template <typename... Params>
-    RpcRequest(std::string funcName, Params... args) {
+    RpcRequest(std::string funcName, Params... args)
+    {
         WriteString(funcName);
 
         using ArgsType = std::tuple<typename std::decay<Params>::type...>;
@@ -46,61 +49,84 @@ class RpcRequest:public Object {
         Write(_args);
     }
 
-    std::string GetFuncName() {
+    std::string GetFuncName()
+    {
         index = 0;
         return ReadString();
     }
 
-    /*C++14  fix it later
     template <typename Tuple, std::size_t... I>
-    Tuple GetArgs(std::index_sequence<I...>) {
+    Tuple GetArgs(std::index_sequence<I...>)
+    {
         Tuple t;
         index = 0;
-        ReadString();  // function name
-        (Read(std::get<I>(t)), ...);
+        ReadString(); // function name
+        Read((&std::get<I>(t))...);
         return t;
     }
-    */
 
-   private:
-    template <typename T>
-    void Write(T &t) {
-        unsigned char len = sizeof(t);
-        buffer.push_back(len);
-        char *p = reinterpret_cast<char *>(&t);
-        for (unsigned char i = 0; i < len; i++) buffer.push_back(p[i]);
-    }
-
+private:
     template <typename... Args>
-    void Write(std::tuple<Args...> &t) {
+    void Write(std::tuple<Args...> &t)
+    {
         Write(t, std::index_sequence_for<Args...>{});
     }
 
-    /*C++14  fix it later
     template <typename Tuple, std::size_t... Is>
-    void Write(Tuple &t, std::index_sequence<Is...>) {
-        ((Write(std::get<Is>(t))), ...);
+    void Write(Tuple &t, std::index_sequence<Is...>)
+    {
+        Write(&std::get<Is>(t)...);
     }
-    */
-    void WriteString(std::string s) {
-        unsigned char len = s.size();
-        buffer.push_back(len);
-        for (unsigned char i = 0; i < len; i++) buffer.push_back(s[i]);
+
+    template <typename A, typename... T>
+    void Write(A a, T... t)
+    {
+        Write(a);
+        Write(t...);
     }
 
     template <typename T>
-    void Read(T &t) {
+    void Write(T t)
+    {
+        unsigned char len = sizeof(*t);
+        buffer.push_back(len);
+        char *p = reinterpret_cast<char *>(t);
+        for (unsigned char i = 0; i < len; i++)
+            buffer.push_back(p[i]);
+    }
+
+    void WriteString(std::string s)
+    {
+        unsigned char len = s.size();
+        buffer.push_back(len);
+        for (unsigned char i = 0; i < len; i++)
+            buffer.push_back(s[i]);
+    }
+
+    template <typename A, typename... T>
+    void Read(A a, T... t)
+    {
+        Read(a);
+        Read(t...);
+    }
+
+    template <typename T>
+    void Read(T t)
+    {
         unsigned char len = buffer[index++];
         char *d = new char[len];
-        for (unsigned char i = 0; i < len; i++) d[i] = buffer[index++];
-        t = *reinterpret_cast<T *>(&d[0]);
+        for (unsigned char i = 0; i < len; i++)
+            d[i] = buffer[index++];
+        *t = *reinterpret_cast<T>(&d[0]);
         delete[] d;
     }
 
-    std::string ReadString() {
+    std::string ReadString()
+    {
         unsigned char len = buffer[index++];
         std::string result = "";
-        for (unsigned char i = 0; i < len; i++) result += buffer[index++];
+        for (unsigned char i = 0; i < len; i++)
+            result += buffer[index++];
         return result;
     }
 
@@ -108,6 +134,6 @@ class RpcRequest:public Object {
     int index;
 };
 
-}  // namespace ns3
+} // namespace ns3
 
 #endif /* RPC_REQUEST_H */

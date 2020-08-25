@@ -248,4 +248,20 @@ void DistributedStorageClient::StopApplication() {
     // TODO stop the queue pair
 }
 
+void DistributedStorageClient::OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp){
+
+}
+
+void DistributedStorageClient::DoDispose(void){
+
+}
+
+void DistributedStorageClient::OnSendCompletion(Ptr<IBVWorkCompletion> completion){
+
+}
+
+void DistributedStorageClient::OnReceiveCompletion(Ptr<IBVWorkCompletion> completion){
+
+}
+
 }  // Namespace ns3

@@ -36,30 +36,33 @@
 #include "rpc-request.h"
 #include "rpc-response.h"
 
-namespace ns3 {
+namespace ns3
+{
 
-class RPC :public Object{
-   public:
+class RPC : public Object
+{
+public:
     uint32_t m_rpc_size;
     uint32_t rpc_id; //24 bit
-    //uint16_t segment_id = 0;   
-    /*  c++14 fix it later
+    //uint16_t segment_id = 0;
     template <typename F>
-    void Bind(std::string name, F func) {
+    void Bind(std::string name, F func)
+    {
         funcMap[name] = std::bind(&RPC::Execute<F>, this, func, std::placeholders::_1);
     }
 
     RpcResponse Send(RpcRequest request) { return funcMap[request.GetFuncName()](request); }
 
-   private:
+private:
     template <typename F>
-        
-    RpcResponse Execute(F func, RpcRequest requst) {
-        return Execute_(func, requst);
+    RpcResponse Execute(F func, RpcRequest request)
+    {
+        return Execute_(func, request);
     }
 
     template <typename R, typename... Params>
-    RpcResponse Execute_(R (*func)(Params...), RpcRequest requst) {
+    RpcResponse Execute_(R (*func)(Params...), RpcRequest requst)
+    {
         using ArgsType = std::tuple<typename std::decay<Params>::type...>;
         constexpr auto N = std::tuple_size<typename std::decay<ArgsType>::type>::value;
 
@@ -72,15 +75,13 @@ class RPC :public Object{
     }
 
     template <typename R, typename... Params, typename Tuple, std::size_t... Index>
-    R Invoke(std::function<R(Params... ps)> &func, Tuple &t, std::index_sequence<Index...>) {
+    R Invoke(std::function<R(Params... ps)> &func, Tuple &t, std::index_sequence<Index...>)
+    {
         return func(std::get<Index>(t)...);
     }
-*/
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
-
-
 };
 
-}  // namespace ns3
+} // namespace ns3
 
 #endif /* RPC_H */
