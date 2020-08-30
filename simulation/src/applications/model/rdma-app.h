@@ -54,7 +54,12 @@ namespace ns3 {
 
     public:
         RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair> > OnResponseCB,
-            Callback<void,Ptr<IBVWorkCompletion> > OnSendCompletionCB,Callback<void, Ptr<IBVWorkCompletion> > OnReceiveCompletionCB){}
+            Callback<void,Ptr<IBVWorkCompletion> > OnSendCompletionCB,Callback<void, Ptr<IBVWorkCompletion> > OnReceiveCompletionCB){
+                m_rdmaDriver = driver;
+                m_onResponseCompletion = OnResponseCB;
+                m_onSendCompletion = OnSendCompletionCB;
+                m_onReceiveCompletion = OnReceiveCompletionCB;
+            }
         
         /**
          * \brief ibv_post_send;
@@ -80,10 +85,13 @@ namespace ns3 {
         /*
          * Callback
          */
+        Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>>m_onResonseCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
         //uint32_t;
     };
+
+
 
     inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
         if (completion->isTx) {
@@ -111,7 +119,7 @@ namespace ns3 {
     int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
         //srcParam.notifyCompletion = src->OnCompletion;
         //dstParam.notifyCompletion = dst->OnCompletion;
-        srcParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));//some mistakes
+        srcParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
         dstParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst));
         QPCreateAttribute src_create_attr(srcAttr, srcParam);
         src->CreateQP(src_create_attr);

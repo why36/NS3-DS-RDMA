@@ -68,7 +68,7 @@ void UserSpaceConnection::SendRPC() {
             wr = Create<IBVWorkRequest>(3);
             wr->size = m_remainingSendingSize;
         }
-        wr->imm = (m_sendingRPC->rpc_id) << 9 + m_reliability->rpc_seg[m_sendingRPC->rpc_id]++;
+        wr->imm = (m_sendingRPC->rpc_id) << 9 + m_reliability->rpc_seg[m_sendingRPC->rpc_id];
         Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
         flowSegSizeTag->SetFlowSegSize(flowsegSize);
         Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
@@ -80,6 +80,8 @@ void UserSpaceConnection::SendRPC() {
             rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->rpc_seg[m_sendingRPC->rpc_id]);
             wr->tags[2] = rpcTotalOffsetTag;
             m_reliability->rpc_totalSeg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
+        }else{
+            m_reliability->rpc_seg[m_sendingRPC->rpc_id]++;
         }
         wr->verb = IBVerb::IBV_SEND_WITH_IMM;
         m_appQP->PostSend(wr);
@@ -178,6 +180,7 @@ void UserSpaceConnection::ReceiveIBVWC() {
                     }
                     if (j == m_reliability->rpc_totalSeg[i]) {
                         m_reliability->rpc_finish.insert(std::pair<uint32_t, bool>(i, true));
+                        //if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
                     }
                 }
             }

@@ -28,14 +28,17 @@
 
 #ifndef RPC_REQUEST_H
 #define RPC_REQUEST_H
-
+/*
 #include <string>
 #include <tuple>
 #include <vector>
+*/
+
+#include "ns3/rpc.h"
 
 namespace ns3
 {
-
+/*
 class RpcRequest : public Object
 {
 public:
@@ -133,7 +136,15 @@ private:
     std::vector<char> buffer;
     int index;
 };
+*/
+class RpcRequest : public RPC{
+public:
+    //Requestid is self-augmenting from zero, and is global
+    RpcRequest(uint32_t size):RPC(requestId,size,ReqResType::Request){requestId++;}
+    static int requestId;
+};
 
+int RpcRequest::requestId = 0;
 } // namespace ns3
 
 #endif /* RPC_REQUEST_H */

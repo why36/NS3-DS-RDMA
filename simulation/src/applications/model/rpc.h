@@ -29,16 +29,17 @@
 #ifndef RPC_H
 #define RPC_H
 
-#include <functional>
+/*#include <functional>
 #include <map>
 #include <string>
-
+*/
 #include "rpc-request.h"
 #include "rpc-response.h"
+#include "ns3/RequestResponse.h"
 
 namespace ns3
 {
-
+/*
 class RPC : public Object
 {
 public:
@@ -81,6 +82,22 @@ private:
     }
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
 };
+*/
+enum class RPCType{
+  Request = 0,
+  Response = 1
+};
+
+
+class RPC : public Object
+{
+public:
+    uint32_t rpc_id;
+    uint32_t m_rpc_size;
+    ReqResType m_rpc_type;
+    RPC();
+    RPC(uint32_t id,uint32_t size,RPCType type):rpc_id(id),m_rpc_size(size),rpc_type(type){}
+}
 
 } // namespace ns3
 

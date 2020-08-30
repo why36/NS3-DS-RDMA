@@ -45,6 +45,7 @@ namespace ns3
     }
 
     int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
+        m_wrs.push(wr);
         return 0;
     }
     void CongestionControlEntity::SetWin(uint32_t win) {

@@ -29,11 +29,13 @@
 #ifndef RPC_RESPONSE_H
 #define RPC_RESPONSE_H
 
-#include <vector>
+//#include <vector>
+
+#include "ns3/RPC.h"
 
 namespace ns3
 {
-
+/*
 class RpcResponse : public Object
 {
 public:
@@ -77,6 +79,13 @@ private:
     std::vector<char> buffer;
     int index;
 };
+*/
+
+class RpcResponse : public RPC
+{
+public:
+    RpcResponse(uint32_t size,uint32_t id):RPC(id,size,RPCType::Response){}
+}
 
 } // namespace ns3
 

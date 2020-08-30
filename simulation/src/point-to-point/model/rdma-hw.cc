@@ -654,11 +654,11 @@ namespace ns3
             }
             else
                 return RCSeqState::NOT_GENERATE_NACK;
-            }
+        }
         else {
             // Duplicate.
             return RCSeqState::DUPLICATED;
-            }
+        }
     }
     
     UCSeqState RdmaHw::MatchFirstOrOnly(IBHeader ibh) {
