@@ -48,11 +48,12 @@ uint32_t LastPacketTag::GetSerializedSize(void) const {
     for (int j = 0; j < m_ibv_wr.mark_tag_num; j++) {
         tag_size += m_ibv_wr.tags[j]->GetSerializedSize();
     }
-    return 4 + 4 + tag_size;
+    return 1 + 4 + 4 + tag_size;
 }
 
 void LastPacketTag::Serialize(TagBuffer i) const {
     // m_ibv_wr is equal to IBV_SEND_WITH_IMM
+    i.WriteU8(m_ibv_wr.mark_tag_num);
     i.WriteU32(m_ibv_wr.size);
     i.WriteU32(m_ibv_wr.imm);
     for (int j = 0; j < m_ibv_wr.mark_tag_num; j++) {
@@ -62,6 +63,7 @@ void LastPacketTag::Serialize(TagBuffer i) const {
 
 void LastPacketTag::Deserialize(TagBuffer i) {
     // m_ibv_wr is equal to IBV_SEND_WITH_IMM
+    m_ibv_wr.mark_tag_num = i.ReadU8();
     m_ibv_wr.size = i.ReadU32();
     m_ibv_wr.imm = i.ReadU32();
     for (int j = 0; j < m_ibv_wr.mark_tag_num; j++) {

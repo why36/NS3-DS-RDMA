@@ -37,6 +37,7 @@ namespace ns3 {
         IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM
     };
     static const int kTagsInWR = 4;
+    //FlowSegSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
     using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
 
     class RdmaQueuePair;
@@ -45,8 +46,8 @@ namespace ns3 {
         uint32_t size;
         uint32_t imm;
         TagPayload tags;        
-        int mark_tag_num;
-        ibv_wr():mark_tag_num(2){}
+        uint8_t mark_tag_num;
+        ibv_wr():mark_tag_num(3){}
         ibv_wr(int _mark_tag_num):mark_tag_num(_mark_tag_num){}
     };
 
@@ -58,8 +59,8 @@ namespace ns3 {
         uint32_t imm;
         uint64_t time_in_us;
         TagPayload tags;
-        int mark_tag_num;
-        ibv_wc():mark_tag_num(2){};
+        int mark_tag_num = kTagsInWR;
+        ibv_wc():mark_tag_num(3){};
         ibv_wc(int _mark_tag_num):mark_tag_num(_mark_tag_num){};
     };
 

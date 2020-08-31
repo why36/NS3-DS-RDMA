@@ -102,6 +102,53 @@ void RPCTotalOffsetTag::Deserialize(TagBuffer i) { m_rpcTotalOffest = i.ReadU16(
 
 void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag.m_rpcTotalOffest(dec)=" << std::dec << m_rpcTotalOffest; }
 
+
+NS_OBJECT_ENSURE_REGISTERED(RPCTotalOffsetTag);
+
+RPCRequestResponseTypeIdTag:RPCRequestResponseTypeIdTag(){NS_LOG_FUNCTION(this); }
+
+void RPCRequestResponseTypeIdTag::SetRPCReqResType(RPCType type){
+    m_type = type;
+}
+
+ void RPCRequestResponseTypeIdTag::SetRPCReqResId(uint64_t reqres_id){
+     m_reqres_id = reqres_id;
+ }
+
+RPCType RPCRequestResponseTypeIdTag::GetRPCReqResType(void) const{
+    return m_type;
+}
+
+uint64_t RPCRequestResponseTypeIdTag::GetRPCReqResId(void) const{
+    return m_reqres_id;
+}
+
+TypeId RPCRequestResponseTypeIdTag::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::RPCRequestResponseTypeIdTag").SetParent<Tag>().AddConstructor<RPCRequestResponseTypeIdTag>();
+    return tid;
+}
+
+TypeId RPCRequestResponseTypeIdTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+
+uint32_t RPCRequestResponseTypeIdTag::GetSerializedSize(void) const{
+    //1+8
+    return 9;
+}
+
+void RPCRequestResponseTypeIdTag::Serialize(TagBuffer i) const{
+    i.WriteU8(static_cast<uint8_t>(m_type));
+    i.WriteU64(m_reqres_id);
+}
+
+void RPCRequestResponseTypeIdTag::Deserialize(TagBuffer i){
+    m_type = static_cast<RPCType>(i.ReadU8());
+    m_reqres_id = i.ReadU64();
+}
+
+void RPCRequestResponseTypeIdTag::Print(std::ostream &os) const{
+    os << "RPCRequestResponseTypeIdTag.m_reqres_id(dec)=" << std::dec << m_reqres_id <<" RPCRequestResponseTypeIdTag.m_type(dec)=" << std::dec << static_cast<uint8_t>(m_type);
+}
+
 }  // namespace ns3
 
 // TO DO GYY: implement this

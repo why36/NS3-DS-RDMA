@@ -94,9 +94,10 @@ class RPC : public Object
 public:
     uint32_t rpc_id;
     uint32_t m_rpc_size;
+    uint64_t m_reqres_id; //request or response id
     ReqResType m_rpc_type;
     RPC();
-    RPC(uint32_t id,uint32_t size,RPCType type):rpc_id(id),m_rpc_size(size),rpc_type(type){}
+    RPC(uint64_t id,uint32_t size,RPCType type):m_reqres_id(id),m_rpc_size(size),rpc_type(type){}
 }
 
 } // namespace ns3

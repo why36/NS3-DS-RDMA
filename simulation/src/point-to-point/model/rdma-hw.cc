@@ -382,7 +382,7 @@ namespace ns3
                     // need to do something about completion
                     LastPacketTag tag;
                     p->PeekPacketTag (tag);
-                    Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
+                    Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
                     wc->imm = tag.GetIBV_WR().imm;
                     wc->isTx = false;
                     wc->qp = rxQp;

@@ -141,10 +141,10 @@ class RpcRequest : public RPC{
 public:
     //Requestid is self-augmenting from zero, and is global
     RpcRequest(uint32_t size):RPC(requestId,size,ReqResType::Request){requestId++;}
-    static int requestId;
+    static uint64_t requestId;
 };
 
-int RpcRequest::requestId = 0;
+uint64_t RpcRequest::requestId = 0;
 } // namespace ns3
 
 #endif /* RPC_REQUEST_H */

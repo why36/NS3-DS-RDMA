@@ -23,6 +23,7 @@
 #define VERB_TAG_H
 
 #include "ns3/tag.h"
+#include "ns3/rpc.h"
 
 namespace ns3 {
 
@@ -78,6 +79,25 @@ namespace ns3 {
         private:
             uint16_t m_rpcTotalOffest;
     };
+
+    class RPCRequestResponseTypeIdTag : public Tag
+    {
+        public:
+            RPCRequestResponseTypeIdTag();
+            void SetRPCReqResType(RPCType type);
+            void SetRPCReqResId(uint64_t reqres_id);
+            RPCType GetRPCReqResType(void) const;
+            uint64_t GetRPCReqResId(void) const;
+            static TypeId GetTypeId(void);
+            virtual TypeId GetInstanceTypeId(void) const;
+            virtual uint32_t GetSerializedSize(void) const;
+            virtual void Serialize(TagBuffer i) const;
+            virtual void Deserialize(TagBuffer i);
+            virtual void Print(std::ostream &os) const;
+        private:
+            RPCType m_type;
+            uint64_t m_reqres_id;
+    }
 
 }  // namespace ns3
 

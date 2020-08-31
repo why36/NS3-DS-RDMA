@@ -248,7 +248,7 @@ namespace ns3
             
             if(m_connectionAttr.qp_type== QPType::RDMA_UC)
             {
-                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>();
+                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(m_sendingWr->mark_tag_num);
                 wc->imm = m_sendingWr->imm;
                 wc->isTx = true;
                 wc->qp = this;

@@ -65,20 +65,25 @@ void UserSpaceConnection::SendRPC() {
             wr = Create<IBVWorkRequest>();
             wr->size = flowsegSize;
         } else if (m_remainingSendingSize <= flowsegSize) {
-            wr = Create<IBVWorkRequest>(3);
+            wr = Create<IBVWorkRequest>(4);
             wr->size = m_remainingSendingSize;
         }
         wr->imm = (m_sendingRPC->rpc_id) << 9 + m_reliability->rpc_seg[m_sendingRPC->rpc_id];
+        // tags assignment
         Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
         flowSegSizeTag->SetFlowSegSize(flowsegSize);
         Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
         rpcSizeTag->SetRPCSize(m_sendingRPC->m_rpc_size);
+        Ptr<RPCRequestResponseTypeIdTag>  RPCReqResTag= Create<RPCRequestResponseTypeIdTag>();
+        RPCReqResTag.SetRPCReqResId(m_sendingRPC->m_reqres_id);
+        RPCReqResTag.SetRPCReqResType(m_sendingRPC->m_rpc_type);
         wr->tags[0] = flowSegSizeTag;
         wr->tags[1] = rpcSizeTag;
+        wr->tags[2] = RPCReqResTag;
         if (m_remainingSendingSize == wr->size) {
             Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
             rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->rpc_seg[m_sendingRPC->rpc_id]);
-            wr->tags[2] = rpcTotalOffsetTag;
+            wr->tags[3] = rpcTotalOffsetTag;
             m_reliability->rpc_totalSeg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
         }else{
             m_reliability->rpc_seg[m_sendingRPC->rpc_id]++;
@@ -102,7 +107,7 @@ void UserSpaceConnection::SendRPC() {
 }
 
 void UserSpaceConnection::SendAck(uint32_t _imm) {
-    Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(3);
+    Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(4); //There's only one slice
     m_sendAckWr->imm = _imm;
     m_sendQueuingAckWr.push(m_sendAckWr);
     SendAck();
@@ -120,12 +125,17 @@ void UserSpaceConnection::SendAck() {
     Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
     flowSegSizeTag->SetFlowSegSize(0);
     Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-    rpcSizeTag->SetRPCSize(0);
+    rpcSizeTag->SetRPCSize(100);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
-    rpcTotalOffsetTag->SetRPCTotalOffset(1);
+    rpcTotalOffsetTag->SetRPCTotalOffset(0);
+    Ptr<RPCRequestResponseTypeIdTag>  RPCReqResTag= Create<RPCRequestResponseTypeIdTag>();
+    RPCReqResTag.SetRPCReqResId(0);
+    RPCReqResTag.SetRPCReqResType(0);
     m_sendingAckWr->tags[0] = flowSegSizeTag;
     m_sendingAckWr->tags[1] = rpcSizeTag;
-    m_sendingAckWr->tags[2] = rpcTotalOffsetTag;
+    m_sendingAckWr->tags[2] = RPCReqResTag;
+    m_sendingAckWr->tags[3] = rpcTotalOffsetTag;
+    m_sendingAckWr->size = 100;//ack size
     m_ackQP->PostSendAck(m_sendingAckWr);
 }
 
