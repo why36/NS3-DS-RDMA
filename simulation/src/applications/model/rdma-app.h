@@ -119,7 +119,7 @@ namespace ns3 {
             return;
         }
         else {
-            m_onReceiveCompletion(completion);
+            m_onReceiveCompletionCB(completion);
             return;
         }
     }
