@@ -228,20 +228,29 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
     Ptr<Node> client_node = client->GetNode();
     // Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
     //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+
+    Ptr<UserSpaceConnection> srcConnection = Create<UserSpaceConnection>();
     Ptr<RdmaAppQP> srcRdmaAppQP =
         Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(client)));
-    client->AddQP(srcRdmaAppQP);
+    srcConnection->appQp = srcRdmaAppQP;
+    client->m_Connections.push_back(srcConnection);
+
+    //client->AddQP(srcRdmaAppQP);
 
     Ptr<Node> server_node = server->GetNode();
     // Ptr<RdmaAppQP> dstRdmaAppQP(server_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
     //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
+
+    Ptr<UserSpaceConnection> dstConnection = Create<UserSpaceConnection>();
     Ptr<RdmaAppQP> dstRdmaAppQP =
         Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(server)));
-    server->AddQP(dstRdmaAppQP);
+    dstConnection->appQp = dstRdmaAppQP;
+    server->m_Connections.push_back(srcConnection);
+    //server->AddQP(dstRdmaAppQP);
 
     QpParam srcParam(client->GetSize(), client->m_win, client->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
     QpParam dstParam(server->GetSize(), server->m_win, server->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));

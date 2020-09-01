@@ -32,6 +32,7 @@
 
 #include <map>
 #include <queue>
+#include <vector>
 
 #include "ns3/application.h"
 #include "ns3/event-id.h"
@@ -131,6 +132,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     // need maintain a QP collection:
     // somthing like key-value storage <qp,ip>
     // std::hash_map<UserSpaceConnection> m_Connections;
+    std::vector<Ptr<UserSpaceConnection>> m_Connections;
 
     /*
      *  basic attributes
