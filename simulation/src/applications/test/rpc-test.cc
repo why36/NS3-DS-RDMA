@@ -77,9 +77,10 @@ RPCTestCase::DoRun(void) {
     init();
     //send first 8 rpcs
     DistributedStorageClient client;
-
+    QbbNetDevice device;
     for(it = RPCRequestMap.begin(); it != RPCRequestMap.end(); it++){
       client.SendRpc(it->second);
+      device.DequeueAndTransmit();
     }
 
     int time = 0;

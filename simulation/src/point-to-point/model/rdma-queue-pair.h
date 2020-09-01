@@ -98,6 +98,7 @@ namespace ns3
     } // namespace CongestionControlAlgorithms
 
     class RdmaHw;
+    class RdmaAppQP;
     class RdmaQueuePair;
 
     using IPBasedFlow = struct ip_based_flow
@@ -268,6 +269,9 @@ namespace ns3
     class RdmaQueuePair : public Object
     {
     public:
+        //Bind RdmaQueuePair and RdmaAppQP to each other
+        RdmaAppQP appQp;
+        void setAppQp(RdmaAppQP appQp);
         // app-specified
         Time startTime;
         Callback<void> m_notifyAppFinish;

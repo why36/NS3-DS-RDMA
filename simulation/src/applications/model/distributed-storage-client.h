@@ -61,6 +61,7 @@ class RpcResponse;
 
 class UserSpaceConnection : public Object {
    public:
+    UserSpaceConnection();
     void SendRPC(Ptr<RPC> rpc);
     Ptr<UserSpaceCongestionControl> m_UCC;
     Ptr<FlowsegInterface> m_flowseg;

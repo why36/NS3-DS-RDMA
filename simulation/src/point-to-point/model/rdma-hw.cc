@@ -379,7 +379,7 @@ namespace ns3
                     ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST ||
                     ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
                     ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
-                    // need to do something about completion
+                    // need to do something about completion, collect verbs successfully
                     LastPacketTag tag;
                     p->PeekPacketTag (tag);
                     Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);

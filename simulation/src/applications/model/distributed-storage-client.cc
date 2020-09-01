@@ -52,6 +52,10 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
+UserSpaceConnection::UserSpaceConnection(){
+    m_appQP->setUSC(this);
+}
+
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     m_sendQueuingRPCs.push(rpc);
     SendRPC();
@@ -212,7 +216,7 @@ void DistributedStorageClient::SendRpc(Ptr<RPC> rpc) {
     // find user-space connection
     // send rpc
 
-    Ptr<UserSpaceConnection> connection;
+    Ptr<UserSpaceConnection> connection = Create<UserSpaceConnection>();
     connection->SendRPC(rpc);
 };
 

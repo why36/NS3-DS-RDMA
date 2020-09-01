@@ -13,7 +13,7 @@
 #include <ns3/uinteger.h>
 #include <ns3/last-packet-tag.h>
 #include <queue>
-
+#include "ns3/rdma-app.h"
 #include "ns3/ppp-header.h"
 namespace ns3
 {
@@ -42,6 +42,7 @@ namespace ns3
 
         m_ipid = 0;
         m_nextAvail = Time(0);
+        m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion,this->appQp); 
     }
 
     int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
@@ -202,6 +203,9 @@ namespace ns3
         return snd_una >= m_size;
     }
 
+    void setAppQp(RdmaAppQP* appQp){
+        this->appQp = appQp;
+    }
     // data path
     Ptr<Packet> RdmaQueuePair::GetNextPacket()
     {

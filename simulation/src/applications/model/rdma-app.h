@@ -49,6 +49,9 @@ namespace ns3 {
     /**
      * \brief RdmaAppQP is a useable QP interface for application;
      */
+
+    class UserSpaceConnection;
+
     class RdmaAppQP : public Object {
         friend class RdmaCM;
 
@@ -59,7 +62,12 @@ namespace ns3 {
                 m_onResponseCompletion = OnResponseCB;
                 m_onSendCompletion = OnSendCompletionCB;
                 m_onReceiveCompletion = OnReceiveCompletionCB;
+                m_qp->setAppQp(this);
             }
+
+        RdmaAppQP(){
+            m_qp->setAppQp(this);
+        }
         
         /**
          * \brief ibv_post_send;
@@ -68,6 +76,12 @@ namespace ns3 {
         void PostSend(Ptr<IBVWorkRequest> wr){
             m_qp->ibv_post_send(wr);
         };
+
+        UserSpaceConnection* m_usc;
+
+        void setUSC(UserSpaceConnection* usc){
+            this->m_usc = usc;
+        }
 
     private:
         /**
@@ -85,9 +99,15 @@ namespace ns3 {
         /*
          * Callback
          */
+        //abandon
         Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>>m_onResonseCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
         Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
+
+
+        //Call ReceiveIBVWC ()
+        Callback<void,Ptr<IBVWorkCompletion>> m_onReceiveCompletionCB = MakeCallback(&UserSpaceConnection::ReceiveIBVWC,m_usc);
+
         //uint32_t;
     };
 
