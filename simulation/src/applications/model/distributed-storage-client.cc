@@ -249,7 +249,7 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(server)));
     dstConnection->appQp = dstRdmaAppQP;
-    server->m_Connections.push_back(srcConnection);
+    server->m_Connections.push_back(dstConnection);
     //server->AddQP(dstRdmaAppQP);
 
     QpParam srcParam(client->GetSize(), client->m_win, client->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, client));
