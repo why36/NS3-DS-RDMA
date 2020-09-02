@@ -62,14 +62,14 @@ static const int interval = 10;
 static const int requestSize = 2000;
 
 //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
-std::map<uint64_t,RPC> RPCRequestMap;
-std::map<uint64_t,RPC>::iterator it;
+std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
+std::map<uint64_t,Ptr<RPC>>::iterator it;
 
 
 RPCTestCase::init() {
     for (int i = 0; i < kRPCRequest; i++) {
-        RpcRequest req(requestSize);  
-        RPCRequestMap.insert(pair<uint64_t,RPC>(req.requestId,req));
+        Ptr<RpcRequest> req = Create<RpcRequest>(requestSize);  
+        RPCRequestMap.insert(pair<uint64_t,Ptr<RPC>>(req.requestId,req));
     }
 }
 
@@ -95,10 +95,12 @@ RPCTestCase::DoRun(void) {
       it = RPCRequestMap.find(0);
       RPCRequestMap.erase(it);       
 
-      while(RPCRequestMap.size()!=kRPCRequest){
-        RpcRequest req(requestSize);  
-        RPCRequestMap.insert(pair<uint64_t,RPC>(req.rpc_id,req));
+      while(RPCRequestMap.size()<=kRPCRequest){
+        Ptr<RpcRequest> req = Create<RpcRequest>(requestSize); 
+        RPCRequestMap.insert(pair<uint64_t,Ptr<RPC>>(req.rpc_id,req));
+        client.SendRpc(req);
       }
+
     }
    
 

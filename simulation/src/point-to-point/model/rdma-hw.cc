@@ -369,7 +369,6 @@ namespace ns3
         rxQp->m_ecn_source.total++;
         */
         RCSeqState x = RCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
-
         if(CheckOpcodeValid(ch.udp.ibh, OpCodeType::RC)){
             if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::NOT_GENERATE_ACK) {
                 if (!CheckOpcodeOperationSupported(ch.udp.ibh)) {
@@ -439,7 +438,42 @@ namespace ns3
         
         UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
         if (x == UCSeqState::OK) {
-            //need to do something to complete
+            //need to do something to complete, collect verbs successfully. 
+            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY ||
+                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
+                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST){
+                LastPacketTag tag;
+                p->PeekPacketTag (tag);
+                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
+                wc->imm = tag.GetIBV_WR().imm;
+                wc->isTx = false;
+                wc->qp = rxQp;
+                wc->size = tag.GetIBV_WR().size;
+                wc->tags = tag.GetIBV_WR().tags;
+                wc->time_in_us = Simulator::Now().GetMicroSeconds();
+                wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+                rxQp->m_notifyCompletion(wc);
+            }
+        }
+        else if(x == UCSeqState::OOS) {
+            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+                    LastPacketTag tag;
+                    p->PeekPacketTag (tag);
+                    Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
+                    wc->imm = tag.GetIBV_WR().imm;
+                    wc->isTx = false;
+                    wc->qp = rxQp;
+                    wc->size = tag.GetIBV_WR().size;
+                    wc->tags = tag.GetIBV_WR().tags;
+                    wc->time_in_us = Simulator::Now().GetMicroSeconds();
+                    wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+                    rxQp->m_notifyCompletion(wc);
+            }
+            else if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {
+
+            }
         }
     }
 
@@ -662,15 +696,15 @@ namespace ns3
     }
     
     UCSeqState RdmaHw::MatchFirstOrOnly(IBHeader ibh) {
-        if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
-            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+        if(ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY ||
+            ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST){
             if (CheckOpcodeOperationSupported(ibh)) {
                 return UCSeqState::OK;
             }
             else {
                 return UCSeqState::DUPLICATED;
-            }
+            }    
         }
         else {
             return UCSeqState::DUPLICATED;
@@ -694,7 +728,8 @@ namespace ns3
                     }
                     else {
                         expected = seq;
-                        return MatchFirstOrOnly(header.udp.ibh);
+                        //return MatchFirstOrOnly(header.udp.ibh);
+                        return UCSeqState::OOS;
                     }
                     /*
                     if (q->ReceiverNextExpectedSeq >= q->m_milestone_rx) {
@@ -708,9 +743,13 @@ namespace ns3
                     */
                 }
             }
-            else if (seq != expected) {
+            else if (seq < expected) {
+                return UCSeqState::DUPLICATED;
+            }
+            else if(seq > expected){
                 expected = seq;
-                return MatchFirstOrOnly(header.udp.ibh);
+                return UCSeqState::OOS;
+                //return MatchFirstOrOnly(header.udp.ibh);
             }
     }
 

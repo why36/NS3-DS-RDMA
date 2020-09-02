@@ -181,25 +181,42 @@ void UserSpaceConnection::ReceiveIBVWC() {
         m_receivingIBVWC = nullptr;
         return;
     }
-    if (!m_rpcAckBitMap.get(m_receivingIBVWC->imm)) m_rpcAckBitMap.set(m_receivingIBVWC->imm);
-    m_receive_ibv_num++;
-    // receive enough ibvwc, generate ack
-    if (m_receive_ibv_num > m_ackQP->m_milestone_rx + m_ackQP->m_ack_qp_interval) {
-        for (uint32_t i = 0; i < m_reliability->GetMessageTotalNumber(); i++) {
-            if (m_reliability->rpc_finish.find(i) == m_reliability->rpc_finish.end()) {
-                for (uint32_t j = 0; j < m_reliability->rpc_totalSeg[i]; j++) {
-                    if (!m_rpcAckBitMap.get(i << 9 + j & 0x1FF)) {
-                        SendAck(i << 9 + j & 0x1FF);  // next value want to be set
-                        break;
-                    }
-                    if (j == m_reliability->rpc_totalSeg[i]) {
-                        m_reliability->rpc_finish.insert(std::pair<uint32_t, bool>(i, true));
-                        //if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
+    if(m_appQP->m_qp->m_connectionAttr.qp_type== QPType::RDMA_UC){
+        if (!m_rpcAckBitMap.get(m_receivingIBVWC->imm)) 
+            m_rpcAckBitMap.set(m_receivingIBVWC->imm);
+        m_receive_ibv_num++;
+        // receive enough ibvwc, generate ack
+        if (m_receive_ibv_num > m_ackQP->m_milestone_rx + m_ackQP->m_ack_qp_interval) {
+            for (uint32_t i = 0; i < m_reliability->GetMessageTotalNumber(); i++) {
+                if (m_reliability->rpc_finish.find(i) == m_reliability->rpc_finish.end()) {
+                    for (uint32_t j = 0; j < m_reliability->rpc_totalSeg[i]; j++) {
+                        // UC send ack
+                        if (!m_rpcAckBitMap.get(i << 9 + j & 0x1FF)) {
+                            SendAck(i << 9 + j & 0x1FF);  // next value want to be set
+                            break;
+                        }
+                        if (j == m_reliability->rpc_totalSeg[i]) {
+                            m_reliability->rpc_finish.insert(std::pair<uint32_t, bool>(i, true));
+                            //if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
+                            if(m_receivingIBVWC->tags[2]->GetRPCReqResType()==Request){
+                                Ptr<RpcResponse> response = Create<RpcResponse>(200,m_receivingIBVWC->tags[2]->GetRPCReqResId());
+                                SendRPC(response);
+                            }
+                        }
                     }
                 }
             }
+            m_ackQP->m_milestone_rx += m_ackQP->m_ack_qp_interval;
         }
-        m_ackQP->m_milestone_rx += m_ackQP->m_ack_qp_interval;
+    }
+    else if(m_appQP->m_qp->m_connectionAttr.qp_type== QPType::RDMA_RC){
+        //receive the last verbs
+        if(m_receivingIBVWC->mark_tag_num == 4){
+            if((static_cast<uint16_t>(m_receivingIBVWC->imm & 0x1FF)) == m_receivingIBVWC->tags[3]->GetRPCTotalOffset()){
+                Ptr<RpcResponse> response = Create<RpcResponse>(200,m_receivingIBVWC->tags[2]->GetRPCReqResId());
+                SendRPC(response);
+            }            
+        }
     }
 }
 
