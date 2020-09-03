@@ -34,11 +34,8 @@
 #include <string>
 */
 #include "rpc-request.h"
-#include "rpc-response.h"
-#include "ns3/RequestResponse.h"
 
-namespace ns3
-{
+namespace ns3 {
 /*
 class RPC : public Object
 {
@@ -83,23 +80,18 @@ private:
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
 };
 */
-enum class RPCType{
-  Request = 0,
-  Response = 1
-};
+enum class RPCType { Request = 0, Response = 1 };
 
-
-class RPC : public Object
-{
-public:
+class RPC : public Object {
+   public:
     uint32_t rpc_id;
     uint32_t m_rpc_size;
-    uint64_t m_reqres_id; //request or response id
+    uint64_t m_reqres_id;  // request or response id
     ReqResType m_rpc_type;
     RPC();
-    RPC(uint64_t id,uint32_t size,RPCType type):m_reqres_id(id),m_rpc_size(size),rpc_type(type){}
+    RPC(uint64_t id, uint32_t size, RPCType type) : m_reqres_id(id), m_rpc_size(size), rpc_type(type) {}
 }
 
-} // namespace ns3
+}  // namespace ns3
 
 #endif /* RPC_H */

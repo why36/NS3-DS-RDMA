@@ -86,6 +86,8 @@ class UserSpaceConnection : public Object {
     void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
     void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
 
+    void Retransmit(Ptr<IBVWorkRequest> wc);
+
    private:
     void DoSend();
     void SendRetransmissions();

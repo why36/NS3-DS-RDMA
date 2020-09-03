@@ -52,7 +52,18 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageClient);
 
-UserSpaceConnection::UserSpaceConnection() { m_appQP->setUSC(this); }
+UserSpaceConnection::UserSpaceConnection() {
+    m_UCC = Create<LeapCC>();
+    m_flowseg = Create<DropBasedFlowseg>();
+    m_reliability = Create<Reliability>();
+    m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
+    m_appQP->setUSC(this);
+}
+
+void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
+    m_retransmissions.push_back(wc);
+    SendRetransmissions();
+};
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     m_sendQueuingRPCs.push(rpc);
@@ -68,9 +79,18 @@ void UserSpaceConnection::SendRetransmissions() {
     NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     uint32_t cc_size = cc_implement->GetCongestionWindow();
-    while (cc_size && m_) {
+    while (cc_size && !m_retransmissions.empty()) {
+        auto wr = m_retransmissions.front();
+        m_retransmissions.pop();
+
+        m_appQP->PostSend(wr);
+        m_reliability->InsertWR(wr);
+
+        cc_implement->IncreaseInflight(wr->size);
+        cc_size = cc_implement->GetCongestionWindow();
     }
 };
+
 void UserSpaceConnection::SendNewRPC() {
     NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
@@ -97,7 +117,7 @@ void UserSpaceConnection::SendNewRPC() {
                 wr = Create<IBVWorkRequest>();
                 wr->size = flowsegSize;
             } else if (m_remainingSendingSize <= flowsegSize) {
-                wr = Create<IBVWorkRequest>(4);
+                wr = Create<IBVWorkRequest>(kDefaultTagNum);
                 wr->size = m_remainingSendingSize;
             }
             wr->imm = ACKSeg::GetImm((m_sendingRPC->rpc_id,m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
@@ -127,7 +147,7 @@ void UserSpaceConnection::SendNewRPC() {
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
-            m_reliability->rpcImm_verb.insert(std::pair<uint32_t, Ptr<IBVWorkRequest>>(wr->imm, wr));
+            m_reliability->InsertWR(wr);
             m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize - wr->size : 0;
 
             cc_implement->IncreaseInflight(wr->size);
@@ -160,24 +180,17 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
 
 // To do.Krayecho Yx: fix ack
 // To do.Krayecho Yx: break retransmission into small pieces
-void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc) {
+void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     // repass
-    uint32_t ack_imm = m_ackWc->imm;
-    auto iter = m_reliability->rpcImm_verb.find(ack_imm);
-    if (iter = m_reliability->end()) {
-        return;
-    }
-    Ptr<IBVWorkRequest> wr = iter->second;
 
-    m_s
+    uint32_t ack_imm = ackWc->imm;
 
-        Ptr<RttWindowCongestionControl>
-            cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
-
+    Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     RTTSignal rtt;
     rtt.mRtt = 10;
     cc_implement->UpdateSignal(rtt);
     cc_implement->DecreaseInflight();
+    ACKWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
 }
 
 void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {

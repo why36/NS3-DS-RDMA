@@ -22,7 +22,7 @@
 #ifndef RELIABILITY_H
 #define RELIABILITY_H
 
-#include <bitmap>
+#include <bitset>
 #include <hash_map>
 #include <map>
 
@@ -47,7 +47,9 @@ class ACK {
     std::vector<ACKSeg> segments;
 };
 
-class Reliability {
+class UserSpaceConnection;
+
+class Reliability : Object {
    public:
     uint32_t GetMessageNumber() { return m_messageNumber++; }
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
@@ -56,6 +58,7 @@ class Reliability {
     void InsertWWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
 
+    void SetUSC(Ptr<UserSpaceConnection> usc) { m_usc = usc; };
     // When an RPC is sent, the SegId of the RPC sent at this time is recorded
     std::map<uint32_t, uint16_t> tx_rpc_seg;
     // key is rpc_id, value is the total seg numer of this rpc
@@ -66,6 +69,7 @@ class Reliability {
    private:
     uint32_t m_messageNumber = 0;
     uint64_t m_wruuid = 0;
+    Ptr<UserSpaceConnection> m_usc;
 };
 
 static const MAX_SEG = 2 << SEG_BIT;

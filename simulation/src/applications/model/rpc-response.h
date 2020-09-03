@@ -31,10 +31,9 @@
 
 //#include <vector>
 
-#include "ns3/RPC.h"
+#include "rpc.h"
 
-namespace ns3
-{
+namespace ns3 {
 /*
 class RpcResponse : public Object
 {
@@ -81,12 +80,11 @@ private:
 };
 */
 
-class RpcResponse : public RPC
-{
-public:
-    RpcResponse(uint32_t size,uint64_t response_id):RPC(response_id,size,RPCType::Response){}
+class RpcResponse : public RPC {
+   public:
+    RpcResponse(uint32_t size, uint64_t response_id) : RPC(response_id, size, RPCType::Response) {}
 }
 
-} // namespace ns3
+}  // namespace ns3
 
 #endif /* RPC_RESPONSE_H */

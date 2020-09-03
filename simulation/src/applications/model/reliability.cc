@@ -30,6 +30,7 @@ inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
     while (rpcImm_verb.front()->wr_id <= wr_id) {
         if (rpcImm_verb.front()->wr_id == wr_id) {
             auto wr =.rpcImm_verb.front();
+            m_usc->Retransmit(wr);
         } else {
             rpcImm_verb.pop_front();
             return;
