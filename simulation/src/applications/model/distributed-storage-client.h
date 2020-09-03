@@ -106,7 +106,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     /*
      *  public interfaces
      */
-    static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size);
+    static void Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg);
 
     // Rdma
     virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp);

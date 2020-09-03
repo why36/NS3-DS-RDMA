@@ -242,7 +242,7 @@ DistributedStorageClient::~DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS()
 // connection->SendRPC(rpc);
 //};  // namespace ns3
 
-void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg, uint32_t size) {
+void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
     uint16_t sport = client->GetNextAvailablePort();
     uint16_t dport = server->GetNextAvailablePort();
     NS_ASSERT(sport && dport);

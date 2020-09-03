@@ -137,11 +137,44 @@ void ReadFlowInput() {
 void ScheduleFlowInputs() {
     while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now()) {
         uint32_t port = portNumder[flow_input.src][flow_input.dst]++;  // get a new port number
+        /*
         RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport,
                                       flow_input.maxPacketCount,
                                       has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(flow_input.src)][n.Get(flow_input.dst)]) : 0,
                                       global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
+        
         ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
+        */
+        
+       
+        DistributedStorageClient::Connect(client,server,flow_input.pg); 
+        NodeContainer c = n.Get(flow_input.src);
+        Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
+        NodeContainer::Iterator i = c.Begin ();
+        Ptr<Node> node = *i;
+        node->AddApplication (client);
+        ApplicationContainer appCon;
+        appCon.Add (client);
+
+        Ptr<DistributedStorageClient> server = Create<DistributedStorageClient>();
+        NodeContainer c = n.Get(flow_input.dst);
+        NodeContainer::Iterator i = c.Begin ();
+        Ptr<Node> node = *i;
+        node->AddApplication (server);
+        ApplicationContainer appCon;
+        appCon.Add(server);
+
+        /* install
+        for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
+        {
+            
+            Ptr<RdmaClient> client = m_factory.Create<RdmaClient> ();
+            node->AddApplication (client);
+            appCon.Add (client);
+        }
+        return apps;
+        */
+
         appCon.Start(Time(0));
 
         // get the next flow input

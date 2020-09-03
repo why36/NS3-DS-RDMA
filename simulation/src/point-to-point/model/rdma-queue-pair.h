@@ -156,7 +156,10 @@ class QueuePairSet : public Object {
 };
 
 enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM };
-static const int kTagsInWR = 4;
+static const int kTagsInWR = 8;
+static const int kDefaultTagNum = 4;
+static const int kLastTagNum = kDefaultTagNum + 1;
+// FlowSegSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
 using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
 
 class RdmaQueuePair;
@@ -165,24 +168,26 @@ using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
     uint32_t size;
     uint32_t imm;
     TagPayload tags;
-    int mark_tag_num;
-    ibv_wr() : mark_tag_num(3) {}
+    uint8_t mark_tag_num;
+    // to do. Krayecho: serialized this
+    uint64_t wr_id;
+
+    ibv_wr() : mark_tag_num(kDefaultTagNum) {}
     ibv_wr(int _mark_tag_num) : mark_tag_num(_mark_tag_num) {}
 };
 
 using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
-    Ptr<RdmaQueuePair> qp;
+    RdmaQueuePair* qp;
     IBVerb verb;
     bool isTx;
     uint32_t size;
     uint32_t imm;
     uint64_t time_in_us;
     TagPayload tags;
-    int mark_tag_num;
-    ibv_wc() : mark_tag_num(3) {}
-    ibv_wc(int _mark_tag_num) : mark_tag_num(_mark_tag_num) {}
+    int mark_tag_num = kTagsInWR;
+    ibv_wc() : mark_tag_num(kDefaultTagNum){};
+    ibv_wc(int _mark_tag_num) : mark_tag_num(_mark_tag_num){};
 };
-
 // 20200708
 // TODO: by now the interface is not incompatible withe Datagram service
 enum class QPType { RDMA_RC = 0, RDMA_UC, RDMA_RD, RDMA_UD };
