@@ -83,6 +83,7 @@ void UserSpaceConnection::SendRetransmissions() {
         auto wr = m_retransmissions.front();
         m_retransmissions.pop();
 
+        wr->wr_id = m_reliability->GetWRid();
         m_appQP->PostSend(wr);
         m_reliability->InsertWR(wr);
 
@@ -212,19 +213,17 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
                 SendRPC(response);
             }
         }
-    }
-}
-else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
-    // receive the last verbs
-    if (receivingIBVWC->mark_tag_num == kLastTagNum) {
-        ACKSeg seg(receivingIBVWC->imm);
-        if ((static_cast<uint16_t>(seg.segment_id)) == receivingIBVWC->tags[3]->GetRPCTotalOffset()) {
-            Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags[2]->GetRPCReqResId());
-            SendRPC(response);
+    } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
+        // receive the last verbs
+        if (receivingIBVWC->mark_tag_num == kLastTagNum) {
+            ACKSeg seg(receivingIBVWC->imm);
+            if ((static_cast<uint16_t>(seg.segment_id)) == receivingIBVWC->tags[3]->GetRPCTotalOffset()) {
+                Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags[2]->GetRPCReqResId());
+                SendRPC(response);
+            }
         }
     }
 }
-}  // namespace ns3
 
 TypeId DistributedStorageClient::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();
