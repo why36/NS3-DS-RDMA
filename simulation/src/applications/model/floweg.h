@@ -49,7 +49,7 @@ class FlowsegInterface : public Object {
     FlowsegInterface(const FlowsegInterface &) = delete;
     virtual ~FlowsegInterface() = 0;
 
-    virtual uint32_t GetSegSize() = 0;
+    virtual uint32_t GetSegSize(uint32_t window_limit) = 0;
     virtual void UpdateSeg(FlowsegSignal &flowsegSignal) = 0;
 
    private:
@@ -64,7 +64,7 @@ class DropBasedFlowseg final : public FlowsegInterface {
     }
     DropBasedFlowseg();
     ~DropBasedFlowseg() override;
-    uint32_t GetSegSize() override;
+    uint32_t GetSegSize(uint32_t window_limit) override;
     void UpdateSeg(FlowsegSignal &flowsegSignal) override;
 };
 

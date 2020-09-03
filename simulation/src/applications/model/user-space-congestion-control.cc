@@ -24,8 +24,13 @@
 #include "ns3/assert.h"
 #include "ns3/log.h"
 
+namespace ns3 {
 
-namespace ns3
-{
+void LeapCC::UpdateSignal(CongestionSignal& signal) {
+    mThrottled = (mWindow <= mInfight);
+    return;
+};
+uint32_t LeapCC::GetCongestionWindow() { return GetAvailableSize(); };
+}  // namespace ns3
 
 }  // Namespace ns3

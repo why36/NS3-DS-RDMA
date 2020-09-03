@@ -22,8 +22,8 @@
 #ifndef VERB_TAG_H
 #define VERB_TAG_H
 
-#include "ns3/tag.h"
 #include "ns3/rpc.h"
+#include "ns3/tag.h"
 
 namespace ns3 {
 
@@ -32,72 +32,88 @@ namespace ns3 {
  * of a SEND_LAST_WITH_IMM packet.
  */
 
-    class FlowSegSizeTag :public Tag
-    {
-        public:
-            FlowSegSizeTag();
-            void SetFlowSegSize(uint32_t flowSegSize);
-            uint32_t GetFlowSegSize(void) const;
-            static TypeId GetTypeId(void);
-            virtual TypeId GetInstanceTypeId(void) const;
-            virtual uint32_t GetSerializedSize(void) const;
-            virtual void Serialize(TagBuffer i) const;
-            virtual void Deserialize(TagBuffer i);
-            virtual void Print(std::ostream &os) const;
-        private:
-            uint32_t m_flowSegSize;
-    };
+class FlowSegSizeTag : public Tag {
+   public:
+    FlowSegSizeTag();
+    void SetFlowSegSize(uint32_t flowSegSize);
+    uint32_t GetFlowSegSize(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
 
-    class RPCSizeTag :public Tag
-    {
-        public:
-            RPCSizeTag();
-            void SetRPCSize(uint32_t rpcSize);
-            uint32_t GetRPCSize(void) const;
-            static TypeId GetTypeId(void);
-            virtual TypeId GetInstanceTypeId(void) const;
-            virtual uint32_t GetSerializedSize(void) const;
-            virtual void Serialize(TagBuffer i) const;
-            virtual void Deserialize(TagBuffer i);
-            virtual void Print(std::ostream &os) const;
-        private:
-            uint32_t m_rpcSize;
-    };
+   private:
+    uint32_t m_flowSegSize;
+};
 
-    class RPCTotalOffsetTag :public Tag
-    {
-        public:
-            RPCTotalOffsetTag();
-            void SetRPCTotalOffset(uint16_t rpcTotalOffest);
-            uint16_t GetRPCTotalOffset(void) const;
-            static TypeId GetTypeId(void);
-            virtual TypeId GetInstanceTypeId(void) const;
-            virtual uint32_t GetSerializedSize(void) const;
-            virtual void Serialize(TagBuffer i) const;
-            virtual void Deserialize(TagBuffer i);
-            virtual void Print(std::ostream &os) const;
-        private:
-            uint16_t m_rpcTotalOffest;
-    };
+class RPCSizeTag : public Tag {
+   public:
+    RPCSizeTag();
+    void SetRPCSize(uint32_t rpcSize);
+    uint32_t GetRPCSize(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
 
-    class RPCRequestResponseTypeIdTag : public Tag
-    {
-        public:
-            RPCRequestResponseTypeIdTag();
-            void SetRPCReqResType(RPCType type);
-            void SetRPCReqResId(uint64_t reqres_id);
-            RPCType GetRPCReqResType(void) const;
-            uint64_t GetRPCReqResId(void) const;
-            static TypeId GetTypeId(void);
-            virtual TypeId GetInstanceTypeId(void) const;
-            virtual uint32_t GetSerializedSize(void) const;
-            virtual void Serialize(TagBuffer i) const;
-            virtual void Deserialize(TagBuffer i);
-            virtual void Print(std::ostream &os) const;
-        private:
-            RPCType m_type;
-            uint64_t m_reqres_id;
-    }
+   private:
+    uint32_t m_rpcSize;
+};
+
+class RPCTotalOffsetTag : public Tag {
+   public:
+    RPCTotalOffsetTag();
+    void SetRPCTotalOffset(uint16_t rpcTotalOffest);
+    uint16_t GetRPCTotalOffset(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    uint16_t m_rpcTotalOffest;
+};
+
+class RPCRequestResponseTypeIdTag : public Tag {
+   public:
+    RPCRequestResponseTypeIdTag();
+    void SetRPCReqResType(RPCType type);
+    void SetRPCReqResId(uint64_t reqres_id);
+    RPCType GetRPCReqResType(void) const;
+    uint64_t GetRPCReqResId(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    RPCType m_type;
+    uint64_t m_reqres_id;
+}
+
+class WRidTag : public Tag {
+   public:
+    WRidTag();
+    void SetWRid(uint64_t wrid);
+    uint64_t GetWRid(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    uint64_t m_wrid;
+};
 
 }  // namespace ns3
 

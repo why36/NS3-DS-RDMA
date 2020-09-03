@@ -22,84 +22,109 @@
 #ifndef USER_SPACE_CONGESTION_CONTROL_H
 #define USER_SPACE_CONGESTION_CONTROL_H
 
-#include "ns3/uinteger.h"
 #include "ns3/pointer.h"
+#include "ns3/uinteger.h"
 
 namespace ns3 {
 
-    enum class CongestionControlSignalType {
-        RTT_SIGNAL = 0,
-        ECN_SIGNAL = 1
-    };
+enum class CongestionControlSignalType { RTT_SIGNAL = 0, ECN_SIGNAL = 1 };
 
-    enum class CongestionControlPacingType {
-        WINDOW_BASE = 0,
-        RATE_BASE = 1
-    };    
+enum class CongestionControlPacingType { WINDOW_BASE = 0, RATE_BASE = 1 };
 
-    class CongestionSignal {
-    public:
-        CongestionControlSignalType mType;
-        CongestionSignal(CongestionControlSignalType _type):mType(_type){}
-    };
+class CongestionSignal {
+   public:
+    CongestionControlSignalType mType;
+    CongestionSignal(CongestionControlSignalType _type) : mType(_type) {}
+};
 
+class RTTSignal : public CongestionSignal {
+   public:
+    RTTSignal() : CongestionSignal(CongestionControlSignalType::RTT_SIGNAL) {}
+    uint8_t mRtt;
+};
 
-    class RTTSignal :public CongestionSignal {
-    public:
-        RTTSignal() :CongestionSignal(CongestionControlSignalType::RTT_SIGNAL){}
-        uint8_t mRtt;
-    };
+using CCType = struct cctype {
+    CongestionControlSignalType signalType;
+    CongestionControlPacingType pacingType;
+    cctype() {}
+    cctype(CongestionControlSignalType signal_t) : signalType(signal_t) {}
+    cctype(CongestionControlPacingType pacing_t) : pacingType(pacing_t) {}
+    cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) : signalType(signal_t), pacingType(pacing_t) {}
+};
 
-    using CCType = struct cctype {
-        CongestionControlSignalType signalType;
-        CongestionControlPacingType pacingType;
-        cctype(){}
-        cctype(CongestionControlSignalType signal_t) :signalType(signal_t) {}
-        cctype(CongestionControlPacingType pacing_t) :pacingType(pacing_t) {}
-        cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) :signalType(signal_t), pacingType(pacing_t) {}
-    };
+static const CCType RTTWindowCCType = CCType(CongestionControlSignalType::RTT_SIGNAL, CongestionControlPacingType::WINDOW_BASE);
 
-    class UserSpaceCongestionControl {
-    public:
-        //UserSpaceCongestionControl() = delete;
-        UserSpaceCongestionControl(CongestionControlPacingType _pacingType){
-            mType.pacingType = _pacingType;
-        }
+class UserSpaceCongestionControl {
+   public:
+    // UserSpaceCongestionControl() = delete;
+    UserSpaceCongestionControl(CongestionControlPacingType _pacingType) { mType.pacingType = _pacingType; }
 
-        UserSpaceCongestionControl(CongestionControlSignalType _signalType){
-            mType.signalType = _signalType;
-        }
+    UserSpaceCongestionControl(CongestionControlSignalType _signalType) { mType.signalType = _signalType; }
 
-        CCType GetCongestionContorlType() {
-            return mType;
-        };
+    CCType GetCongestionContorlType() { return mType; };
 
-        virtual void UpdateSignal(CongestionSignal& signal)=0;
-    protected:
-        CCType mType;
-    };
+    virtual void UpdateSignal(CongestionSignal& signal) = 0;
 
-    class WindowCongestionControl : public UserSpaceCongestionControl {
-    public:
-        virtual void UpdateSignal(CongestionSignal& signal);
-        virtual uint32_t GetCongestionWindow();
+   protected:
+    CCType mType;
+};
 
-    protected:
-        // forbids to construct
-        WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE){}
-        WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType){}
-    };
+class WindowCongestionControl : public UserSpaceCongestionControl {
+   public:
+    virtual void UpdateSignal(CongestionSignal& signal);
+    virtual uint32_t GetCongestionWindow();
+    uint32_t GetAvailableSize();
+    bool IncreaseInflight(uint32_t size);
+    bool DecreaseInflight(uint32_t size);
 
-    class RttWindowCongestionControl : public Object,
-        public WindowCongestionControl {
-    public:
-        RttWindowCongestionControl() : WindowCongestionControl(CongestionControlSignalType::RTT_SIGNAL) {}
-        void UpdateSignal(CongestionSignal& signal)=0;
-        virtual uint32_t GetCongestionWindow() = 0;
-    };
+   protected:
+    // forbids to construct
+    WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), mWindow(0), mInflight(0) {}
+    WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType) {}
+    uint32_t mWindow;
+    uint32_t mInflight;
+    bool mThrottled;
+};
 
+bool WindowCongestionControl::IncreaseInflight(uint32_t size) {
+    mInflight += size;
+    if (mWindow <= mInflight) {
+        mThrottled = true;
+    }
+    return mThrottled;
+}
 
+bool WindowCongestionControl::DecreaseInflight(uint32_t size) {
+    NS_ASSERT(mInflight >= size);
+    mInflight -= size;
+    if (mInflight < mWindow) {
+        mThrottled = false;
+    }
+    return mThrottled;
+}
 
+uint32_t WindowCongestionControl::GetAvailableSize() {
+    if (mThrottled) {
+        return 0;
+    } else {
+        NS_ASSERT(mWindow > mInflight);
+        return mWindow - mInflight;
+    }
+};
+
+class RttWindowCongestionControl : public Object, public WindowCongestionControl {
+   public:
+    RttWindowCongestionControl() : WindowCongestionControl(CongestionControlSignalType::RTT_SIGNAL) {}
+    virtual void UpdateSignal(CongestionSignal& signal) = 0;
+    virtual uint32_t GetCongestionWindow() = 0;
+};
+
+class LeapCC : public RttWindowCongestionControl {
+   public:
+    LeapCC();
+    virtual void UpdateSignal(CongestionSignal& signal) override;
+    virtual uint32_t GetCongestionWindow() override;
+}
 
 }  // namespace ns3
 #endif /* USER_SPACE_CONGESTION_CONTROL_H */

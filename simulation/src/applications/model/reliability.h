@@ -46,16 +46,20 @@ class Reliability {
    public:
     uint32_t GetMessageNumber() { return m_messageNumber++; }
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
+    uint64_t GetWRid(){return m_wruuid++};
+
     // When an RPC is sent, the SegId of the RPC sent at this time is recorded
     std::map<uint32_t, uint16_t> rpc_seg;
-    //key is rpc_id, value is the total seg numer of this rpc
-    std::map<uint32_t,uint16_t> rpc_totalSeg;
-    //indicates whether the RPC is complete
-    std::map<uint32_t,bool> rpc_finish;
-    //Save RPC's verb for repass
-    std::map<uint32_t,Ptr<IBVWorkRequest>> rpcImm_verb;
+    // key is rpc_id, value is the total seg numer of this rpc
+    std::map<uint32_t, uint16_t> rpc_totalSeg;
+    // indicates whether the RPC is complete
+    std::map<uint32_t, bool> rpc_finish;
+    // Save RPC's verb for repass
+    std::map<uint32_t, Ptr<IBVWorkRequest>> rpcImm_verb;
+
    private:
     uint32_t m_messageNumber = 0;
+    uint64_t m_wruuid = 0;
 };
 
 class RpcAckBitMap {

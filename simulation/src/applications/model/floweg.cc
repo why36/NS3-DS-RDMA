@@ -19,22 +19,20 @@
  * Author: Yixiao(Krayecho) Gao <532820040@qq.com>
  *
  */
-#include "ns3/assert.h"
 #include "ns3/floweg.h"
+
+#include "ns3/assert.h"
 #include "ns3/log.h"
 
 namespace ns3 {
 NS_LOG_COMPONENT_DEFINE("DropBasedFlowseg");
 NS_OBJECT_ENSURE_REGISTERED(DropBasedFlowseg);
 
+FlowsegInterface::~FlowsegInterface() {}
 
-FlowsegInterface::~FlowsegInterface(){
-
-}
-
-DropBasedFlowseg::~DropBasedFlowseg(){}
+DropBasedFlowseg::~DropBasedFlowseg() {}
 
 void DropBasedFlowseg::UpdateSeg(FlowsegSignal &flowsegSignal) { return; };
 
-uint32_t DropBasedFlowseg::GetSegSize() { return 4096; };
+uint32_t DropBasedFlowseg::GetSegSize(uint32_t window_limit) { return 4096; };
 }  // Namespace ns3

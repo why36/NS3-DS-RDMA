@@ -78,7 +78,6 @@ void RPCSizeTag::Deserialize(TagBuffer i) { m_rpcSize = i.ReadU32(); }
 
 void RPCSizeTag::Print(std::ostream &os) const { os << "RPCSizeTag.m_rpcSize(dec)=" << std::dec << m_rpcSize; }
 
-
 NS_OBJECT_ENSURE_REGISTERED(RPCTotalOffsetTag);
 
 RPCTotalOffsetTag::RPCTotalOffsetTag() { NS_LOG_FUNCTION(this); }
@@ -102,26 +101,17 @@ void RPCTotalOffsetTag::Deserialize(TagBuffer i) { m_rpcTotalOffest = i.ReadU16(
 
 void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag.m_rpcTotalOffest(dec)=" << std::dec << m_rpcTotalOffest; }
 
-
 NS_OBJECT_ENSURE_REGISTERED(RPCRequestResponseTypeIdTag);
 
-RPCRequestResponseTypeIdTag:RPCRequestResponseTypeIdTag(){NS_LOG_FUNCTION(this); }
+RPCRequestResponseTypeIdTag : RPCRequestResponseTypeIdTag() { NS_LOG_FUNCTION(this); }
 
-void RPCRequestResponseTypeIdTag::SetRPCReqResType(RPCType type){
-    m_type = type;
-}
+void RPCRequestResponseTypeIdTag::SetRPCReqResType(RPCType type) { m_type = type; }
 
- void RPCRequestResponseTypeIdTag::SetRPCReqResId(uint64_t reqres_id){
-     m_reqres_id = reqres_id;
- }
+void RPCRequestResponseTypeIdTag::SetRPCReqResId(uint64_t reqres_id) { m_reqres_id = reqres_id; }
 
-RPCType RPCRequestResponseTypeIdTag::GetRPCReqResType(void) const{
-    return m_type;
-}
+RPCType RPCRequestResponseTypeIdTag::GetRPCReqResType(void) const { return m_type; }
 
-uint64_t RPCRequestResponseTypeIdTag::GetRPCReqResId(void) const{
-    return m_reqres_id;
-}
+uint64_t RPCRequestResponseTypeIdTag::GetRPCReqResId(void) const { return m_reqres_id; }
 
 TypeId RPCRequestResponseTypeIdTag::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::RPCRequestResponseTypeIdTag").SetParent<Tag>().AddConstructor<RPCRequestResponseTypeIdTag>();
@@ -130,24 +120,48 @@ TypeId RPCRequestResponseTypeIdTag::GetTypeId(void) {
 
 TypeId RPCRequestResponseTypeIdTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
-uint32_t RPCRequestResponseTypeIdTag::GetSerializedSize(void) const{
-    //1+8
+uint32_t RPCRequestResponseTypeIdTag::GetSerializedSize(void) const {
+    // 1+8
     return 9;
 }
 
-void RPCRequestResponseTypeIdTag::Serialize(TagBuffer i) const{
+void RPCRequestResponseTypeIdTag::Serialize(TagBuffer i) const {
     i.WriteU8(static_cast<uint8_t>(m_type));
     i.WriteU64(m_reqres_id);
 }
 
-void RPCRequestResponseTypeIdTag::Deserialize(TagBuffer i){
+void RPCRequestResponseTypeIdTag::Deserialize(TagBuffer i) {
     m_type = static_cast<RPCType>(i.ReadU8());
     m_reqres_id = i.ReadU64();
 }
 
-void RPCRequestResponseTypeIdTag::Print(std::ostream &os) const{
-    os << "RPCRequestResponseTypeIdTag.m_reqres_id(dec)=" << std::dec << m_reqres_id <<" RPCRequestResponseTypeIdTag.m_type(dec)=" << std::dec << static_cast<uint8_t>(m_type);
+void RPCRequestResponseTypeIdTag::Print(std::ostream &os) const {
+    os << "RPCRequestResponseTypeIdTag.m_reqres_id(dec)=" << std::dec << m_reqres_id << " RPCRequestResponseTypeIdTag.m_type(dec)=" << std::dec
+       << static_cast<uint8_t>(m_type);
 }
+
+NS_OBJECT_ENSURE_REGISTERED(WRidTag);
+
+WRidTag::WRidTag() { NS_LOG_FUNCTION(this); }
+
+void WRidTag::SetWRid(uint32_t wrid) { m_wrid = wrid; }
+
+uint64_t WRidTag::GetWRid(void) const { return m_wrid; }
+
+TypeId WRidTag::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::WRidTag").SetParent<Tag>().AddConstructor<WRidTag>();
+    return tid;
+}
+
+TypeId WRidTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+
+uint32_t WRidTag::GetSerializedSize(void) const { return sizeof(uint64_t); }
+
+void WRidTag::Serialize(TagBuffer i) const { i.WriteU64(m_wrid); }
+
+void WRidTag::Deserialize(TagBuffer i) { m_wrid = i.ReadU64(); }
+
+void WRidTag::Print(std::ostream &os) const { os << "WRidTag.flowSegSize(dec)=" << std::dec << m_wrid; }
 
 }  // namespace ns3
 

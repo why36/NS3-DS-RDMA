@@ -66,11 +66,13 @@ class UserSpaceConnection : public Object {
     void SendRPC(Ptr<RPC> rpc);
     Ptr<UserSpaceCongestionControl> m_UCC;
     Ptr<FlowsegInterface> m_flowseg;
+    Ptr<Reliability> m_reliability;
+
     Ptr<RdmaAppQP> m_appQP;
     Ptr<RdmaAppAckQP> m_ackQP;
     std::queue<Ptr<RPC>> m_sendQueuingRPCs;
+    std::queue<Ptr<IBVWorkRequest>> m_retransmissions;
     Ptr<RPC> m_sendingRPC;
-    Ptr<Reliability> m_reliability;
 
     // Ptr<IBVWorkRequest> m_ackIbvWr;
     RpcAckBitMap m_rpcAckBitMap;
@@ -79,17 +81,15 @@ class UserSpaceConnection : public Object {
     // void ReceiveRPC(Ptr<RPC>);
     // std::queue<RPC> m_receiveQueuingRPCs;
     void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
-    std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingIBVWCs;
-    Ptr<IBVWorkCompletion> m_receivingIBVWC;
     uint32_t m_receive_ibv_num = 0;
 
-    std::queue<Ptr<IBVWorkRequest>> m_sendQueuingAckWr;
-    std::queue<Ptr<IBVWorkCompletion>> m_receiveQueuingAckWc;
     void SendAck(uint32_t _imm);
     void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
 
    private:
-    void SendRPC();
+    void DoSend();
+    void SendRetransmissions();
+    void SendNewRPC();
     // void ReceiveRPC();
     void ReceiveIBVWC();
     void SendAck();
@@ -115,7 +115,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
      *  application interface
      */
     // RPC-level interface
-    void SendRpc(Ptr<RPC> rpc);
+    // void SendRpc(Ptr<RPC> rpc);
 
     // Used for port Management
     uint16_t GetNextAvailablePort() { return m_port++; };
