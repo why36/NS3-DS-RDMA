@@ -59,13 +59,16 @@ void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     SendRPC();
 }
 
-void UserSpaceConnection::DoSend() {}
+void UserSpaceConnection::DoSend() {
+    SendRetransmissions();
+    SendNewRPC();
+}
 
 void UserSpaceConnection::SendRetransmissions() {
     NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     uint32_t cc_size = cc_implement->GetCongestionWindow();
-    while (cc_size &&) {
+    while (cc_size && m_) {
     }
 };
 void UserSpaceConnection::SendNewRPC() {
@@ -80,7 +83,7 @@ void UserSpaceConnection::SendNewRPC() {
                 m_sendingRPC = m_sendQueuingRPCs.front();
                 m_sendQueuingRPCs.pop();
                 m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
-                m_reliability->rpc_seg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
+                m_reliability->tx_rpc_seg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
                 m_remainingSendingSize = m_sendingRPC->m_rpc_size;
             } else {
                 m_sendingRPC = nullptr;
@@ -97,8 +100,11 @@ void UserSpaceConnection::SendNewRPC() {
                 wr = Create<IBVWorkRequest>(4);
                 wr->size = m_remainingSendingSize;
             }
-            wr->imm = (m_sendingRPC->rpc_id) << 9 + m_reliability->rpc_seg[m_sendingRPC->rpc_id];
+            wr->imm = ACKSeg::GetImm((m_sendingRPC->rpc_id,m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
             // tags assignment
+            Ptr<WRidTag> wrid_tag = Create<WRidTag>();
+            wrid_tag->SetWRid(m_reliability->GetWRid());
+
             Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
             flowSegSizeTag->SetFlowSegSize(flowsegSize);
             Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
@@ -106,16 +112,18 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
             RPCReqResTag.SetRPCReqResId(m_sendingRPC->m_reqres_id);
             RPCReqResTag.SetRPCReqResType(m_sendingRPC->m_rpc_type);
-            wr->tags[0] = flowSegSizeTag;
-            wr->tags[1] = rpcSizeTag;
-            wr->tags[2] = RPCReqResTag;
+            wr->tags[0] = wrid_tag;
+            wr->tags[1] = flowSegSizeTag;
+            wr->tags[2] = rpcSizeTag;
+            wr->tags[3] = RPCReqResTag;
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
-                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->rpc_seg[m_sendingRPC->rpc_id]);
-                wr->tags[3] = rpcTotalOffsetTag;
-                m_reliability->rpc_totalSeg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
+                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
+                wr->tags[4] = rpcTotalOffsetTag;
+                // m_reliability->rpc_totalSeg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id,
+                // m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
             } else {
-                m_reliability->rpc_seg[m_sendingRPC->rpc_id]++;
+                m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]++;
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
@@ -128,9 +136,8 @@ void UserSpaceConnection::SendNewRPC() {
     }
 };
 
-void UserSpaceConnection::SendAck(uint32_t _imm) {
+void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(4);  // There's only one slice
-    m_sendAckWr->imm = _imm;
 
     Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
     flowSegSizeTag->SetFlowSegSize(0);
@@ -141,10 +148,12 @@ void UserSpaceConnection::SendAck(uint32_t _imm) {
     Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
     RPCReqResTag.SetRPCReqResId(0);
     RPCReqResTag.SetRPCReqResType(0);
-    m_sendAckWr->tags[0] = flowSegSizeTag;
-    m_sendAckWr->tags[1] = rpcSizeTag;
-    m_sendAckWr->tags[2] = RPCReqResTag;
-    m_sendAckWr->tags[3] = rpcTotalOffsetTag;
+
+    m_sendAckWr->tags[0] = wrid_tag;
+    m_sendAckWr->tags[1] = flowSegSizeTag;
+    m_sendAckWr->tags[2] = rpcSizeTag;
+    m_sendAckWr->tags[3] = RPCReqResTag;
+    m_sendAckWr->tags[4] = rpcTotalOffsetTag;
     m_sendAckWr->size = 100;  // ack size
     m_ackQP->PostSendAck(m_sendAckWr);
 }
@@ -173,41 +182,36 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc) {
 
 void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
     if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
-        if (!m_rpcAckBitMap.get(receivingIBVWC->imm)) m_rpcAckBitMap.set(receivingIBVWC->imm);
-        m_receive_ibv_num++;
-        // receive enough ibvwc, generate ack
-        if (m_receive_ibv_num > m_ackQP->m_milestone_rx + m_ackQP->m_ack_qp_interval) {
-            for (uint32_t i = 0; i < m_reliability->GetMessageTotalNumber(); i++) {
-                if (m_reliability->rpc_finish.find(i) == m_reliability->rpc_finish.end()) {
-                    for (uint32_t j = 0; j < m_reliability->rpc_totalSeg[i]; j++) {
-                        // UC send ack
-                        if (!m_rpcAckBitMap.get(i << 9 + j & 0x1FF)) {
-                            SendAck(i << 9 + j & 0x1FF);  // next value want to be set
-                            break;
-                        }
-                        if (j == m_reliability->rpc_totalSeg[i]) {
-                            m_reliability->rpc_finish.insert(std::pair<uint32_t, bool>(i, true));
-                            // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
-                            if (receivingIBVWC->tags[2]->GetRPCReqResType() == RPCType::Request) {
-                                Ptr<RpcResponse> response = Create<RpcResponse>(200, receivingIBVWC->tags[2]->GetRPCReqResId());
-                                SendRPC(response);
-                            }
-                        }
-                    }
-                }
-            }
-            m_ackQP->m_milestone_rx += m_ackQP->m_ack_qp_interval;
-        }
-    } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
-        // receive the last verbs
+        SendAck(receivingIBVWC->imm, DynamicCast<WRidTag, Tag>(receivingIBVWC->tags[0]));
+
+        ACKSeg seg(receivingIBVWC->imm);
+        m_rpcAckBitMap.Set(seg.rpc_id, seg.segment_id);
+
         if (receivingIBVWC->mark_tag_num == kLastTagNum) {
-            if ((static_cast<uint16_t>(receivingIBVWC->imm & 0x1FF)) == receivingIBVWC->tags[3]->GetRPCTotalOffset()) {
+            m_reliability->rx_rpc_totalSeg[seg.rpc_id] =
+                DynamicCast<RPCTotalOffsetTag, Tag> > (receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset();
+        }
+
+        if (m_reliability->rx_rpc_totalSeg[seg.rpc_id] && m_rpcAckBitMap.Check(m_reliability->rx_rpc_totalSeg[seg.rpc_id])) {
+            // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
+            if (receivingIBVWC->tags[2]->GetRPCReqResType() == RPCType::Request) {
                 Ptr<RpcResponse> response = Create<RpcResponse>(200, receivingIBVWC->tags[2]->GetRPCReqResId());
                 SendRPC(response);
             }
         }
     }
 }
+else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
+    // receive the last verbs
+    if (receivingIBVWC->mark_tag_num == kLastTagNum) {
+        ACKSeg seg(receivingIBVWC->imm);
+        if ((static_cast<uint16_t>(seg.segment_id)) == receivingIBVWC->tags[3]->GetRPCTotalOffset()) {
+            Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags[2]->GetRPCReqResId());
+            SendRPC(response);
+        }
+    }
+}
+}  // namespace ns3
 
 TypeId DistributedStorageClient::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::DistributedStorageClient").SetParent<RdmaClient>().AddConstructor<DistributedStorageClient>();

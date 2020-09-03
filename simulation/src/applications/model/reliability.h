@@ -22,6 +22,8 @@
 #ifndef RELIABILITY_H
 #define RELIABILITY_H
 
+#include <bitmap>
+#include <hash_map>
 #include <map>
 
 #include "ns3/pointer.h"
@@ -30,11 +32,14 @@
 
 namespace ns3 {
 
+static const SEG_BIT = 9;
 using RPCNumber = uint32_t;
-
 using ACKSeg = struct ack_seg {
+    ACKSeg(uint32_t imm) : rpc_id(imm >> SEG_BIT), segment_id(rpc_id & (((uint32_t)2 << (SEG_BIT + 1)) - 1)){};
+    static uint32_t GetImm(uint32_t rpc_id, uint32_t segment_id) { return (rpc_id << SEG_BIT) + segment_id; };
+    uint32_t GetImm() { return GetImm(rpc_id, segment_id); };
     RPCNumber rpc_id;
-    uint16_t segment_id;
+    uint32_t segment_id;
 };
 
 class ACK {
@@ -48,40 +53,58 @@ class Reliability {
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
     uint64_t GetWRid(){return m_wruuid++};
 
+    void InsertWWR(Ptr<IBVWorkRequest> wr);
+    void AckWR(uint32_t imm, uint64_t number);
+
     // When an RPC is sent, the SegId of the RPC sent at this time is recorded
-    std::map<uint32_t, uint16_t> rpc_seg;
+    std::map<uint32_t, uint16_t> tx_rpc_seg;
     // key is rpc_id, value is the total seg numer of this rpc
-    std::map<uint32_t, uint16_t> rpc_totalSeg;
-    // indicates whether the RPC is complete
-    std::map<uint32_t, bool> rpc_finish;
+    std::map<uint32_t, uint16_t> rx_rpc_totalSeg;
     // Save RPC's verb for repass
-    std::map<uint32_t, Ptr<IBVWorkRequest>> rpcImm_verb;
+    std::queue<Ptr<IBVWorkRequest>> rpcImm_verb;
 
    private:
     uint32_t m_messageNumber = 0;
     uint64_t m_wruuid = 0;
 };
 
+static const MAX_SEG = 2 << SEG_BIT;
 class RpcAckBitMap {
    public:
-    RpcAckBitMap() {
-        this->arr = new uint8_t[REQUIRED_SIZE];
-        memset(this->arr, 0, REQUIRED_SIZE * sizeof(uint8_t));
+    RpcAckBitMap() {}
+    ~RpcAckBitMap() {}
+    void Set(uint32_t message_id, uint32_t segment_id) {
+        NS_ASSERT(segment_id < 512);
+        if (!m_maps.count(message_id)) {
+            m_maps[message_id] = new std::bitset<MAX_SEG>;
+        }
+        m_maps[message_id]->Set(segment_id);
     }
-    ~RpcAckBitMap() { delete[] this->arr; }
-    void set(uint32_t index) {
-        uint32_t bucket = index >> 3;
-        this->arr[bucket] |= (1 << (index & 0x7));
+
+    bool Get(uint32_t message_id, uint32_t segment_id) {
+        NS_ASSERT(segment_id < 512);
+        if (!m_maps.count(message_id)) return false;
+        return m_maps[message_id]->Get(segment_id);
     }
-    bool get(uint32_t index) {
-        uint32_t bucket = index >> 3;
-        uint8_t value = this->arr[bucket];
-        return (value >> (index & 0x7)) & 1;
+
+    bool Check(uint32_t message_id, uint32_t max_segment_id) {
+        if (!m_maps.count(message_id)) return false;
+        auto p_bitset = m_maps[message_id];
+        for (int i = 0; i <= max_segment_id; i++) {
+            if (!p_bitset->Get(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void Erase(uint32_t message_id) {
+        if (!m_maps.count(message_id)) return false;
+        delete m_maps[message_id];
     }
 
    private:
-    uint8_t* arr;
-    const int REQUIRED_SIZE = 536870912;  // 2^32/8
+    std::hash_map<uint32_t, std::bitset<MAX_SEG> * bitmap> m_maps;
 };
 
 }  // namespace ns3

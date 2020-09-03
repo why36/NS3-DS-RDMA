@@ -83,7 +83,7 @@ class UserSpaceConnection : public Object {
     void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
     uint32_t m_receive_ibv_num = 0;
 
-    void SendAck(uint32_t _imm);
+    void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
     void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
 
    private:
