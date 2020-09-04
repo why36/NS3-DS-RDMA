@@ -30,6 +30,9 @@ NS_OBJECT_ENSURE_REGISTERED(DropBasedFlowseg);
 
 FlowsegInterface::~FlowsegInterface() {}
 
+//delete function
+//DropBasedFlowseg::DropBasedFlowseg() {} 
+
 DropBasedFlowseg::~DropBasedFlowseg() {}
 
 void DropBasedFlowseg::UpdateSeg(FlowsegSignal &flowsegSignal) { return; };

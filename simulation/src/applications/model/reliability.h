@@ -23,19 +23,22 @@
 #define RELIABILITY_H
 
 #include <bitset>
-#include <hash_map>
+#include <unordered_map>
 #include <map>
+#include <queue>
 
 #include "ns3/pointer.h"
 #include "ns3/uinteger.h"
 #include "ns3/vector.h"
+#include "ns3/rdma-queue-pair.h"
+#include "ns3/distributed-storage-client.h"
 
 namespace ns3 {
 
-static const SEG_BIT = 9;
+static const int SEG_BIT = 9;
 using RPCNumber = uint32_t;
 using ACKSeg = struct ack_seg {
-    ACKSeg(uint32_t imm) : rpc_id(imm >> SEG_BIT), segment_id(rpc_id & (((uint32_t)2 << (SEG_BIT + 1)) - 1)){};
+    ack_seg(uint32_t imm) : rpc_id(imm >> SEG_BIT), segment_id(rpc_id & (((uint32_t)2 << (SEG_BIT + 1)) - 1)){};
     static uint32_t GetImm(uint32_t rpc_id, uint32_t segment_id) { return (rpc_id << SEG_BIT) + segment_id; };
     uint32_t GetImm() { return GetImm(rpc_id, segment_id); };
     RPCNumber rpc_id;
@@ -47,13 +50,13 @@ class ACK {
     std::vector<ACKSeg> segments;
 };
 
-class UserSpaceConnection;
+//class UserSpaceConnection;
 
-class Reliability : Object {
+class Reliability : public Object {
    public:
     uint32_t GetMessageNumber() { return m_messageNumber++; }
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
-    uint64_t GetWRid(){return m_wruuid++};
+    uint64_t GetWRid() { return m_wruuid++; }
 
     void InsertWWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
@@ -72,30 +75,32 @@ class Reliability : Object {
     Ptr<UserSpaceConnection> m_usc;
 };
 
-static const MAX_SEG = 2 << SEG_BIT;
-class RpcAckBitMap {
+static const int MAX_SEG = 2 << SEG_BIT;
+class RpcAckBitMap : public Object{
    public:
     RpcAckBitMap() {}
     ~RpcAckBitMap() {}
     void Set(uint32_t message_id, uint32_t segment_id) {
         NS_ASSERT(segment_id < 512);
         if (!m_maps.count(message_id)) {
-            m_maps[message_id] = new std::bitset<MAX_SEG>;
+            std::bitset<MAX_SEG> tmp_bitset;
+            m_maps[message_id] = tmp_bitset;
+
         }
-        m_maps[message_id]->Set(segment_id);
+        m_maps[message_id].set(segment_id);
     }
 
     bool Get(uint32_t message_id, uint32_t segment_id) {
         NS_ASSERT(segment_id < 512);
         if (!m_maps.count(message_id)) return false;
-        return m_maps[message_id]->Get(segment_id);
+        return m_maps[message_id][segment_id];
     }
 
     bool Check(uint32_t message_id, uint32_t max_segment_id) {
         if (!m_maps.count(message_id)) return false;
         auto p_bitset = m_maps[message_id];
         for (int i = 0; i <= max_segment_id; i++) {
-            if (!p_bitset->Get(i)) {
+            if (!p_bitset[i]) {
                 return false;
             }
         }
@@ -103,12 +108,29 @@ class RpcAckBitMap {
     }
 
     void Erase(uint32_t message_id) {
-        if (!m_maps.count(message_id)) return false;
-        delete m_maps[message_id];
+        if (!m_maps.count(message_id)) return;
+        m_iter = m_maps.find(message_id);
+        //delete m_maps[message_id];
+        m_maps.erase(m_iter);
     }
 
    private:
-    std::hash_map<uint32_t, std::bitset<MAX_SEG> * bitmap> m_maps;
+    std::unordered_map<uint32_t, std::bitset<MAX_SEG> > m_maps;
+    std::unordered_map<uint32_t, std::bitset<MAX_SEG> >::iterator m_iter;
+};
+
+
+inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { rpcImm_verb.push(wr); };
+inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
+    while (rpcImm_verb.front()->wr_id <= wr_id) {
+        if (rpcImm_verb.front()->wr_id == wr_id) {
+            auto wr = rpcImm_verb.front();
+            m_usc->Retransmit(wr);
+        } else {
+            rpcImm_verb.pop();
+            return;
+        }
+    }
 };
 
 }  // namespace ns3

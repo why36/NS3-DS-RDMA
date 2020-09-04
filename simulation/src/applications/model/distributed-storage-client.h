@@ -39,11 +39,12 @@
 #include "ns3/floweg.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
-#include "ns3/rdma-app.h"
+//#include "ns3/rdma-app.h"
 #include "ns3/rdma-client.h"
-#include "ns3/reliability.h"
+//#include "ns3/reliability.h"
 #include "ns3/rpc.h"
 #include "ns3/user-space-congestion-control.h"
+
 
 namespace ns3 {
 
@@ -59,6 +60,19 @@ class Packet;
 
 class SendCompeltionReturnValue;
 class RpcResponse;
+class RdmaAppQP;
+class RdmaAppAckQP;
+class Reliability;
+class RpcAckBitMap;
+class WRidTag;
+class RdmaClient;
+
+static const uint32_t ACK_size = 100;
+// this is a interface used for demonsrate how rdma app works
+class SimpleRdmaApp {
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) = 0;
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) = 0;
+};
 
 class UserSpaceConnection : public Object {
    public:
@@ -75,7 +89,7 @@ class UserSpaceConnection : public Object {
     Ptr<RPC> m_sendingRPC;
 
     // Ptr<IBVWorkRequest> m_ackIbvWr;
-    RpcAckBitMap m_rpcAckBitMap;
+    Ptr<RpcAckBitMap> m_rpcAckBitMap;
     uint32_t m_remainingSendingSize;
 
     // void ReceiveRPC(Ptr<RPC>);
@@ -93,7 +107,7 @@ class UserSpaceConnection : public Object {
     void SendRetransmissions();
     void SendNewRPC();
     // void ReceiveRPC();
-    void ReceiveIBVWC();
+    //void ReceiveIBVWC();
     void SendAck();
     void ReceiveAck();
 };
@@ -110,9 +124,23 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
 
     // Rdma
     virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp);
-    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override;
-    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override;
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override {};
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override {};
 
+    /*
+    //Keep 8 rpcs
+    static const int kRPCRequest = 8;
+    static const int interval = 10;
+
+    static const int requestSize = 2000;
+
+    //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
+    std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
+    std::map<uint64_t,Ptr<RPC>>::iterator it;
+
+    void init();
+    void SendKRpc();
+    */
     /*
      *  application interface
      */

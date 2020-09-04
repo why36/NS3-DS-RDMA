@@ -103,7 +103,7 @@ void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag
 
 NS_OBJECT_ENSURE_REGISTERED(RPCRequestResponseTypeIdTag);
 
-RPCRequestResponseTypeIdTag : RPCRequestResponseTypeIdTag() { NS_LOG_FUNCTION(this); }
+RPCRequestResponseTypeIdTag :: RPCRequestResponseTypeIdTag() { NS_LOG_FUNCTION(this); }
 
 void RPCRequestResponseTypeIdTag::SetRPCReqResType(RPCType type) { m_type = type; }
 
@@ -144,7 +144,7 @@ NS_OBJECT_ENSURE_REGISTERED(WRidTag);
 
 WRidTag::WRidTag() { NS_LOG_FUNCTION(this); }
 
-void WRidTag::SetWRid(uint32_t wrid) { m_wrid = wrid; }
+void WRidTag::SetWRid(uint64_t wrid) { m_wrid = wrid; }
 
 uint64_t WRidTag::GetWRid(void) const { return m_wrid; }
 

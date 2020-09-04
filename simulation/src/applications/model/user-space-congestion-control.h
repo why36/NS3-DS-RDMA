@@ -24,7 +24,7 @@
 
 #include "ns3/pointer.h"
 #include "ns3/uinteger.h"
-
+#include "ns3/object.h"
 namespace ns3 {
 
 enum class CongestionControlSignalType { RTT_SIGNAL = 0, ECN_SIGNAL = 1 };
@@ -50,11 +50,15 @@ using CCType = struct cctype {
     cctype(CongestionControlSignalType signal_t) : signalType(signal_t) {}
     cctype(CongestionControlPacingType pacing_t) : pacingType(pacing_t) {}
     cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) : signalType(signal_t), pacingType(pacing_t) {}
+    bool operator==(cctype c) {
+        if (c.signalType == signalType && c.pacingType == pacingType) return true;
+        return false;
+    }
 };
 
 static const CCType RTTWindowCCType = CCType(CongestionControlSignalType::RTT_SIGNAL, CongestionControlPacingType::WINDOW_BASE);
 
-class UserSpaceCongestionControl {
+class UserSpaceCongestionControl :public Object {
    public:
     // UserSpaceCongestionControl() = delete;
     UserSpaceCongestionControl(CongestionControlPacingType _pacingType) { mType.pacingType = _pacingType; }
@@ -71,8 +75,8 @@ class UserSpaceCongestionControl {
 
 class WindowCongestionControl : public UserSpaceCongestionControl {
    public:
-    virtual void UpdateSignal(CongestionSignal& signal);
-    virtual uint32_t GetCongestionWindow();
+    virtual void UpdateSignal(CongestionSignal& signal) = 0;
+    virtual uint32_t GetCongestionWindow() = 0;
     uint32_t GetAvailableSize();
     bool IncreaseInflight(uint32_t size);
     bool DecreaseInflight(uint32_t size);
@@ -86,33 +90,8 @@ class WindowCongestionControl : public UserSpaceCongestionControl {
     bool mThrottled;
 };
 
-bool WindowCongestionControl::IncreaseInflight(uint32_t size) {
-    mInflight += size;
-    if (mWindow <= mInflight) {
-        mThrottled = true;
-    }
-    return mThrottled;
-}
 
-bool WindowCongestionControl::DecreaseInflight(uint32_t size) {
-    NS_ASSERT(mInflight >= size);
-    mInflight -= size;
-    if (mInflight < mWindow) {
-        mThrottled = false;
-    }
-    return mThrottled;
-}
-
-uint32_t WindowCongestionControl::GetAvailableSize() {
-    if (mThrottled) {
-        return 0;
-    } else {
-        NS_ASSERT(mWindow > mInflight);
-        return mWindow - mInflight;
-    }
-};
-
-class RttWindowCongestionControl : public Object, public WindowCongestionControl {
+class RttWindowCongestionControl :  public WindowCongestionControl {
    public:
     RttWindowCongestionControl() : WindowCongestionControl(CongestionControlSignalType::RTT_SIGNAL) {}
     virtual void UpdateSignal(CongestionSignal& signal) = 0;
@@ -124,7 +103,7 @@ class LeapCC : public RttWindowCongestionControl {
     LeapCC();
     virtual void UpdateSignal(CongestionSignal& signal) override;
     virtual uint32_t GetCongestionWindow() override;
-}
+};
 
 }  // namespace ns3
 #endif /* USER_SPACE_CONGESTION_CONTROL_H */

@@ -46,6 +46,8 @@
 #include "ns3/socket.h"
 #include "ns3/uinteger.h"
 #include "ns3/verb-tag.h"
+#include "ns3/rdma-app.h"
+#include "ns3/reliability.h"
 
 namespace ns3 {
 
@@ -61,13 +63,14 @@ UserSpaceConnection::UserSpaceConnection() {
 }
 
 void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
-    m_retransmissions.push_back(wc);
+    m_retransmissions.push(wc);
     SendRetransmissions();
 };
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     m_sendQueuingRPCs.push(rpc);
-    SendRPC();
+    //SendRPC();
+    DoSend();
 }
 
 void UserSpaceConnection::DoSend() {
@@ -85,7 +88,7 @@ void UserSpaceConnection::SendRetransmissions() {
 
         wr->wr_id = m_reliability->GetWRid();
         m_appQP->PostSend(wr);
-        m_reliability->InsertWR(wr);
+        m_reliability->InsertWWR(wr);
 
         cc_implement->IncreaseInflight(wr->size);
         cc_size = cc_implement->GetCongestionWindow();
@@ -121,7 +124,7 @@ void UserSpaceConnection::SendNewRPC() {
                 wr = Create<IBVWorkRequest>(kDefaultTagNum);
                 wr->size = m_remainingSendingSize;
             }
-            wr->imm = ACKSeg::GetImm((m_sendingRPC->rpc_id,m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
+            wr->imm = ACKSeg::GetImm(m_sendingRPC->rpc_id,m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
             // tags assignment
             Ptr<WRidTag> wrid_tag = Create<WRidTag>();
             wrid_tag->SetWRid(m_reliability->GetWRid());
@@ -131,8 +134,8 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
             rpcSizeTag->SetRPCSize(m_sendingRPC->m_rpc_size);
             Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-            RPCReqResTag.SetRPCReqResId(m_sendingRPC->m_reqres_id);
-            RPCReqResTag.SetRPCReqResType(m_sendingRPC->m_rpc_type);
+            RPCReqResTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
+            RPCReqResTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags[0] = wrid_tag;
             wr->tags[1] = flowSegSizeTag;
             wr->tags[2] = rpcSizeTag;
@@ -148,7 +151,7 @@ void UserSpaceConnection::SendNewRPC() {
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
-            m_reliability->InsertWR(wr);
+            m_reliability->InsertWWR(wr);
             m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize - wr->size : 0;
 
             cc_implement->IncreaseInflight(wr->size);
@@ -163,19 +166,19 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
     flowSegSizeTag->SetFlowSegSize(0);
     Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-    rpcSizeTag->SetRPCSize(100);
+    rpcSizeTag->SetRPCSize(ACK_size);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
     Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-    RPCReqResTag.SetRPCReqResId(0);
-    RPCReqResTag.SetRPCReqResType(0);
+    RPCReqResTag->SetRPCReqResId(0);
+    //RPCReqResTag->SetRPCReqResType(0);
 
     m_sendAckWr->tags[0] = wrid_tag;
     m_sendAckWr->tags[1] = flowSegSizeTag;
     m_sendAckWr->tags[2] = rpcSizeTag;
     m_sendAckWr->tags[3] = RPCReqResTag;
     m_sendAckWr->tags[4] = rpcTotalOffsetTag;
-    m_sendAckWr->size = 100;  // ack size
+    m_sendAckWr->size = ACK_size;  // ack size
     m_ackQP->PostSendAck(m_sendAckWr);
 }
 
@@ -184,41 +187,41 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
 void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     // repass
 
-    uint32_t ack_imm = ackWc->imm;
+    uint32_t ack_imm = ackWC->imm;
 
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     RTTSignal rtt;
     rtt.mRtt = 10;
     cc_implement->UpdateSignal(rtt);
-    cc_implement->DecreaseInflight();
-    ACKWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
+    cc_implement->DecreaseInflight(ackWC->size);//A size is missing
+    m_reliability->AckWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
 }
 
 void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
-    if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
+    if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
         SendAck(receivingIBVWC->imm, DynamicCast<WRidTag, Tag>(receivingIBVWC->tags[0]));
 
         ACKSeg seg(receivingIBVWC->imm);
-        m_rpcAckBitMap.Set(seg.rpc_id, seg.segment_id);
+        m_rpcAckBitMap->Set(seg.rpc_id, seg.segment_id);
 
         if (receivingIBVWC->mark_tag_num == kLastTagNum) {
             m_reliability->rx_rpc_totalSeg[seg.rpc_id] =
-                DynamicCast<RPCTotalOffsetTag, Tag> > (receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset();
+                DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset();
         }
 
-        if (m_reliability->rx_rpc_totalSeg[seg.rpc_id] && m_rpcAckBitMap.Check(m_reliability->rx_rpc_totalSeg[seg.rpc_id])) {
+        if (m_reliability->rx_rpc_totalSeg[seg.rpc_id] && m_rpcAckBitMap->Check(seg.rpc_id,m_reliability->rx_rpc_totalSeg[seg.rpc_id])) {
             // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
-            if (receivingIBVWC->tags[2]->GetRPCReqResType() == RPCType::Request) {
-                Ptr<RpcResponse> response = Create<RpcResponse>(200, receivingIBVWC->tags[2]->GetRPCReqResId());
+            if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
+                Ptr<RpcResponse> response = Create<RpcResponse>(200, DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
                 SendRPC(response);
             }
         }
-    } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
+    } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
         if (receivingIBVWC->mark_tag_num == kLastTagNum) {
             ACKSeg seg(receivingIBVWC->imm);
-            if ((static_cast<uint16_t>(seg.segment_id)) == receivingIBVWC->tags[3]->GetRPCTotalOffset()) {
-                Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags[2]->GetRPCReqResId());
+            if ((static_cast<uint16_t>(seg.segment_id)) == DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset()) {
+                Ptr<RpcResponse> response = Create<RpcResponse>(128,DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
                 SendRPC(response);
             }
         }
@@ -242,6 +245,41 @@ DistributedStorageClient::~DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS()
 // connection->SendRPC(rpc);
 //};  // namespace ns3
 
+/*
+void DistributedStorageClient::init(){
+    for (int i = 0; i < kRPCRequest; i++) {
+        Ptr<RpcRequest> req = Create<RpcRequest>(requestSize);  
+        RPCRequestMap.insert(pair<uint64_t,Ptr<RPC>>(req.requestId,req));
+    }
+}
+
+void DistributedStorageClient::SendKRpc(){
+    for(it = RPCRequestMap.begin(); it != RPCRequestMap.end(); it++){
+      SendRpc(it->second);
+      device.DequeueAndTransmit();
+    }
+
+    int time = 0;
+    while(1){
+      while(time % interval != 0){
+        time++;
+      }
+      time = 0;
+      //keep 8 rpcs
+
+      //When response is received, it is removed from the Map
+      it = RPCRequestMap.find(0);
+      RPCRequestMap.erase(it);       
+
+      while(RPCRequestMap.size()<=kRPCRequest){
+        Ptr<RpcRequest> req = Create<RpcRequest>(requestSize); 
+        RPCRequestMap.insert(pair<uint64_t,Ptr<RPC>>(req.rpc_id,req));
+        client.SendRpc(req);
+      }
+
+    }
+}
+*/
 void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr<DistributedStorageClient> server, uint16_t pg) {
     uint16_t sport = client->GetNextAvailablePort();
     uint16_t dport = server->GetNextAvailablePort();
@@ -256,7 +294,7 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
         Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(client)));
-    srcConnection->appQp = srcRdmaAppQP;
+    srcConnection->m_appQP = srcRdmaAppQP;
     client->m_Connections.push_back(srcConnection);
 
     // client->AddQP(srcRdmaAppQP);
@@ -270,7 +308,7 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
         Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(server)));
-    dstConnection->appQp = dstRdmaAppQP;
+    dstConnection->m_appQP = dstRdmaAppQP;
     server->m_Connections.push_back(dstConnection);
     // server->AddQP(dstRdmaAppQP);
 
@@ -300,8 +338,8 @@ void DistributedStorageClient::OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<Rdma
 
 void DistributedStorageClient::DoDispose(void) {}
 
-void DistributedStorageClient::OnSendCompletion(Ptr<IBVWorkCompletion> completion) {}
+//void DistributedStorageClient::OnSendCompletion(Ptr<IBVWorkCompletion> completion) { }
 
-void DistributedStorageClient::OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) {}
+//void DistributedStorageClient::OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) { }
 
 }  // Namespace ns3

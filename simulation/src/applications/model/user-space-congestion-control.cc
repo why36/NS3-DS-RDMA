@@ -26,11 +26,38 @@
 
 namespace ns3 {
 
+bool WindowCongestionControl::IncreaseInflight(uint32_t size) {
+    mInflight += size;
+    if (mWindow <= mInflight) {
+        mThrottled = true;
+    }
+    return mThrottled;
+}
+
+bool WindowCongestionControl::DecreaseInflight(uint32_t size) {
+    NS_ASSERT(mInflight >= size);
+    mInflight -= size;
+    if (mInflight < mWindow) {
+        mThrottled = false;
+    }
+    return mThrottled;
+}
+
+uint32_t WindowCongestionControl::GetAvailableSize() {
+    if (mThrottled) {
+        return 0;
+    } else {
+        NS_ASSERT(mWindow > mInflight);
+        return mWindow - mInflight;
+    }
+}
+
+LeapCC::LeapCC() {}
+
 void LeapCC::UpdateSignal(CongestionSignal& signal) {
-    mThrottled = (mWindow <= mInfight);
+    mThrottled = (mWindow <= mInflight);
     return;
 };
 uint32_t LeapCC::GetCongestionWindow() { return GetAvailableSize(); };
-}  // namespace ns3
 
-}  // Namespace ns3
+}  // namespace ns3

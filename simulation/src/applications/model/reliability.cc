@@ -21,20 +21,10 @@
 
 #include "ns3/assert.h"
 #include "ns3/log.h"
+#include "ns3/reliability.h"
 #include "ns3/user-space-congestion-control.h"
+#include "ns3/rdma-queue-pair.h"
 
 namespace ns3 {
-
-inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { rpcImm_verb.push_back(wr); };
-inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
-    while (rpcImm_verb.front()->wr_id <= wr_id) {
-        if (rpcImm_verb.front()->wr_id == wr_id) {
-            auto wr =.rpcImm_verb.front();
-            m_usc->Retransmit(wr);
-        } else {
-            rpcImm_verb.pop_front();
-            return;
-        }
-    };
 
 }  // Namespace ns3

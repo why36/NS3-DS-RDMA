@@ -31,7 +31,7 @@
 
 //#include <vector>
 
-#include "rpc.h"
+#include "ns3/rpc.h"
 
 namespace ns3 {
 /*
@@ -83,7 +83,7 @@ private:
 class RpcResponse : public RPC {
    public:
     RpcResponse(uint32_t size, uint64_t response_id) : RPC(response_id, size, RPCType::Response) {}
-}
+};
 
 }  // namespace ns3
 

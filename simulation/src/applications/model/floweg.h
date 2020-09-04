@@ -47,6 +47,9 @@ class FlowsegInterface : public Object {
    public:
     FlowsegInterface() = delete;
     FlowsegInterface(const FlowsegInterface &) = delete;
+    FlowsegInterface(FlowsegType type){
+
+    }
     virtual ~FlowsegInterface() = 0;
 
     virtual uint32_t GetSegSize(uint32_t window_limit) = 0;
@@ -62,7 +65,7 @@ class DropBasedFlowseg final : public FlowsegInterface {
         static TypeId tid = TypeId("ns3::DropBasedFlowseg").SetParent<Object>();
         return tid;
     }
-    DropBasedFlowseg();
+    DropBasedFlowseg():FlowsegInterface(FlowsegType::DROP_BASED){};
     ~DropBasedFlowseg() override;
     uint32_t GetSegSize(uint32_t window_limit) override;
     void UpdateSeg(FlowsegSignal &flowsegSignal) override;

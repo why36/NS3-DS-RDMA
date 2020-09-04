@@ -33,23 +33,20 @@
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
 #include "ns3/rdma-queue-pair.h"
-
+#include "ns3/rpc-response.h"
+#include "ns3/distributed-storage-client.h"
 namespace ns3 {
 
 class Buffer;
 
-// this is a interface used for demonsrate how rdma app works
-class SimpleRdmaApp {
-    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) = 0;
-    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) = 0;
-};
+
 
 // TO DO: Krayecho Yx: implement more details;
 /**
  * \brief RdmaAppQP is a useable QP interface for application;
  */
 
-class UserSpaceConnection;
+//class UserSpaceConnection;
 
 class RdmaAppQP : public Object {
     friend class RdmaCM;
@@ -75,8 +72,8 @@ class RdmaAppQP : public Object {
     UserSpaceConnection* m_usc;
 
     void setUSC(UserSpaceConnection* usc) { this->m_usc = usc; }
-
-   private:
+    Ptr<RdmaQueuePair> m_qp;
+   //private:
     /**
      * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
      * \param create_attr connect attr for this QP;
@@ -87,13 +84,12 @@ class RdmaAppQP : public Object {
     // TO DO Krayecho Yx:
     // void PostReceive();
     Ptr<RdmaDriver> m_rdmaDriver;
-    Ptr<RdmaQueuePair> m_qp;
-
+    
     /*
      * Callback
      */
     // abandon
-    Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>> m_onResonseCompletion;
+    Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>> m_onResponseCompletion;
     Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
     Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
 
@@ -137,7 +133,7 @@ int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& sr
     dst->CreateQP(src_create_attr);
 };
 
-class RdmaAppAckQP : Object {
+class RdmaAppAckQP : public Object {
     friend class RdmaCM;
 
    public:

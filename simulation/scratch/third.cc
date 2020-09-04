@@ -147,23 +147,22 @@ void ScheduleFlowInputs() {
         */
         
        
-        DistributedStorageClient::Connect(client,server,flow_input.pg); 
-        NodeContainer c = n.Get(flow_input.src);
-        Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
-        NodeContainer::Iterator i = c.Begin ();
-        Ptr<Node> node = *i;
-        node->AddApplication (client);
         ApplicationContainer appCon;
+        NodeContainer c1 = n.Get(flow_input.src);
+        Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
+        NodeContainer::Iterator i1 = c1.Begin ();
+        Ptr<Node> node1 = *i1;
+        node1->AddApplication (client);
         appCon.Add (client);
 
         Ptr<DistributedStorageClient> server = Create<DistributedStorageClient>();
-        NodeContainer c = n.Get(flow_input.dst);
-        NodeContainer::Iterator i = c.Begin ();
-        Ptr<Node> node = *i;
-        node->AddApplication (server);
-        ApplicationContainer appCon;
+        NodeContainer c2 = n.Get(flow_input.dst);
+        NodeContainer::Iterator i2 = c2.Begin ();
+        Ptr<Node> node2 = *i1;
+        node2->AddApplication (server);
         appCon.Add(server);
 
+        DistributedStorageClient::Connect(client,server,flow_input.pg); 
         /* install
         for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
         {

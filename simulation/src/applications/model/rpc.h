@@ -33,8 +33,9 @@
 #include <map>
 #include <string>
 */
-#include "rpc-request.h"
-
+//#include "rpc-request.h"
+#include <ns3/object.h>
+#include "ns3/uinteger.h"
 namespace ns3 {
 /*
 class RPC : public Object
@@ -87,10 +88,10 @@ class RPC : public Object {
     uint32_t rpc_id;
     uint32_t m_rpc_size;
     uint64_t m_reqres_id;  // request or response id
-    ReqResType m_rpc_type;
+    RPCType m_rpc_type;
     RPC();
-    RPC(uint64_t id, uint32_t size, RPCType type) : m_reqres_id(id), m_rpc_size(size), rpc_type(type) {}
-}
+    RPC(uint64_t id, uint32_t size, RPCType type) : m_reqres_id(id), m_rpc_size(size), m_rpc_type(type) {}
+};
 
 }  // namespace ns3
 

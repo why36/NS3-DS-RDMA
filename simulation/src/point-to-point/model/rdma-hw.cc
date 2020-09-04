@@ -437,12 +437,12 @@ namespace ns3
         */
         
         UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
-        if (x == UCSeqState::OK) {
+        if (x == UCSeqState::OK){
             //need to do something to complete, collect verbs successfully. 
-            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST){
+            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY ||
+            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
+            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST){
                 LastPacketTag tag;
                 p->PeekPacketTag (tag);
                 Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
@@ -456,9 +456,9 @@ namespace ns3
                 rxQp->m_notifyCompletion(wc);
             }
         }
-        else if(x == UCSeqState::OOS) {
-            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+        else if(x == UCSeqState::OOS){
+            if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
                     LastPacketTag tag;
                     p->PeekPacketTag (tag);
                     Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
@@ -471,7 +471,7 @@ namespace ns3
                     wc->verb = IBVerb::IBV_SEND_WITH_IMM;
                     rxQp->m_notifyCompletion(wc);
             }
-            else if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {
+            else if(ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST){
 
             }
         }

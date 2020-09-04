@@ -177,7 +177,7 @@ using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
 };
 
 using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
-    RdmaQueuePair* qp;
+    Ptr<RdmaQueuePair> qp;
     IBVerb verb;
     bool isTx;
     uint32_t size;

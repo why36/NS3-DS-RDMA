@@ -97,7 +97,7 @@ class RPCRequestResponseTypeIdTag : public Tag {
    private:
     RPCType m_type;
     uint64_t m_reqres_id;
-}
+};
 
 class WRidTag : public Tag {
    public:
