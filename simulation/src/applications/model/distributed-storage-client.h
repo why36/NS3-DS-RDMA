@@ -114,6 +114,8 @@ class UserSpaceConnection : public Object {
     void init();
     void SendKRpc();
     void KeepKRpc(uint64_t response_id);
+    void StartDequeueAndTransmit();
+
 
    private:
     void DoSend();

@@ -71,9 +71,16 @@ void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
 };
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
+    StartDequeueAndTransmit();
     m_sendQueuingRPCs.push(rpc);
     // SendRPC();
     DoSend();
+}
+
+void UserSpaceConnection::StartDequeueAndTransmit(){
+    uint32_t nic_idx = m_appQP->m_qp->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
+    Ptr<QbbNetDevice> dev = m_appQP->m_qp->m_rdma->m_nic[nic_idx].dev;
+    dev->TriggerTransmit();
 }
 
 void UserSpaceConnection::DoSend() {
