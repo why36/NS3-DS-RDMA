@@ -45,7 +45,6 @@
 #include "ns3/rpc.h"
 #include "ns3/user-space-congestion-control.h"
 
-
 namespace ns3 {
 
 class Socket;
@@ -102,15 +101,15 @@ class UserSpaceConnection : public Object {
 
     void Retransmit(Ptr<IBVWorkRequest> wc);
 
-    //Keep 8 rpcs
+    // Keep 8 rpcs
     static const int kRPCRequest = 8;
     static const int interval = 10;
 
     static const int requestSize = 2000;
 
-    //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
-    std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
-    std::map<uint64_t,Ptr<RPC>>::iterator it;
+    // Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
+    std::map<uint64_t, Ptr<RPC>> RPCRequestMap;
+    std::map<uint64_t, Ptr<RPC>>::iterator it;
 
     void init();
     void SendKRpc();
@@ -121,7 +120,7 @@ class UserSpaceConnection : public Object {
     void SendRetransmissions();
     void SendNewRPC();
     // void ReceiveRPC();
-    //void ReceiveIBVWC();
+    // void ReceiveIBVWC();
     void SendAck();
     void ReceiveAck();
 };
@@ -138,10 +137,9 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
 
     // Rdma
     virtual void OnResponse(Ptr<RpcResponse> rpcResponse, Ptr<RdmaQueuePair> qp);
-    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override {};
-    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override {};
+    virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override{};
+    virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override{};
 
-    
     /*
      *  application interface
      */
@@ -151,6 +149,8 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     // Used for port Management
     uint16_t GetNextAvailablePort() { return m_port++; };
     //
+
+    std::vector<Ptr<UserSpaceConnection>> GetConnections() { return m_Connections; }
 
    protected:
     virtual void DoDispose(void);
@@ -164,7 +164,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     // somthing like key-value storage <qp,ip>
     // std::hash_map<UserSpaceConnection> m_Connections;
     std::vector<Ptr<UserSpaceConnection>> m_Connections;
-    //std::unordered_map<ip,Ptr<UserSpaceConnection>> m_Connections;
+    // std::unordered_map<ip,Ptr<UserSpaceConnection>> m_Connections;
 
     /*
      *  basic attributes

@@ -49,6 +49,9 @@
 #include "ns3/uinteger.h"
 #include "ns3/verb-tag.h"
 
+#include "ns3/rpc-request.h"
+#include "ns3/rpc-response.h"
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE("DistributedStorageClient");
@@ -213,7 +216,7 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
             // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
             if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
                 Ptr<RpcResponse> response =
-                    Create<RpcResponse>(200, DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
+                    Create<RpcResponse>(128, DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
                 SendRPC(response);
             } else if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Response) {
                 KeepKRpc(DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
@@ -257,7 +260,7 @@ DistributedStorageClient::~DistributedStorageClient() { NS_LOG_FUNCTION_NOARGS()
 void UserSpaceConnection::init() {
     for (int i = 0; i < kRPCRequest; i++) {
         Ptr<RpcRequest> req = Create<RpcRequest>(requestSize);
-        RPCRequestMap.insert(pair<uint64_t, Ptr<RPC>>(req.requestId, req));
+        RPCRequestMap.insert(std::pair<uint64_t,Ptr<RPC>>(req->requestId, req));
     }
 }
 
@@ -271,13 +274,13 @@ void UserSpaceConnection::SendKRpc() {
 void UserSpaceConnection::KeepKRpc(uint64_t response_id) {
     // When response is received, it is removed from the Map
     it = RPCRequestMap.find(response_id);
-    NS_ASSERT_MSG(it != RPCRequestMap.end(), "Received an invalid response.")
+    NS_ASSERT_MSG(it != RPCRequestMap.end(), "Received an invalid response.");
     if (it != RPCRequestMap.end()) {
         RPCRequestMap.erase(it);
     }
     while (RPCRequestMap.size() <= kRPCRequest) {
         Ptr<RpcRequest> req = Create<RpcRequest>(requestSize);
-        RPCRequestMap.insert(pair<uint64_t, Ptr<RPC>>(req.rpc_id, req));
+        RPCRequestMap.insert(std::pair<uint64_t,Ptr<RPC>>(req->requestId, req));
         SendRPC(req);
     }
 }
