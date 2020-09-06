@@ -102,6 +102,20 @@ class UserSpaceConnection : public Object {
 
     void Retransmit(Ptr<IBVWorkRequest> wc);
 
+    //Keep 8 rpcs
+    static const int kRPCRequest = 8;
+    static const int interval = 10;
+
+    static const int requestSize = 2000;
+
+    //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
+    std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
+    std::map<uint64_t,Ptr<RPC>>::iterator it;
+
+    void init();
+    void SendKRpc();
+    void KeepKRpc(uint64_t response_id);
+
    private:
     void DoSend();
     void SendRetransmissions();
@@ -127,20 +141,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) override {};
     virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) override {};
 
-    /*
-    //Keep 8 rpcs
-    static const int kRPCRequest = 8;
-    static const int interval = 10;
-
-    static const int requestSize = 2000;
-
-    //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
-    std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
-    std::map<uint64_t,Ptr<RPC>>::iterator it;
-
-    void init();
-    void SendKRpc();
-    */
+    
     /*
      *  application interface
      */
@@ -163,6 +164,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     // somthing like key-value storage <qp,ip>
     // std::hash_map<UserSpaceConnection> m_Connections;
     std::vector<Ptr<UserSpaceConnection>> m_Connections;
+    //std::unordered_map<ip,Ptr<UserSpaceConnection>> m_Connections;
 
     /*
      *  basic attributes

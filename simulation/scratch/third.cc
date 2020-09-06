@@ -163,6 +163,10 @@ void ScheduleFlowInputs() {
         appCon.Add(server);
 
         DistributedStorageClient::Connect(client,server,flow_input.pg); 
+        client->m_Connections.back()->init();
+        client->m_Connections.back()->SendKRpc();
+        //client->init();
+        //client->SendKRpc();
         /* install
         for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
         {
