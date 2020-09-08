@@ -62,7 +62,7 @@ UserSpaceConnection::UserSpaceConnection() {
     m_flowseg = Create<DropBasedFlowseg>();
     m_reliability = Create<Reliability>();
     m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
-    m_appQP->setUSC(this);
+    //m_appQP->setUSC(this);
 }
 
 void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
@@ -301,12 +301,16 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
     // Ptr<RdmaAppQP> srcRdmaAppQP(client_node->GetObject<RdmaDriver>(), DistributedStorageClient::OnResponse,
     //                            DistributedStorageClient::OnSendCompletion, DistributedStorageClient::OnReceiveCompletion);
 
-    Ptr<UserSpaceConnection> srcConnection = Create<UserSpaceConnection>();
+
     Ptr<RdmaAppQP> srcRdmaAppQP =
         Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(client)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(client)));
+    Ptr<UserSpaceConnection> srcConnection = Create<UserSpaceConnection>();  
+    // Bind with each other                        
     srcConnection->m_appQP = srcRdmaAppQP;
+    srcRdmaAppQP->setUSC(srcConnection);
+
     client->m_Connections.push_back(srcConnection);
 
     // client->AddQP(srcRdmaAppQP);
@@ -320,7 +324,10 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
         Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(), MakeCallback(&DistributedStorageClient::OnResponse, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnSendCompletion, GetPointer(server)),
                           MakeCallback(&DistributedStorageClient::OnReceiveCompletion, GetPointer(server)));
+    // Bind with each other                        
     dstConnection->m_appQP = dstRdmaAppQP;
+    dstRdmaAppQP->setUSC(dstConnection);
+
     server->m_Connections.push_back(dstConnection);
     // server->AddQP(dstRdmaAppQP);
 
@@ -328,6 +335,8 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
     QpParam dstParam(server->GetSize(), server->m_win, server->m_baseRtt, MakeCallback(&DistributedStorageClient::Finish, server));
     QPConnectionAttr srcConnAttr(pg, client->m_ip, server->m_ip, sport, dport, QPType::RDMA_RC);
     RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
+    srcRdmaAppQP->m_qp->setAppQp(srcRdmaAppQP);
+    dstRdmaAppQP->m_qp->setAppQp(dstRdmaAppQP);
 };
 
 void DistributedStorageClient::AddQP(Ptr<RdmaAppQP> qp){};

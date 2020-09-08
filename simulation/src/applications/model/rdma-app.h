@@ -58,10 +58,10 @@ class RdmaAppQP : public Object {
         m_onResponseCompletion = OnResponseCB;
         m_onSendCompletion = OnSendCompletionCB;
         m_onReceiveCompletion = OnReceiveCompletionCB;
-        m_qp->setAppQp(this);
+        //m_qp->setAppQp(this);
     }
 
-    RdmaAppQP() { m_qp->setAppQp(this); }
+    //RdmaAppQP() { m_qp->setAppQp(this); }
 
     /**
      * \brief ibv_post_send;
@@ -69,9 +69,9 @@ class RdmaAppQP : public Object {
      */
     void PostSend(Ptr<IBVWorkRequest> wr) { m_qp->ibv_post_send(wr); };
 
-    UserSpaceConnection* m_usc;
+    Ptr<UserSpaceConnection> m_usc;
 
-    void setUSC(UserSpaceConnection* usc) { this->m_usc = usc; }
+    void setUSC(Ptr<UserSpaceConnection> usc) { this->m_usc = usc; }
     Ptr<RdmaQueuePair> m_qp;
    //private:
     /**
