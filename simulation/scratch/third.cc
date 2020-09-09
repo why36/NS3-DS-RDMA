@@ -150,21 +150,23 @@ void ScheduleFlowInputs() {
         ApplicationContainer appCon;
         NodeContainer c1 = n.Get(flow_input.src);
         Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
+        client->setIp(serverAddress[flow_input.src]);
         NodeContainer::Iterator i1 = c1.Begin ();
         Ptr<Node> node1 = *i1;
         node1->AddApplication (client);
         appCon.Add (client);
 
         Ptr<DistributedStorageClient> server = Create<DistributedStorageClient>();
+        server->setIp(serverAddress[flow_input.dst]);
         NodeContainer c2 = n.Get(flow_input.dst);
         NodeContainer::Iterator i2 = c2.Begin ();
-        Ptr<Node> node2 = *i1;
+        Ptr<Node> node2 = *i2;
         node2->AddApplication (server);
         appCon.Add(server);
 
         DistributedStorageClient::Connect(client,server,flow_input.pg); 
         client->GetConnections().back()->init();
-        client->GetConnections().back()->SendKRpc();
+        client->GetConnections.back()->SendKRpc();
         //client->init();
         //client->SendKRpc();
         /* install
@@ -894,6 +896,29 @@ int main(int argc, char *argv[]) {
 
     // setup routing
     CalculateRoutes(n);
+    /*
+    map<Ptr<Node>, map<Ptr<Node>, vector<Ptr<Node> >> >::iterator nextHopIt;
+    map<map<Ptr<Node>, vector<Ptr<Node> >> >::iterator secondIt;
+    nextHopIt = nextHop.begin();
+    while(nextHopIt!=nextHop.end()){
+        std::cout<<"nextHopIt "<<nextHopIt->first->GetId()<<"\n";
+        secondIt = nextHopIt->second.begin();
+        while(secondIt != nextHopIt->second.end()){
+            std::cout<<"nextHopIt->second.key "<<secondIt->first->GetId()<<"\n";
+            int count1 = secondIt->second.size();
+            for(int k = 0;k < count1; k++){
+                std::count<<secondIt->second[k]->GetId()<<" ";
+            }
+             for (vector<Ptr<Node>>::iterator iter = secondIt->second.cbegin(); iter != secondIt->second.cend(); iter++)
+            {
+                std::count << (*iter)->GetId(); << "\n";
+            }
+            secondIt++;
+        }
+        nextHopIt++;
+
+    }
+    */
     SetRoutingEntries();
 
     //

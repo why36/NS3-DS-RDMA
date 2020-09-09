@@ -78,8 +78,9 @@ void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
 }
 
 void UserSpaceConnection::StartDequeueAndTransmit(){
-    uint32_t nic_idx = m_appQP->m_qp->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
-    Ptr<QbbNetDevice> dev = m_appQP->m_qp->m_rdma->m_nic[nic_idx].dev;
+    uint32_t nic_idx = m_appQP->m_rdmaDriver->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
+    //uint32_t nic_idx = m_appQP->m_qp->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
+    Ptr<QbbNetDevice> dev = m_appQP->m_rdmaDriver->m_rdma->m_nic[nic_idx].dev;
     dev->TriggerTransmit();
 }
 

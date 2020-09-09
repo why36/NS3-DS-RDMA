@@ -153,7 +153,7 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     //
 
     std::vector<Ptr<UserSpaceConnection>> GetConnections() { return m_Connections; }
-
+    
    protected:
     virtual void DoDispose(void);
 
