@@ -166,7 +166,7 @@ void ScheduleFlowInputs() {
 
         DistributedStorageClient::Connect(client,server,flow_input.pg); 
         client->GetConnections().back()->init();
-        client->GetConnections.back()->SendKRpc();
+        client->GetConnections().back()->SendKRpc();
         //client->init();
         //client->SendKRpc();
         /* install
