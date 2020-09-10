@@ -111,6 +111,7 @@ namespace ns3
             dev->m_rdmaPktSent = MakeCallback(&RdmaHw::PktSent, this);
             // config NIC
             dev->m_rdmaEQ->m_rdmaGetNxtPkt = MakeCallback(&RdmaHw::GetNxtPacket, this);
+            //dev->m_rdmaEQ->m_rdmaGetNxtPkt = MakeCallback(&RdmaQueuePair::GetNextPacket, );
         }
         // setup qp complete callback
         m_qpCompleteCallback = cb;
@@ -835,7 +836,8 @@ namespace ns3
 
     Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
     {
-
+        return qp->GetNextPacket();
+/*
         uint32_t payload_size = qp->GetBytesLeft();
         if (m_mtu < payload_size)
             payload_size = m_mtu;
@@ -871,6 +873,7 @@ namespace ns3
 
         // return
         return p;
+    */
     }
 
     void RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap)

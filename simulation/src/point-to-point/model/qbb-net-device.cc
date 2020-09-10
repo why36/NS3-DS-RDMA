@@ -521,7 +521,7 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
     void QbbNetDevice::NewQp(Ptr<RdmaQueuePair> qp)
     {
         qp->m_nextAvail = Simulator::Now();
-        DequeueAndTransmit();
+        //DequeueAndTransmit();
     }
     void QbbNetDevice::ReassignedQp(Ptr<RdmaQueuePair> qp) {
         DequeueAndTransmit();

@@ -37,7 +37,7 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(at
     startTime = Simulator::Now();
     m_size = 0;
     snd_nxt = snd_una = 0;
-
+    m_remainingSize = 0;
     m_ipid = 0;
     m_nextAvail = Time(0);
     m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
@@ -160,7 +160,18 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) { appQp = appQP; }
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
-    NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
+    //NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
+    if(m_sendingWr == nullptr){
+        if (!m_wrs.empty()) {
+            m_sendingWr = m_wrs.front();
+            m_wrs.pop();
+            m_remainingSize = m_sendingWr->size;
+        } else {
+            m_sendingWr = nullptr;
+            Ptr<Packet> p = Create<Packet>(0);
+            return p;
+        }
+    }
     uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
     m_remainingSize -= size;
 

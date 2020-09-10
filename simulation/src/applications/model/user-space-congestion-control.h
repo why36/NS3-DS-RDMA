@@ -83,8 +83,8 @@ class WindowCongestionControl : public UserSpaceCongestionControl {
 
    protected:
     // forbids to construct
-    WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), mWindow(0), mInflight(0) {}
-    WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType), mWindow(0), mInflight(0)  {}
+    WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), mWindow(4096), mInflight(0) {}
+    WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType), mWindow(4096), mInflight(0)  {}
     uint32_t mWindow;
     uint32_t mInflight;
     bool mThrottled;
