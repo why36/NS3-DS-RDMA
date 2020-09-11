@@ -123,7 +123,8 @@ namespace ns3
         {
             uint32_t idx = (qIndex + m_rrlast) % fcount;
             Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-            if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->m_CCEntity->IsWinBound())
+            //if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->m_CCEntity->IsWinBound())
+            if (!paused[qp->m_connectionAttr.pg] && !qp->m_CCEntity->IsWinBound())
             {
                 if (qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep()) // not available now
                     continue;

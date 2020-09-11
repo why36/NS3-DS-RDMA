@@ -250,6 +250,7 @@ class RdmaQueuePair : public Object {
     // Bind RdmaQueuePair and RdmaAppQP to each other
     Ptr<RdmaAppQP> appQp;
     void setAppQp(Ptr<RdmaAppQP> appQp);
+    void setRdmaHw(Ptr<RdmaHw> _rdmaHw);
     // app-specified
     Time startTime;
     Callback<void> m_notifyAppFinish;
@@ -285,7 +286,7 @@ class RdmaQueuePair : public Object {
     // the initialization value is max opcodeoperation + 1
     OpCodeOperation m_lastReceiveOperation = static_cast<OpCodeOperation>(33);
 
-    RdmaHw* m_rdma;
+    Ptr<RdmaHw> m_rdma;
     // uint32_t m_mtu;
     /***********
      * methods

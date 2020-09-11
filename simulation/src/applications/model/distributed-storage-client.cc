@@ -344,7 +344,9 @@ void DistributedStorageClient::Connect(Ptr<DistributedStorageClient> client, Ptr
     QPConnectionAttr srcConnAttr(pg, client->m_ip, server->m_ip, sport, dport, QPType::RDMA_RC);
     RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr, srcParam, dstParam);
     srcRdmaAppQP->m_qp->setAppQp(srcRdmaAppQP);
+    srcRdmaAppQP->m_qp->setRdmaHw(srcConnection->m_appQP->m_rdmaDriver->m_rdma);
     dstRdmaAppQP->m_qp->setAppQp(dstRdmaAppQP);
+    dstRdmaAppQP->m_qp->setRdmaHw(dstConnection->m_appQP->m_rdmaDriver->m_rdma);
 };
 
 void DistributedStorageClient::AddQP(Ptr<RdmaAppQP> qp){};

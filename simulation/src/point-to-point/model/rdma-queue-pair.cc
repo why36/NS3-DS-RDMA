@@ -41,12 +41,16 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(at
     m_ipid = 0;
     m_nextAvail = Time(0);
     m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
+    // m_rdma = appQp->m_rdmaDriver->m_rdma;
 }
 
 int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
     m_wrs.push(wr);
     return 0;
 }
+
+void RdmaQueuePair::setRdmaHw(Ptr<RdmaHw> _rdmaHw) { m_rdma = _rdmaHw; }
+
 void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
 
 void CongestionControlEntity::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
@@ -160,8 +164,8 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) { appQp = appQP; }
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
-    //NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
-    if(m_sendingWr == nullptr){
+    // NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
+    if (m_sendingWr == nullptr) {
         if (!m_wrs.empty()) {
             m_sendingWr = m_wrs.front();
             m_wrs.pop();

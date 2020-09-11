@@ -98,6 +98,8 @@ uint64_t nic_rate;
 
 uint64_t maxRtt, maxBdp;
 
+static int qindex;
+
 struct Interface {
     uint32_t idx;
     bool up;
