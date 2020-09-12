@@ -300,6 +300,24 @@ void RdmaEgressQueue::RecoverQueue(uint32_t i) {
                 Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
                 p = m_rdmaEQ->DequeueQindex(qIndex);
 
+                if(p->GetSize()==0){
+                    // no packet to send
+                    NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
+                    Time t = Simulator::GetMaximumSimulationTime();
+                    for (uint32_t i = 0; i < m_rdmaEQ->GetFlowCount(); i++)
+                    {
+                        Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
+                        if (qp->GetBytesLeft() == 0)
+                            continue;
+                        t = Min(qp->m_nextAvail, t);
+                    }
+                    if (m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
+                    {
+                        m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+                    }
+                    return;
+                }
+
                 // transmit
                 // TO DO Krayecho Yx: fix trace
                 // m_traceQpDequeue(p, lastQp);
