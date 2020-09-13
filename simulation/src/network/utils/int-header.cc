@@ -34,8 +34,8 @@ void IntHeader::PushHop(uint64_t time, uint64_t bytes, uint32_t qlen, uint64_t r
 	}
 }
 
-void IntHeader::Serialize (Buffer::Iterator start) const{
-	Buffer::Iterator i = start;
+void IntHeader::Serialize (Buffer::Iterator i) const{
+	//Buffer::Iterator i = start;
 	if (mode == NORMAL){
 		for (uint32_t j = 0; j < maxHop; j++){
 			i.WriteU32(hop[j].buf[0]);
@@ -52,8 +52,8 @@ void IntHeader::Serialize (Buffer::Iterator start) const{
 	}
 }
 
-uint32_t IntHeader::Deserialize (Buffer::Iterator start){
-	Buffer::Iterator i = start;
+uint32_t IntHeader::Deserialize (Buffer::Iterator i){
+	//Buffer::Iterator i = start;
 	if (mode == NORMAL){
 		for (uint32_t j = 0; j < maxHop; j++){
 			hop[j].buf[0] = i.ReadU32();

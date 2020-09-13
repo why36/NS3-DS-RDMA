@@ -287,7 +287,7 @@ namespace ns3 {
                 udp.seq = i.ReadNtohU32();
                 udp.pg = i.ReadNtohU16();
                 // udp.ibh.Deserialize(i);
-                if (getInt) udp.ih.Deserialize(i);
+                if (getInt) i.Next(udp.ih.Deserialize(i));
                 udp.ibh.Deserialize(i);
                 l4Size = GetUdpHeaderSize();
             }
