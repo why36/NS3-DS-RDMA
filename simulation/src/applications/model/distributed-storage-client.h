@@ -116,7 +116,6 @@ class UserSpaceConnection : public Object {
     void KeepKRpc(uint64_t response_id);
     void StartDequeueAndTransmit();
 
-
    private:
     void DoSend();
     void SendRetransmissions();
@@ -153,7 +152,9 @@ class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
     //
 
     std::vector<Ptr<UserSpaceConnection>> GetConnections() { return m_Connections; }
-    
+    void setIp(Ipv4Address ip) { m_ip = ip; }
+    Ipv4Address getIp() { return m_ip; }
+
    protected:
     virtual void DoDispose(void);
 
