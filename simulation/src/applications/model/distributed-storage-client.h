@@ -44,6 +44,7 @@
 //#include "ns3/reliability.h"
 #include "ns3/rpc.h"
 #include "ns3/user-space-congestion-control.h"
+#include "ns3/user-space-connection.h"
 
 namespace ns3 {
 
@@ -66,65 +67,12 @@ class RpcAckBitMap;
 class WRidTag;
 class RdmaClient;
 
-static const uint32_t ACK_size = 100;
 // this is a interface used for demonsrate how rdma app works
 class SimpleRdmaApp {
     virtual void OnSendCompletion(Ptr<IBVWorkCompletion> completion) = 0;
     virtual void OnReceiveCompletion(Ptr<IBVWorkCompletion> completion) = 0;
 };
 
-class UserSpaceConnection : public Object {
-   public:
-    UserSpaceConnection();
-    void SendRPC(Ptr<RPC> rpc);
-    Ptr<UserSpaceCongestionControl> m_UCC;
-    Ptr<FlowsegInterface> m_flowseg;
-    Ptr<Reliability> m_reliability;
-
-    Ptr<RdmaAppQP> m_appQP;
-    Ptr<RdmaAppAckQP> m_ackQP;
-    std::queue<Ptr<RPC>> m_sendQueuingRPCs;
-    std::queue<Ptr<IBVWorkRequest>> m_retransmissions;
-    Ptr<RPC> m_sendingRPC;
-
-    // Ptr<IBVWorkRequest> m_ackIbvWr;
-    Ptr<RpcAckBitMap> m_rpcAckBitMap;
-    uint32_t m_remainingSendingSize;
-
-    // void ReceiveRPC(Ptr<RPC>);
-    // std::queue<RPC> m_receiveQueuingRPCs;
-    void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
-    uint32_t m_receive_ibv_num = 0;
-
-    void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
-    void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
-
-    void Retransmit(Ptr<IBVWorkRequest> wc);
-
-    // Keep 8 rpcs
-    static const int kRPCRequest = 8;
-    static const int interval = 10;
-
-    static const int requestSize = 2000;
-
-    // Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
-    std::map<uint64_t, Ptr<RPC>> RPCRequestMap;
-    std::map<uint64_t, Ptr<RPC>>::iterator it;
-
-    void init();
-    void SendKRpc();
-    void KeepKRpc(uint64_t response_id);
-    void StartDequeueAndTransmit();
-
-   private:
-    void DoSend();
-    void SendRetransmissions();
-    void SendNewRPC();
-    // void ReceiveRPC();
-    // void ReceiveIBVWC();
-    void SendAck();
-    void ReceiveAck();
-};
 class DistributedStorageClient : public RdmaClient, public SimpleRdmaApp {
    public:
     static TypeId GetTypeId(void);

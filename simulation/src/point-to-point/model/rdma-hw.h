@@ -6,6 +6,7 @@
 #include <ns3/node.h>
 #include <ns3/rdma-queue-pair.h>
 
+#include <memory>
 #include <unordered_map>
 
 #include "pint.h"
@@ -42,7 +43,7 @@ class RdmaHw : public Object {
     bool m_rateBound;
     std::vector<RdmaInterfaceMgr> m_nic;                                                             // list of running nic controlled by this RdmaHw
     std::unordered_map<SimpleTuple, Ptr<RdmaQueuePair>, SimpleTupleHash, SimpleTupleEqual> m_qpMap;  // mapping from uint64_t to qp
-    std::unordered_map<uint32_t, std::vector<int>> m_rtTable;  // map from ip address (u32) to possible ECMP port (index of dev)
+    std::unordered_map<uint32_t, std::shared_ptr<std::vector<int>>> m_rtTable;  // map from ip address (u32) to possible ECMP port (index of dev)
 
     std::unordered_map<SimpleTuple, Ptr<CongestionControlEntity>, SimpleTupleHash, SimpleTupleEqual> m_CCRateMap;
 

@@ -30,23 +30,21 @@
 #define RDMA_APP_H
 
 #include "ns3/application.h"
+#include "ns3/distributed-storage-client.h"
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
 #include "ns3/rdma-queue-pair.h"
 #include "ns3/rpc-response.h"
-#include "ns3/distributed-storage-client.h"
 namespace ns3 {
 
 class Buffer;
-
-
 
 // TO DO: Krayecho Yx: implement more details;
 /**
  * \brief RdmaAppQP is a useable QP interface for application;
  */
 
-//class UserSpaceConnection;
+// class UserSpaceConnection;
 
 class RdmaAppQP : public Object {
     friend class RdmaCM;
@@ -58,10 +56,10 @@ class RdmaAppQP : public Object {
         m_onResponseCompletion = OnResponseCB;
         m_onSendCompletion = OnSendCompletionCB;
         m_onReceiveCompletion = OnReceiveCompletionCB;
-        //m_qp->setAppQp(this);
+        // m_qp->setAppQp(this);
     }
 
-    //RdmaAppQP() { m_qp->setAppQp(this); }
+    // RdmaAppQP() { m_qp->setAppQp(this); }
 
     /**
      * \brief ibv_post_send;
@@ -73,7 +71,7 @@ class RdmaAppQP : public Object {
 
     void setUSC(Ptr<UserSpaceConnection> usc) { this->m_usc = usc; }
     Ptr<RdmaQueuePair> m_qp;
-   //private:
+    // private:
     /**
      * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
      * \param create_attr connect attr for this QP;
@@ -84,7 +82,7 @@ class RdmaAppQP : public Object {
     // TO DO Krayecho Yx:
     // void PostReceive();
     Ptr<RdmaDriver> m_rdmaDriver;
-    
+
     /*
      * Callback
      */
@@ -109,7 +107,7 @@ inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
     }
 }
 
-void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
+inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
     m_qp = m_rdmaDriver->AddQueuePair(create_attr);
     // return m_qp;
 };
@@ -118,10 +116,10 @@ void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
 // Ensure that each
 class RdmaCM {
    public:
-    static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam);
+    inline static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam);
 };
 
-int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
+inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
     // srcParam.notifyCompletion = src->OnCompletion;
     // dstParam.notifyCompletion = dst->OnCompletion;
     srcParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));

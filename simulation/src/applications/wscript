@@ -30,6 +30,7 @@ def build(bld):
         'model/verb-tag.cc',
         'model/reliability.cc',
         'model/distributed-storage-client.cc',
+        'model/user-space-connection.cc',
         'model/user-space-congestion-control.cc',
         'model/floweg.cc',
         ]
@@ -73,6 +74,7 @@ def build(bld):
         'model/rpc-request.h',
         'model/rpc-response.h',
         'model/distributed-storage-client.h',
+        'model/user-space-connection.h',
         'model/user-space-congestion-control.h',
         'model/floweg.h',
         ]

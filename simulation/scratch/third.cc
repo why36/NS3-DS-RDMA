@@ -133,7 +133,7 @@ uint32_t flow_num;
 void ReadFlowInput() {
     if (flow_input.idx < flow_num) {
         flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
-        NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == 0 && n.Get(flow_input.dst)->GetNodeType() == 0);
+        NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == kNodeType::Host && n.Get(flow_input.dst)->GetNodeType() == kNodeType::Host);
     }
 }
 void ScheduleFlowInputs() {
@@ -144,37 +144,36 @@ void ScheduleFlowInputs() {
                                       flow_input.maxPacketCount,
                                       has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(flow_input.src)][n.Get(flow_input.dst)]) : 0,
                                       global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
-        
+
         ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
         */
-        
-       
+
         ApplicationContainer appCon;
         NodeContainer c1 = n.Get(flow_input.src);
         Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
         client->setIp(serverAddress[flow_input.src]);
-        NodeContainer::Iterator i1 = c1.Begin ();
+        NodeContainer::Iterator i1 = c1.Begin();
         Ptr<Node> node1 = *i1;
-        node1->AddApplication (client);
-        appCon.Add (client);
+        node1->AddApplication(client);
+        appCon.Add(client);
 
         Ptr<DistributedStorageClient> server = Create<DistributedStorageClient>();
         server->setIp(serverAddress[flow_input.dst]);
         NodeContainer c2 = n.Get(flow_input.dst);
-        NodeContainer::Iterator i2 = c2.Begin ();
+        NodeContainer::Iterator i2 = c2.Begin();
         Ptr<Node> node2 = *i2;
-        node2->AddApplication (server);
+        node2->AddApplication(server);
         appCon.Add(server);
 
-        DistributedStorageClient::Connect(client,server,flow_input.pg); 
+        DistributedStorageClient::Connect(client, server, flow_input.pg);
         client->GetConnections().back()->init();
         client->GetConnections().back()->SendKRpc();
-        //client->init();
-        //client->SendKRpc();
+        // client->init();
+        // client->SendKRpc();
         /* install
         for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
         {
-            
+
             Ptr<RdmaClient> client = m_factory.Create<RdmaClient> ();
             node->AddApplication (client);
             appCon.Add (client);
@@ -221,8 +220,8 @@ void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q) {
 }
 
 void get_pfc(FILE *fout, Ptr<QbbNetDevice> dev, uint32_t type) {
-    fprintf(fout, "%lu %u %u %u %u\n", Simulator::Now().GetTimeStep(), dev->GetNode()->GetId(), dev->GetNode()->GetNodeType(), dev->GetIfIndex(),
-            type);
+    fprintf(fout, "%lu %u %u %u %u\n", Simulator::Now().GetTimeStep(), dev->GetNode()->GetId(), static_cast<uint32_t>(dev->GetNode()->GetNodeType()),
+            dev->GetIfIndex(), type);
 }
 
 struct QlenDistribution {
@@ -238,7 +237,7 @@ struct QlenDistribution {
 map<uint32_t, map<uint32_t, QlenDistribution> > queue_result;
 void monitor_buffer(FILE *qlen_output, NodeContainer *n) {
     for (uint32_t i = 0; i < n->GetN(); i++) {
-        if (n->Get(i)->GetNodeType() == 1) {  // is switch
+        if (n->Get(i)->GetNodeType() == kNodeType::Switch) {  // is switch
             Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n->Get(i));
             if (queue_result.find(i) == queue_result.end()) queue_result[i];
             for (uint32_t j = 1; j < sw->GetNDevices(); j++) {
@@ -291,7 +290,7 @@ void CalculateRoute(Ptr<Node> host) {
                 txDelay[next] = txDelay[now] + packet_payload_size * 1000000000lu * 8 / it->second.bw;
                 bw[next] = std::min(bw[now], it->second.bw);
                 // we only enqueue switch, because we do not want packets to go through host as middle point
-                if (next->GetNodeType() == 1) q.push_back(next);
+                if (next->GetNodeType() == kNodeType::Switch) q.push_back(next);
             }
             // if 'now' is on the shortest path from 'next' to 'host'.
             if (d + 1 == dis[next]) {
@@ -307,14 +306,14 @@ void CalculateRoute(Ptr<Node> host) {
 void CalculateRoutes(NodeContainer &n) {
     for (int i = 0; i < (int)n.GetN(); i++) {
         Ptr<Node> node = n.Get(i);
-        if (node->GetNodeType() == 0) CalculateRoute(node);
+        if (node->GetNodeType() == kNodeType::Host) CalculateRoute(node);
     }
 }
 
 void SetRoutingEntries() {
     // For each node.
     for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
-        Ptr<Node> node = i->first;
+        Ptr<Node> src = i->first;
         auto &table = i->second;
         for (auto j = table.begin(); j != table.end(); j++) {
             // The destination node.
@@ -322,17 +321,61 @@ void SetRoutingEntries() {
             // The IP address of the dst.
             Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
             // The next hops towards the dst.
+
             vector<Ptr<Node> > nexts = j->second;
             for (int k = 0; k < (int)nexts.size(); k++) {
                 Ptr<Node> next = nexts[k];
-                uint32_t interface = nbr2if[node][next].idx;
-                if (node->GetNodeType() == 1)
-                    DynamicCast<SwitchNode>(node)->AddTableEntry(dstAddr, interface);
+                uint32_t interface = nbr2if[src][next].idx;
+                if (src->GetNodeType() == kNodeType::Switch)
+                    DynamicCast<SwitchNode>(src)->AddTableEntry(dstAddr, interface);
                 else {
-                    node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
+                    src->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
                 }
             }
         }
+    }
+}
+
+void CheckRoute() {
+    for (auto term = nextHop.begin(); term != nextHop.end(); term++) {
+        auto &routes_each_node = term->second;
+        for (auto dst_term = routes_each_node.begin(); dst_term != routes_each_node.end(); dst_term++) {
+            auto &routes = dst_term->second;
+            std::cout << " src: " << (int)term->first->GetId() << "->";
+            for (int index = 0; index < routes.size(); index++) {
+                std::cout << (int)routes[index]->GetId() << "->";
+            }
+            std::cout << dst_term->first->GetId() << std::endl;
+        }
+        std::cout << endl;
+    }
+}
+
+void CheckRouteWithIP() {
+    for (auto term = nextHop.begin(); term != nextHop.end(); term++) {
+        auto &routes_each_node = term->second;
+        for (auto dst_term = routes_each_node.begin(); dst_term != routes_each_node.end(); dst_term++) {
+            auto &routes = dst_term->second;
+            std::cout << " src: " << term->first->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal() << "->";
+            for (int index = 0; index < routes.size(); index++) {
+                std::cout << routes[index]->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal() << "->";
+            }
+            std::cout << dst_term->first->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal() << std::endl;
+        }
+        std::cout << endl;
+    }
+}
+
+void CheckNICs(NodeContainer &n) {
+    for (uint32_t num_node = 0; num_node < n.GetN(); num_node++) {
+        auto cur_node = n.Get(num_node);
+        std::cout << "----------------" << std::endl;
+        for (auto num_nic = 0; num_nic < cur_node->GetNDevices(); num_nic++) {
+            auto device = cur_node->GetDevice(num_nic);
+            std::cout << "node: " << cur_node->GetId() << "\t device: " << device->GetIfIndex() << "\t Address: " << device->GetAddress()
+                      << std::endl;
+        }
+        std::cout << "----------------" << std::endl << std::endl;
     }
 }
 
@@ -345,7 +388,7 @@ void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b) {
     CalculateRoutes(n);
     // clear routing tables
     for (uint32_t i = 0; i < n.GetN(); i++) {
-        if (n.Get(i)->GetNodeType() == 1)
+        if (n.Get(i)->GetNodeType() == kNodeType::Switch)
             DynamicCast<SwitchNode>(n.Get(i))->ClearTable();
         else
             n.Get(i)->GetObject<RdmaDriver>()->m_rdma->ClearTable();
@@ -357,18 +400,16 @@ void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b) {
 
     // redistribute qp on each host
     for (uint32_t i = 0; i < n.GetN(); i++) {
-        if (n.Get(i)->GetNodeType() == 0) n.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
+        if (n.Get(i)->GetNodeType() == kNodeType::Host) n.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
     }
 }
 
 uint64_t get_nic_rate(NodeContainer &n) {
     for (uint32_t i = 0; i < n.GetN(); i++)
-        if (n.Get(i)->GetNodeType() == 0) return DynamicCast<QbbNetDevice>(n.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
+        if (n.Get(i)->GetNodeType() == kNodeType::Host) return DynamicCast<QbbNetDevice>(n.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
 }
 
-int main(int argc, char *argv[]) {
-    clock_t begint, endt;
-    begint = clock();
+int InitConfiguration(int argc, char *argv[]) {
 #ifndef PGO_TRAINING
     if (argc > 1)
 #else
@@ -686,13 +727,38 @@ int main(int argc, char *argv[]) {
         IntHeader::pint_bytes = Pint::get_n_bytes();
         printf("PINT bits: %d bytes: %d\n", Pint::get_n_bits(), Pint::get_n_bytes());
     }
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+    clock_t begint, endt;
+    begint = clock();
+    if (InitConfiguration(argc, argv)) {
+        return 1;
+    }
 
     // SeedManager::SetSeed(time(NULL));
-
     topof.open(topology_file.c_str());
+
+    if (!topof.is_open()) {
+        std::cout << "cannot open topology file" << std::endl;
+        return 1;
+    };
+
     flowf.open(flow_file.c_str());
+    if (!flowf.is_open()) {
+        std::cout << "cannot open flow file" << std::endl;
+        return 1;
+    }
+
     tracef.open(trace_file.c_str());
+    if (!tracef.is_open()) {
+        std::cout << "cannot open flow file" << std::endl;
+        return 1;
+    }
+
     uint32_t node_num, switch_num, link_num, trace_num;
+
     topof >> node_num >> switch_num >> link_num;
     flowf >> flow_num;
     tracef >> trace_num;
@@ -704,6 +770,7 @@ int main(int argc, char *argv[]) {
         topof >> sid;
         node_type[sid] = 1;
     }
+
     for (uint32_t i = 0; i < node_num; i++) {
         if (node_type[i] == 0)
             n.Add(CreateObject<Node>());
@@ -723,7 +790,7 @@ int main(int argc, char *argv[]) {
     // Assign IP to each server
     //
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() == 0) {  // is server
+        if (n.Get(i)->GetNodeType() == kNodeType::Host) {  // is server
             serverAddress.resize(i + 1);
             serverAddress[i] = node_id_to_ip(i);
         }
@@ -776,12 +843,12 @@ int main(int argc, char *argv[]) {
         // because we want our IP to be the primary IP (first in the IP address list),
         // so that the global routing is based on our IP
         NetDeviceContainer d = qbb.Install(snode, dnode);
-        if (snode->GetNodeType() == 0) {
+        if (snode->GetNodeType() == kNodeType::Host) {
             Ptr<Ipv4> ipv4 = snode->GetObject<Ipv4>();
             ipv4->AddInterface(d.Get(0));
             ipv4->AddAddress(1, Ipv4InterfaceAddress(serverAddress[src], Ipv4Mask(0xff000000)));
         }
-        if (dnode->GetNodeType() == 0) {
+        if (dnode->GetNodeType() == kNodeType::Host) {
             Ptr<Ipv4> ipv4 = dnode->GetObject<Ipv4>();
             ipv4->AddInterface(d.Get(1));
             ipv4->AddAddress(1, Ipv4InterfaceAddress(serverAddress[dst], Ipv4Mask(0xff000000)));
@@ -814,7 +881,7 @@ int main(int argc, char *argv[]) {
 
     // config switch
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() == 1) {  // is switch
+        if (n.Get(i)->GetNodeType() == kNodeType::Switch) {  // is switch
             Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n.Get(i));
             uint32_t shift = 3;  // by default 1/8
             for (uint32_t j = 1; j < sw->GetNDevices(); j++) {
@@ -851,7 +918,7 @@ int main(int argc, char *argv[]) {
     // install RDMA driver
     //
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() == 0) {  // is server
+        if (n.Get(i)->GetNodeType() == kNodeType::Host) {  // is server
             // create RdmaHw
             Ptr<RdmaHw> rdmaHw = CreateObject<RdmaHw>();
             rdmaHw->SetAttribute("ClampTargetRate", BooleanValue(clamp_target_rate));
@@ -921,6 +988,9 @@ int main(int argc, char *argv[]) {
 
     }
     */
+
+    CheckNICs(n);
+    CheckRoute();
     SetRoutingEntries();
 
     //
@@ -928,9 +998,9 @@ int main(int argc, char *argv[]) {
     //
     maxRtt = maxBdp = 0;
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() != 0) continue;
+        if (n.Get(i)->GetNodeType() != kNodeType::Host) continue;
         for (uint32_t j = 0; j < node_num; j++) {
-            if (n.Get(j)->GetNodeType() != 0) continue;
+            if (n.Get(j)->GetNodeType() != kNodeType::Host) continue;
             uint64_t delay = pairDelay[n.Get(i)][n.Get(j)];
             uint64_t txDelay = pairTxDelay[n.Get(i)][n.Get(j)];
             uint64_t rtt = delay * 2 + txDelay;
@@ -948,7 +1018,7 @@ int main(int argc, char *argv[]) {
     // setup switch CC
     //
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() == 1) {  // switch
+        if (n.Get(i)->GetNodeType() == kNodeType::Switch) {  // switch
             Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n.Get(i));
             sw->SetAttribute("CcMode", UintegerValue(cc_mode));
             sw->SetAttribute("MaxRtt", UintegerValue(maxRtt));
@@ -995,9 +1065,9 @@ int main(int argc, char *argv[]) {
 
     // maintain port number for each host
     for (uint32_t i = 0; i < node_num; i++) {
-        if (n.Get(i)->GetNodeType() == 0)
+        if (n.Get(i)->GetNodeType() == kNodeType::Host)
             for (uint32_t j = 0; j < node_num; j++) {
-                if (n.Get(j)->GetNodeType() == 0) portNumder[i][j] = 10000;  // each host pair use port number from 10000
+                if (n.Get(j)->GetNodeType() == kNodeType::Host) portNumder[i][j] = 10000;  // each host pair use port number from 10000
             }
     }
 
