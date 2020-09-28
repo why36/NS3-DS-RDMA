@@ -6,6 +6,7 @@
 #include <ns3/ib-header.h>
 #include <ns3/ipv4-header.h>
 #include <ns3/last-packet-tag.h>
+#include <ns3/log.h>
 #include <ns3/rdma-hw.h>
 #include <ns3/seq-ts-header.h>
 #include <ns3/simulator.h>
@@ -16,6 +17,9 @@
 
 #include "ns3/ppp-header.h"
 #include "ns3/rdma-app.h"
+
+NS_LOG_COMPONENT_DEFINE("RdmaQueuePair");
+
 namespace ns3 {
 
 /**************************
@@ -173,6 +177,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
         } else {
             m_sendingWr = nullptr;
             Ptr<Packet> p = Create<Packet>(0);
+            NS_LOG_WARN("Create an zero byte pakcet when GetNextPacket");
             return p;
         }
     }
