@@ -35,6 +35,7 @@
 #include "ns3/inet6-socket-address.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-end-point.h"
+#include "ns3/leapcc.h"
 #include "ns3/log.h"
 #include "ns3/nstime.h"
 #include "ns3/packet.h"
@@ -210,8 +211,8 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
 
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     RTTSignal rtt;
-    rtt.mRtt = 10;
-    cc_implement->UpdateSignal(rtt);
+    rtt.mRTT = 10;
+    cc_implement->UpdateSignal(&rtt);
     cc_implement->DecreaseInflight(ackWC->size);  // A size is missing
     m_reliability->AckWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
 }

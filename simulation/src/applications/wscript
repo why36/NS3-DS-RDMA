@@ -33,6 +33,7 @@ def build(bld):
         'model/user-space-connection.cc',
         'model/user-space-congestion-control.cc',
         'model/floweg.cc',
+        'model/leapcc.cc',
         ]
 
     applications_test = bld.create_ns3_module_test_library('applications')
@@ -77,6 +78,7 @@ def build(bld):
         'model/user-space-connection.h',
         'model/user-space-congestion-control.h',
         'model/floweg.h',
+        'model/leapcc.h',
         ]
 
     bld.ns3_python_bindings()

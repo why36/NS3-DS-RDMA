@@ -22,9 +22,9 @@
 #ifndef USER_SPACE_CONGESTION_CONTROL_H
 #define USER_SPACE_CONGESTION_CONTROL_H
 
+#include "ns3/object.h"
 #include "ns3/pointer.h"
 #include "ns3/uinteger.h"
-#include "ns3/object.h"
 namespace ns3 {
 
 enum class CongestionControlSignalType { RTT_SIGNAL = 0, ECN_SIGNAL = 1 };
@@ -40,7 +40,7 @@ class CongestionSignal {
 class RTTSignal : public CongestionSignal {
    public:
     RTTSignal() : CongestionSignal(CongestionControlSignalType::RTT_SIGNAL) {}
-    uint8_t mRtt;
+    uint8_t mRTT;
 };
 
 using CCType = struct cctype {
@@ -58,7 +58,7 @@ using CCType = struct cctype {
 
 static const CCType RTTWindowCCType = CCType(CongestionControlSignalType::RTT_SIGNAL, CongestionControlPacingType::WINDOW_BASE);
 
-class UserSpaceCongestionControl :public Object {
+class UserSpaceCongestionControl : public Object {
    public:
     // UserSpaceCongestionControl() = delete;
     UserSpaceCongestionControl(CongestionControlPacingType _pacingType) { mType.pacingType = _pacingType; }
@@ -67,7 +67,7 @@ class UserSpaceCongestionControl :public Object {
 
     CCType GetCongestionContorlType() { return mType; };
 
-    virtual void UpdateSignal(CongestionSignal& signal) = 0;
+    virtual void UpdateSignal(CongestionSignal* signal) = 0;
 
    protected:
     CCType mType;
@@ -75,7 +75,7 @@ class UserSpaceCongestionControl :public Object {
 
 class WindowCongestionControl : public UserSpaceCongestionControl {
    public:
-    virtual void UpdateSignal(CongestionSignal& signal) = 0;
+    virtual void UpdateSignal(CongestionSignal* signal) = 0;
     virtual uint32_t GetCongestionWindow() = 0;
     uint32_t GetAvailableSize();
     bool IncreaseInflight(uint32_t size);
@@ -84,25 +84,17 @@ class WindowCongestionControl : public UserSpaceCongestionControl {
    protected:
     // forbids to construct
     WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), mWindow(4096), mInflight(0) {}
-    WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType), mWindow(4096), mInflight(0)  {}
+    WindowCongestionControl(CongestionControlSignalType _signalType) : UserSpaceCongestionControl(_signalType), mWindow(4096), mInflight(0) {}
     uint32_t mWindow;
     uint32_t mInflight;
     bool mThrottled;
 };
 
-
-class RttWindowCongestionControl :  public WindowCongestionControl {
+class RttWindowCongestionControl : public WindowCongestionControl {
    public:
     RttWindowCongestionControl() : WindowCongestionControl(CongestionControlSignalType::RTT_SIGNAL) {}
-    virtual void UpdateSignal(CongestionSignal& signal) = 0;
+    virtual void UpdateSignal(CongestionSignal* signal) = 0;
     virtual uint32_t GetCongestionWindow() = 0;
-};
-
-class LeapCC : public RttWindowCongestionControl {
-   public:
-    LeapCC();
-    virtual void UpdateSignal(CongestionSignal& signal) override;
-    virtual uint32_t GetCongestionWindow() override;
 };
 
 }  // namespace ns3

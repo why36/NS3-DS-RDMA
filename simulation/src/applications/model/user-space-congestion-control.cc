@@ -52,12 +52,4 @@ uint32_t WindowCongestionControl::GetAvailableSize() {
     }
 }
 
-LeapCC::LeapCC() {}
-
-void LeapCC::UpdateSignal(CongestionSignal& signal) {
-    mThrottled = (mWindow <= mInflight);
-    return;
-};
-uint32_t LeapCC::GetCongestionWindow() { return GetAvailableSize(); };
-
 }  // namespace ns3
