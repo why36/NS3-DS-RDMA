@@ -35,8 +35,8 @@
 #include <vector>
 
 #include "ns3/application.h"
+#include "ns3/chunking.h"
 #include "ns3/event-id.h"
-#include "ns3/floweg.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
 #include "ns3/rpc.h"

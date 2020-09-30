@@ -30,7 +30,7 @@ namespace ns3 {
 
 enum ChunkingType { DROP_BASED = 0, RTT_BASED, CONGESTION_BASED };
 
-using ChunkingSignal = struct {
+using ChunkingSignal = struct chunksignal {
     ChunkingType chunking_type;
 
     // drop-based chunking
@@ -68,14 +68,18 @@ class DropBasedChunking final : public ChunkingInterface {
 
 class LinearRTTChunking final : public ChunkingInterface {
    public:
-    LinearRTTChunking() : ChunkingInterface(ChunkingType::RTT_BASED){};
+    static TypeId GetTypeId();
+    LinearRTTChunking() : ChunkingInterface(ChunkingType::RTT_BASED), mCurrentChunkSize(4096){};
     ~LinearRTTChunking() override;
     uint32_t GetChunkSize(uint32_t window_limit) override;
     void UpdateChunkSize(ChunkingSignal &chunkingSignal) override;
 
     uint64_t mMinRTT;
     uint64_t mMaxRTT;
-    static uint64_t kSUnitSize;
+    static uint64_t kChunkingUnitSize;
+    static uint64_t kMaxUnitNum;
+
+    uint64_t mCurrentChunkSize;
 };
 
 }  // namespace ns3

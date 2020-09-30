@@ -32,7 +32,7 @@ def build(bld):
         'model/distributed-storage-client.cc',
         'model/user-space-connection.cc',
         'model/user-space-congestion-control.cc',
-        'model/floweg.cc',
+        'model/chunking.cc',
         'model/leapcc.cc',
         ]
 
@@ -77,7 +77,7 @@ def build(bld):
         'model/distributed-storage-client.h',
         'model/user-space-connection.h',
         'model/user-space-congestion-control.h',
-        'model/floweg.h',
+        'model/chunking.h',
         'model/leapcc.h',
         ]
 

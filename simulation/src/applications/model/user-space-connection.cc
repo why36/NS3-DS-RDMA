@@ -59,7 +59,7 @@ NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
     m_UCC = Create<LeapCC>();
-    m_chunking = Create<DropBasedChunking>();
+    m_chunking = Create<LinearRTTChunking>();
     m_reliability = Create<Reliability>();
     m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
     m_remainingSendingSize = 0;
@@ -214,6 +214,12 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     rtt.mRTT = 10;
     cc_implement->UpdateSignal(&rtt);
     cc_implement->DecreaseInflight(ackWC->size);  // A size is missing
+
+    ChunkingSignal chunkSignal;
+    chunkSignal.rtt = 10;
+    Ptr<LinearRTTChunking> chunksing = DynamicCast<LinearRTTChunking, ChunkingInterface>(m_chunking);
+    m_chunking->UpdateChunkSize(chunkSignal);
+
     m_reliability->AckWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
 }
 
