@@ -32,11 +32,11 @@ namespace ns3 {
  * of a SEND_LAST_WITH_IMM packet.
  */
 
-class FlowSegSizeTag : public Tag {
+class ChunkSizeTag : public Tag {
    public:
-    FlowSegSizeTag();
-    void SetFlowSegSize(uint32_t flowSegSize);
-    uint32_t GetFlowSegSize(void) const;
+    ChunkSizeTag();
+    void SetChunkSize(uint32_t chunkSize);
+    uint32_t GetChunkSize(void) const;
     static TypeId GetTypeId(void);
     virtual TypeId GetInstanceTypeId(void) const;
     virtual uint32_t GetSerializedSize(void) const;
@@ -45,7 +45,7 @@ class FlowSegSizeTag : public Tag {
     virtual void Print(std::ostream &os) const;
 
    private:
-    uint32_t m_flowSegSize;
+    uint32_t m_chunkSize;
 };
 
 class RPCSizeTag : public Tag {

@@ -59,7 +59,7 @@ NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
     m_UCC = Create<LeapCC>();
-    m_flowseg = Create<DropBasedFlowseg>();
+    m_chunking = Create<DropBasedChunking>();
     m_reliability = Create<Reliability>();
     m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
     m_remainingSendingSize = 0;
@@ -120,12 +120,12 @@ void UserSpaceConnection::SendNewRPC() {
 
     while (cc_size) {
         if (m_remainingSendingSize) {
-            uint32_t flowsegSize = m_flowseg->GetSegSize(cc_size);
+            uint32_t chunksize = m_chunking->GetChunkSize(cc_size);
             Ptr<IBVWorkRequest> wr;
-            if (m_remainingSendingSize > flowsegSize) {
+            if (m_remainingSendingSize > chunksize) {
                 wr = Create<IBVWorkRequest>();
-                wr->size = flowsegSize;
-            } else if (m_remainingSendingSize <= flowsegSize) {
+                wr->size = chunksize;
+            } else if (m_remainingSendingSize <= chunksize) {
                 wr = Create<IBVWorkRequest>(kLastTagNum);
                 wr->size = m_remainingSendingSize;
             }
@@ -135,15 +135,15 @@ void UserSpaceConnection::SendNewRPC() {
             wr->wr_id = m_reliability->GetWRid();
             wrid_tag->SetWRid(wr->wr_id);
 
-            Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
-            flowSegSizeTag->SetFlowSegSize(flowsegSize);
+            Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
+            chunkSizeTag->SetChunkSize(chunksize);
             Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
             rpcSizeTag->SetRPCSize(m_sendingRPC->m_rpc_size);
             Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
             RPCReqResTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
             RPCReqResTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags[0] = wrid_tag;
-            wr->tags[1] = flowSegSizeTag;
+            wr->tags[1] = chunkSizeTag;
             wr->tags[2] = rpcSizeTag;
             wr->tags[3] = RPCReqResTag;
             if (m_remainingSendingSize == wr->size) {
@@ -183,8 +183,8 @@ void UserSpaceConnection::SendNewRPC() {
 void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(4);  // There's only one slice
 
-    Ptr<FlowSegSizeTag> flowSegSizeTag = Create<FlowSegSizeTag>();
-    flowSegSizeTag->SetFlowSegSize(0);
+    Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
+    chunkSizeTag->SetChunkSize(0);
     Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
     rpcSizeTag->SetRPCSize(ACK_size);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
@@ -194,7 +194,7 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     // RPCReqResTag->SetRPCReqResType(0);
 
     m_sendAckWr->tags[0] = wrid_tag;
-    m_sendAckWr->tags[1] = flowSegSizeTag;
+    m_sendAckWr->tags[1] = chunkSizeTag;
     m_sendAckWr->tags[2] = rpcSizeTag;
     m_sendAckWr->tags[3] = RPCReqResTag;
     m_sendAckWr->tags[4] = rpcTotalOffsetTag;

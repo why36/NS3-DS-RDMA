@@ -19,23 +19,32 @@
  * Author: Yixiao(Krayecho) Gao <532820040@qq.com>
  *
  */
-#include "ns3/floweg.h"
+#include "floweg.h"
 
 #include "ns3/assert.h"
 #include "ns3/log.h"
 
+NS_LOG_COMPONENT_DEFINE("Chunking");
 namespace ns3 {
-NS_LOG_COMPONENT_DEFINE("DropBasedFlowseg");
-NS_OBJECT_ENSURE_REGISTERED(DropBasedFlowseg);
+NS_OBJECT_ENSURE_REGISTERED(DropBasedChunking);
+NS_OBJECT_ENSURE_REGISTERED(LinearRTTChunking);
 
-FlowsegInterface::~FlowsegInterface() {}
+ChunkingInterface::~ChunkingInterface() {}
 
-//delete function
-//DropBasedFlowseg::DropBasedFlowseg() {} 
+// delete function
+// DropBasedChunking::DropBasedChunking() {}
 
-DropBasedFlowseg::~DropBasedFlowseg() {}
+DropBasedChunking::~DropBasedChunking() {}
 
-void DropBasedFlowseg::UpdateSeg(FlowsegSignal &flowsegSignal) { return; };
+void DropBasedChunking::UpdateChunkSize(ChunkingSignal &chunkingSignal) { return; };
 
-uint32_t DropBasedFlowseg::GetSegSize(uint32_t window_limit) { return 4096; };
+uint32_t DropBasedChunking::GetChunkSize(uint32_t window_limit) { return 4096; };
+
+// RTTBased chunking
+LinearRTTChunking::~LinearRTTChunking(){};
+
+void LinearRTTChunking::UpdateChunkSize(ChunkingSignal &chunkingSignal) { return; };
+
+uint32_t LinearRTTChunking::GetChunkSize(uint32_t window_limit) { return 4096; };
+
 }  // Namespace ns3

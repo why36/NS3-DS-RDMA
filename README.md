@@ -18,9 +18,9 @@ We implement the transport layer of RDMA.
    - **SEND_WITH_IMM**(**WRITE** is the same as **SEND** in the behaviors of simulation)
 ## OpenRDMA (A flexible RDMA framework) [The paper is submitting]()
 ### RPC Framework
-### Flowseg Module
-   - Segment Module
-   - Rtt-based Flowseg Implement (Ongoing)
+### Chunking Module
+   - Chunking Module
+   - Rtt-based Chunking Implement (Ongoing)
 ### Congestion Control Module
    - Window Control
    - LEAP-CC (Ongoing)

@@ -37,7 +37,7 @@ enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_I
 static const int kTagsInWR = 8;
 static const int kDefaultTagNum = 4;
 static const int kLastTagNum = kDefaultTagNum + 1;
-// FlowSegSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
+// ChunkSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
 using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
 
 class RdmaQueuePair;

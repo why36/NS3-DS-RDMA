@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef FLOWSEG_H
-#define FLOWSEG_H
+#ifndef CHUNKING_H
+#define CHUNKING_H
 
 #include "ns3/object.h"
 #include "ns3/type-id.h"
@@ -28,48 +28,55 @@
 
 namespace ns3 {
 
-enum FlowsegType { DROP_BASED = 0, RTT_BASED, CONGESTION_BASED };
+enum ChunkingType { DROP_BASED = 0, RTT_BASED, CONGESTION_BASED };
 
-using FlowsegSignal = struct {
-    FlowsegType flowseg_type;
+using ChunkingSignal = struct {
+    ChunkingType chunking_type;
 
-    // drop-based flowseg
-    uint32_t segment_size;
+    // drop-based chunking
+    uint32_t chunk_size;
     bool dropped;
     uint64_t now_us;
 
-    // rtt-based flowseg
-    // congestion-based flowseg
+    // rtt-based chunking
+    uint64_t rtt;
+    // congestion-based chunking
 };
 
 // need a new constructor
-class FlowsegInterface : public Object {
+class ChunkingInterface : public Object {
    public:
-    FlowsegInterface() = delete;
-    FlowsegInterface(const FlowsegInterface &) = delete;
-    FlowsegInterface(FlowsegType type){
+    ChunkingInterface() = delete;
+    ChunkingInterface(const ChunkingInterface &) = delete;
+    ChunkingInterface(ChunkingType type) {}
+    virtual ~ChunkingInterface() = 0;
 
-    }
-    virtual ~FlowsegInterface() = 0;
-
-    virtual uint32_t GetSegSize(uint32_t window_limit) = 0;
-    virtual void UpdateSeg(FlowsegSignal &flowsegSignal) = 0;
+    virtual uint32_t GetChunkSize(uint32_t window_limit) = 0;
+    virtual void UpdateChunkSize(ChunkingSignal &chunkingSignal) = 0;
 
    private:
-    FlowsegType mFlowsegType;
+    ChunkingType mChunkingType;
 };
 
-class DropBasedFlowseg final : public FlowsegInterface {
+class DropBasedChunking final : public ChunkingInterface {
    public:
-    static TypeId GetTypeId() {
-        static TypeId tid = TypeId("ns3::DropBasedFlowseg").SetParent<Object>();
-        return tid;
-    }
-    DropBasedFlowseg():FlowsegInterface(FlowsegType::DROP_BASED){};
-    ~DropBasedFlowseg() override;
-    uint32_t GetSegSize(uint32_t window_limit) override;
-    void UpdateSeg(FlowsegSignal &flowsegSignal) override;
+    DropBasedChunking() : ChunkingInterface(ChunkingType::DROP_BASED){};
+    ~DropBasedChunking() override;
+    uint32_t GetChunkSize(uint32_t window_limit) override;
+    void UpdateChunkSize(ChunkingSignal &chunkingSignal) override;
+};
+
+class LinearRTTChunking final : public ChunkingInterface {
+   public:
+    LinearRTTChunking() : ChunkingInterface(ChunkingType::RTT_BASED){};
+    ~LinearRTTChunking() override;
+    uint32_t GetChunkSize(uint32_t window_limit) override;
+    void UpdateChunkSize(ChunkingSignal &chunkingSignal) override;
+
+    uint64_t mMinRTT;
+    uint64_t mMaxRTT;
+    static uint64_t kSUnitSize;
 };
 
 }  // namespace ns3
-#endif /* FLOWSEG_H */
+#endif /* CHUNKING_H */

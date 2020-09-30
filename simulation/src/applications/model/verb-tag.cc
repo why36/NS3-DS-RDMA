@@ -32,28 +32,28 @@ NS_LOG_COMPONENT_DEFINE("VerbTag");
 
 namespace ns3 {
 
-NS_OBJECT_ENSURE_REGISTERED(FlowSegSizeTag);
+NS_OBJECT_ENSURE_REGISTERED(ChunkSizeTag);
 
-FlowSegSizeTag::FlowSegSizeTag() { NS_LOG_FUNCTION(this); }
+ChunkSizeTag::ChunkSizeTag() { NS_LOG_FUNCTION(this); }
 
-void FlowSegSizeTag::SetFlowSegSize(uint32_t flowSegSize) { m_flowSegSize = flowSegSize; }
+void ChunkSizeTag::SetChunkSize(uint32_t chunkSize) { m_chunkSize = chunkSize; }
 
-uint32_t FlowSegSizeTag::GetFlowSegSize(void) const { return m_flowSegSize; }
+uint32_t ChunkSizeTag::GetChunkSize(void) const { return m_chunkSize; }
 
-TypeId FlowSegSizeTag::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::FlowSegSizeTag").SetParent<Tag>().AddConstructor<FlowSegSizeTag>();
+TypeId ChunkSizeTag::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::ChunkSizeTag").SetParent<Tag>().AddConstructor<ChunkSizeTag>();
     return tid;
 }
 
-TypeId FlowSegSizeTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+TypeId ChunkSizeTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
-uint32_t FlowSegSizeTag::GetSerializedSize(void) const { return sizeof(uint32_t); }
+uint32_t ChunkSizeTag::GetSerializedSize(void) const { return sizeof(uint32_t); }
 
-void FlowSegSizeTag::Serialize(TagBuffer i) const { i.WriteU32(m_flowSegSize); }
+void ChunkSizeTag::Serialize(TagBuffer i) const { i.WriteU32(m_chunkSize); }
 
-void FlowSegSizeTag::Deserialize(TagBuffer i) { m_flowSegSize = i.ReadU32(); }
+void ChunkSizeTag::Deserialize(TagBuffer i) { m_chunkSize = i.ReadU32(); }
 
-void FlowSegSizeTag::Print(std::ostream &os) const { os << "FlowSegSizeTag.flowSegSize(dec)=" << std::dec << m_flowSegSize; }
+void ChunkSizeTag::Print(std::ostream &os) const { os << "ChunkSizeTag.chunkSize(dec)=" << std::dec << m_chunkSize; }
 
 NS_OBJECT_ENSURE_REGISTERED(RPCSizeTag);
 
@@ -103,7 +103,7 @@ void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag
 
 NS_OBJECT_ENSURE_REGISTERED(RPCRequestResponseTypeIdTag);
 
-RPCRequestResponseTypeIdTag :: RPCRequestResponseTypeIdTag() { NS_LOG_FUNCTION(this); }
+RPCRequestResponseTypeIdTag ::RPCRequestResponseTypeIdTag() { NS_LOG_FUNCTION(this); }
 
 void RPCRequestResponseTypeIdTag::SetRPCReqResType(RPCType type) { m_type = type; }
 
@@ -161,7 +161,7 @@ void WRidTag::Serialize(TagBuffer i) const { i.WriteU64(m_wrid); }
 
 void WRidTag::Deserialize(TagBuffer i) { m_wrid = i.ReadU64(); }
 
-void WRidTag::Print(std::ostream &os) const { os << "WRidTag.flowSegSize(dec)=" << std::dec << m_wrid; }
+void WRidTag::Print(std::ostream &os) const { os << "WRidTag.chunkSize(dec)=" << std::dec << m_wrid; }
 
 }  // namespace ns3
 

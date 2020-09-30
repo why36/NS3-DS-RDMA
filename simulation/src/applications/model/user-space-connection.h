@@ -70,7 +70,7 @@ class UserSpaceConnection : public Object {
     UserSpaceConnection();
     void SendRPC(Ptr<RPC> rpc);
     Ptr<UserSpaceCongestionControl> m_UCC;
-    Ptr<FlowsegInterface> m_flowseg;
+    Ptr<ChunkingInterface> m_chunking;
     Ptr<Reliability> m_reliability;
 
     Ptr<RdmaAppQP> m_appQP;
