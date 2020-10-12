@@ -129,7 +129,7 @@ void UserSpaceConnection::SendNewRPC() {
                 wr = Create<IBVWorkRequest>(kLastTagNum);
                 wr->size = m_remainingSendingSize;
             }
-            wr->imm = ACKSeg::GetImm(m_sendingRPC->rpc_id, m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
+            wr->imm = ACKChunk::GetImm(m_sendingRPC->rpc_id, m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
             // tags assignment
             Ptr<WRidTag> wrid_tag = Create<WRidTag>();
             wr->wr_id = m_reliability->GetWRid();
@@ -148,12 +148,12 @@ void UserSpaceConnection::SendNewRPC() {
             wr->tags[3] = RPCReqResTag;
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
-                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]);
+                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
                 wr->tags[4] = rpcTotalOffsetTag;
-                // m_reliability->rpc_totalSeg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id,
-                // m_reliability->rpc_seg[m_sendingRPC->rpc_id]));
+                // m_reliability->rpc_totalChunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id,
+                // m_reliability->rpc_chunk[m_sendingRPC->rpc_id]));
             } else {
-                m_reliability->tx_rpc_seg[m_sendingRPC->rpc_id]++;
+                m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]++;
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
@@ -172,7 +172,7 @@ void UserSpaceConnection::SendNewRPC() {
                     m_sendingRPC = m_sendQueuingRPCs.front();
                     m_sendQueuingRPCs.pop();
                     m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
-                    m_reliability->tx_rpc_seg.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
+                    m_reliability->tx_rpc_chunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
                     m_remainingSendingSize = m_sendingRPC->m_rpc_size;
                 }
             }
@@ -227,15 +227,15 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
     if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
         SendAck(receivingIBVWC->imm, DynamicCast<WRidTag, Tag>(receivingIBVWC->tags[0]));
 
-        ACKSeg seg(receivingIBVWC->imm);
-        m_rpcAckBitMap->Set(seg.rpc_id, seg.segment_id);
+        ACKChunk chunk(receivingIBVWC->imm);
+        m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
 
         if (receivingIBVWC->mark_tag_num == kLastTagNum) {
-            m_reliability->rx_rpc_totalSeg[seg.rpc_id] =
+            m_reliability->rx_rpc_totalChunk[chunk.rpc_id] =
                 DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset();
         }
 
-        if (m_reliability->rx_rpc_totalSeg[seg.rpc_id] && m_rpcAckBitMap->Check(seg.rpc_id, m_reliability->rx_rpc_totalSeg[seg.rpc_id])) {
+        if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
             // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
             if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
                 Ptr<RpcResponse> response =
@@ -248,8 +248,8 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
         if (receivingIBVWC->mark_tag_num == kLastTagNum) {
-            ACKSeg seg(receivingIBVWC->imm);
-            if ((static_cast<uint16_t>(seg.segment_id)) ==
+            ACKChunk chunk(receivingIBVWC->imm);
+            if ((static_cast<uint16_t>(chunk.chunk_id)) ==
                 DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset()) {
                 if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
                     Ptr<RpcResponse> response =
