@@ -73,6 +73,7 @@ void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     // StartDequeueAndTransmit();
+    rpc->m_info.issue_time = Simulator::Now().GetMicroSeconds();
     m_sendQueuingRPCs.push(rpc);
     // StartDequeueAndTransmit();
     // SendRPC();
@@ -103,7 +104,7 @@ void UserSpaceConnection::SendRetransmissions() {
         wr->wr_id = m_reliability->GetWRid();
         Ptr<WRidTag> wrid_tag1 = Create<WRidTag>();
         wrid_tag1->SetWRid(wr->wr_id);
-        wr->tags[0] = wrid_tag1;
+        wr->tags.wrid_tag = wrid_tag1;
 
         m_appQP->PostSend(wr);
         m_reliability->InsertWWR(wr);
@@ -126,7 +127,7 @@ void UserSpaceConnection::SendNewRPC() {
                 wr = Create<IBVWorkRequest>();
                 wr->size = chunksize;
             } else if (m_remainingSendingSize <= chunksize) {
-                wr = Create<IBVWorkRequest>(kLastTagNum);
+                wr = Create<IBVWorkRequest>();
                 wr->size = m_remainingSendingSize;
             }
             wr->imm = ACKChunk::GetImm(m_sendingRPC->rpc_id, m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
@@ -142,18 +143,21 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
             RPCReqResTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
             RPCReqResTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
-            wr->tags[0] = wrid_tag;
-            wr->tags[1] = chunkSizeTag;
-            wr->tags[2] = rpcSizeTag;
-            wr->tags[3] = RPCReqResTag;
+            wr->tags.wrid_tag = wrid_tag;
+            wr->tags.chunksize_tag = chunkSizeTag;
+            wr->tags.rpcsize_tag = rpcSizeTag;
+            wr->tags.rpctype_tag = RPCReqResTag;
+
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
                 rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
-                wr->tags[4] = rpcTotalOffsetTag;
+                wr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
+                wr->tags.mark_tag_bits = kLastTagPayloadBits;
                 // m_reliability->rpc_totalChunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id,
                 // m_reliability->rpc_chunk[m_sendingRPC->rpc_id]));
             } else {
                 m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]++;
+                wr->tags.mark_tag_bits = kGeneralTagPayloadBits;
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
             m_appQP->PostSend(wr);
@@ -181,7 +185,7 @@ void UserSpaceConnection::SendNewRPC() {
 };
 
 void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
-    Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>(4);  // There's only one slice
+    Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>();  // There's only one slice
 
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
     chunkSizeTag->SetChunkSize(0);
@@ -193,11 +197,12 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     RPCReqResTag->SetRPCReqResId(0);
     // RPCReqResTag->SetRPCReqResType(0);
 
-    m_sendAckWr->tags[0] = wrid_tag;
-    m_sendAckWr->tags[1] = chunkSizeTag;
-    m_sendAckWr->tags[2] = rpcSizeTag;
-    m_sendAckWr->tags[3] = RPCReqResTag;
-    m_sendAckWr->tags[4] = rpcTotalOffsetTag;
+    m_sendAckWr->tags.wrid_tag = wrid_tag;
+    m_sendAckWr->tags.chunksize_tag = chunkSizeTag;
+    m_sendAckWr->tags.rpcsize_tag = rpcSizeTag;
+    m_sendAckWr->tags.rpctype_tag = RPCReqResTag;
+    m_sendAckWr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
+    m_sendAckWr->tags.mark_tag_bits = kLastTagPayloadBits;
     m_sendAckWr->size = ACK_size;  // ack size
     m_ackQP->PostSendAck(m_sendAckWr);
 }
@@ -220,43 +225,39 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     Ptr<LinearRTTChunking> chunksing = DynamicCast<LinearRTTChunking, ChunkingInterface>(m_chunking);
     m_chunking->UpdateChunkSize(chunkSignal);
 
-    m_reliability->AckWR(ackWC->imm, DynamicCast<WRidTag, Tag>(ackWC->tags[0])->GetWRid());
+    m_reliability->AckWR(ackWC->imm, ackWC->tags.wrid_tag->GetWRid());
 }
 
 void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
     if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
-        SendAck(receivingIBVWC->imm, DynamicCast<WRidTag, Tag>(receivingIBVWC->tags[0]));
+        SendAck(receivingIBVWC->imm, receivingIBVWC->tags.wrid_tag);
 
         ACKChunk chunk(receivingIBVWC->imm);
         m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
 
-        if (receivingIBVWC->mark_tag_num == kLastTagNum) {
-            m_reliability->rx_rpc_totalChunk[chunk.rpc_id] =
-                DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset();
+        if (receivingIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
+            m_reliability->rx_rpc_totalChunk[chunk.rpc_id] = receivingIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset();
         }
 
         if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
             // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
-            if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
-                Ptr<RpcResponse> response =
-                    Create<RpcResponse>(128, DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
+            if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Request) {
+                Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
                 SendRPC(response);
-            } else if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Response) {
-                KeepKRpc(DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
+            } else if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Response) {
+                KeepKRpc(receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
             }
         }
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
-        if (receivingIBVWC->mark_tag_num == kLastTagNum) {
+        if (receivingIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
             ACKChunk chunk(receivingIBVWC->imm);
-            if ((static_cast<uint16_t>(chunk.chunk_id)) ==
-                DynamicCast<RPCTotalOffsetTag, Tag>(receivingIBVWC->tags[kLastTagNum - 1])->GetRPCTotalOffset()) {
-                if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Request) {
-                    Ptr<RpcResponse> response =
-                        Create<RpcResponse>(128, DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
+            if ((static_cast<uint16_t>(chunk.chunk_id)) == receivingIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
+                if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Request) {
+                    Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
                     SendRPC(response);
-                } else if (DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResType() == RPCType::Response) {
-                    KeepKRpc(DynamicCast<RPCRequestResponseTypeIdTag, Tag>(receivingIBVWC->tags[3])->GetRPCReqResId());
+                } else if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Response) {
+                    KeepKRpc(receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
                 }
             }
         }
@@ -282,6 +283,13 @@ void UserSpaceConnection::KeepKRpc(uint64_t response_id) {
     it = RPCRequestMap.find(response_id);
     NS_ASSERT_MSG(it != RPCRequestMap.end(), "Received an invalid response.");
     if (it != RPCRequestMap.end()) {
+        rpc_latency[record_index++] = Simulator::Now().GetMicroSeconds() - it->second->m_info.issue_time;
+        if (record_index == kMaxRecordNumber) {
+            for (int i = 0; i < kMaxRecordNumber; i++) {
+                output << rpc_latency[i] << "\n";
+            }
+            record_index = 0;
+        }
         RPCRequestMap.erase(it);
     }
     while (RPCRequestMap.size() <= kRPCRequest) {

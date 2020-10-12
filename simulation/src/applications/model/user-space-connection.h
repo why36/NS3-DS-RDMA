@@ -105,6 +105,12 @@ class UserSpaceConnection : public Object {
     std::map<uint64_t, Ptr<RPC>> RPCRequestMap;
     std::map<uint64_t, Ptr<RPC>>::iterator it;
 
+    static const uint8_t kMaxRecordNumber = 100;
+    std::array<uint64_t, kMaxRecordNumber> rpc_latency;
+    uint8_t record_index = 0;
+
+    std::ostream& output = std::cout;
+
     void init();
     void SendKRpc();
     void KeepKRpc(uint64_t response_id);

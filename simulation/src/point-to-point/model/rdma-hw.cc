@@ -355,14 +355,11 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             if (!CheckOpcodeOperationSupported(ch.udp.ibh)) {
                 x = RCSeqState::GENERATE_NACK;
             }
-            if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-                ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
+            if (LastPacketTag::HasLastPacketTag(ch.udp.ibh.GetOpCode().GetOpCodeOperation())) {
                 // need to do something about completion, collect verbs successfully
                 LastPacketTag tag;
                 p->PeekPacketTag(tag);
-                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
+                Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().tags.mark_tag_bits);
                 wc->imm = tag.GetIBV_WR().imm;
                 wc->isTx = false;
                 wc->qp = rxQp;
@@ -420,13 +417,10 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
     UCSeqState x = UCReceiverCheckSeq(ch, rxQp, payload_size);
     if (x == UCSeqState::OK) {
         // need to do something to complete, collect verbs successfully.
-        if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
-            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY ||
-            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
-            ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST) {
+        if (LastPacketTag::HasLastPacketTag(ch.udp.ibh.GetOpCode().GetOpCodeOperation())) {
             LastPacketTag tag;
             p->PeekPacketTag(tag);
-            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
+            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().tags.mark_tag_bits);
             wc->imm = tag.GetIBV_WR().imm;
             wc->isTx = false;
             wc->qp = rxQp;
@@ -441,7 +435,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
             LastPacketTag tag;
             p->PeekPacketTag(tag);
-            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().mark_tag_num);
+            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().tags.mark_tag_bits);
             wc->imm = tag.GetIBV_WR().imm;
             wc->isTx = false;
             wc->qp = rxQp;

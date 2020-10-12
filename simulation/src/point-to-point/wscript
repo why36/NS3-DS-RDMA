@@ -54,6 +54,7 @@ def build(bld):
 		'model/pint.h',
 		'helper/sim-setting.h',
         'model/last-packet-tag.h',
+        'model/rdma.h',
         ]
 
     if (bld.env['ENABLE_EXAMPLES']):

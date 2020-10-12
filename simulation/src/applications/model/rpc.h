@@ -35,6 +35,7 @@
 */
 //#include "rpc-request.h"
 #include <ns3/object.h>
+
 #include "ns3/uinteger.h"
 namespace ns3 {
 /*
@@ -83,12 +84,18 @@ private:
 */
 enum class RPCType { Request = 0, Response = 1 };
 
+using RPCInfo = struct rpc_info {
+    uint64_t issue_time;
+    uint64_t send_completion_time;
+};
+
 class RPC : public Object {
    public:
     uint32_t rpc_id;
     uint32_t m_rpc_size;
     uint64_t m_reqres_id;  // request or response id
     RPCType m_rpc_type;
+    RPCInfo m_info;
     RPC();
     RPC(uint64_t id, uint32_t size, RPCType type) : m_reqres_id(id), m_rpc_size(size), m_rpc_type(type) {}
 };

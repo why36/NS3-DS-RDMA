@@ -181,27 +181,27 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
             return p;
         }
     }
-    uint32_t size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
-    m_remainingSize -= size;
+    uint32_t send_size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
+    m_remainingSize -= send_size;
 
     IBHeader ibheader;
     ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
 
-    if (m_sendingWr->size == size) {
+    if (m_sendingWr->size == send_size) {  // WR generate only one packet
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-    } else if (m_remainingSize == 0 && m_sendingWr->size != size) {
+    } else if (m_remainingSize == 0) {  // WR generate more than one packet, this is the last one
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
-    } else if (m_remainingSize != 0) {
-        if (size + m_remainingSize == m_sendingWr->size) {
+    } else if (m_remainingSize != 0) {                           // WR generate more than one packet. this is not the last one
+        if (send_size + m_remainingSize == m_sendingWr->size) {  // WR generate more than one packet. this is the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
-        } else {
+        } else {  // WR generate more than one packet. this is neither the last one nor the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
         }
     }
 
-    Ptr<Packet> packet = Create<Packet>(size);
+    Ptr<Packet> packet = Create<Packet>(send_size);
 
-    if (m_remainingSize == 0) {
+    if (LastPacketTag::HasLastPacketTag(ibheader.GetOpCode().GetOpCodeOperation())) {  // if this is the last packet, add Tags
         LastPacketTag last_pack_tag;
         IBVWorkRequest tmp_sendingWr;
         tmp_sendingWr.verb = IBVerb::IBV_SEND_WITH_IMM;
@@ -213,7 +213,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
         packet->AddPacketTag(last_pack_tag);
 
         if (m_connectionAttr.qp_type == QPType::RDMA_UC) {
-            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(m_sendingWr->mark_tag_num);
+            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(m_sendingWr->tags.mark_tag_bits);
             wc->imm = m_sendingWr->imm;
             wc->isTx = true;
             wc->qp = this;
@@ -262,7 +262,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
     packet->AddHeader(ppp);
 
     // update state
-    snd_nxt += size;
+    snd_nxt += send_size;
     m_ipid++;
 
     return packet;

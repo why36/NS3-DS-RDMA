@@ -29,16 +29,94 @@
 #include "ns3/pointer.h"
 #include "ns3/tag.h"
 #include "ns3/uinteger.h"
-//#include "ns3/rdma-queue-pair.h"
+#include "ns3/verb-tag.h"
 
 namespace ns3 {
 
 enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM };
-static const int kTagsInWR = 8;
-static const int kDefaultTagNum = 4;
-static const int kLastTagNum = kDefaultTagNum + 1;
 // ChunkSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
-using TagPayload = std::array<Ptr<Tag>, kTagsInWR>;
+
+class RdmaQueuePair;
+
+// ChunkSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
+enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPCSIZE, RPCTYPEID, RPCTOTALOFFSET };
+
+static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPCSIZE) | (1 << RPCTOTALOFFSET);
+static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | (1 << RPCTOTALOFFSET);
+
+using TagPayload = struct tag_payload {
+    uint8_t mark_tag_bits;
+    Ptr<WRidTag> wrid_tag;
+    Ptr<ChunkSizeTag> chunksize_tag;
+    Ptr<RPCSizeTag> rpcsize_tag;
+    Ptr<RPCRequestResponseTypeIdTag> rpctype_tag;
+    Ptr<RPCTotalOffsetTag> rpctotaloffset_tag;
+    inline void Serialize(TagBuffer i) const;
+    inline void Deserialize(TagBuffer i);
+    inline uint32_t GetSerializedSize() const;
+};
+
+void TagPayload::Serialize(TagBuffer i) const {
+    if (mark_tag_bits & (1 << WRID)) {
+        wrid_tag->Serialize(i);
+    }
+    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+        chunksize_tag->Serialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCSIZE)) {
+        rpcsize_tag->Serialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCTYPEID)) {
+        rpctype_tag->Serialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+        rpctotaloffset_tag->Serialize(i);
+    }
+}
+
+void TagPayload::Deserialize(TagBuffer i) {
+    NS_ASSERT(!wrid_tag && !chunksize_tag && !rpcsize_tag && !rpcsize_tag && !rpctotaloffset_tag);
+    if (mark_tag_bits & (1 << WRID)) {
+        wrid_tag = Create<WRidTag>();
+        wrid_tag->Deserialize(i);
+    }
+    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+        chunksize_tag = Create<ChunkSizeTag>();
+        chunksize_tag->Deserialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCSIZE)) {
+        rpcsize_tag = Create<RPCSizeTag>();
+        rpcsize_tag->Deserialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCTYPEID)) {
+        rpctype_tag = Create<RPCRequestResponseTypeIdTag>();
+        rpctype_tag->Deserialize(i);
+    }
+    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+        rpctotaloffset_tag = Create<RPCTotalOffsetTag>();
+        rpctotaloffset_tag->Deserialize(i);
+    }
+}
+
+inline uint32_t TagPayload::GetSerializedSize() const {
+    uint32_t size = 0;
+    if (mark_tag_bits & (1 << WRID)) {
+        size += wrid_tag->GetSerializedSize();
+    }
+    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+        size += chunksize_tag->GetSerializedSize();
+    }
+    if (mark_tag_bits & (1 << RPCSIZE)) {
+        size += rpcsize_tag->GetSerializedSize();
+    }
+    if (mark_tag_bits & (1 << RPCTYPEID)) {
+        size += rpctype_tag->GetSerializedSize();
+    }
+    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+        size += rpctotaloffset_tag->GetSerializedSize();
+    }
+    return size;
+};
 
 class RdmaQueuePair;
 using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
@@ -46,25 +124,23 @@ using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
     uint32_t size;
     uint32_t imm;
     TagPayload tags;
-    uint8_t mark_tag_num;
     // to do. Krayecho: serialized this
     uint64_t wr_id;
 
-    ibv_wr() : mark_tag_num(kDefaultTagNum) {}
-    ibv_wr(int _mark_tag_num) : mark_tag_num(_mark_tag_num) {}
+    ibv_wr() { tags.mark_tag_bits = kGeneralTagPayloadBits; }
+    ibv_wr(int _mark_tag_bits) { tags.mark_tag_bits = _mark_tag_bits; };
 };
 
 using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
-    RdmaQueuePair* qp;
+    Ptr<RdmaQueuePair> qp;
     IBVerb verb;
     bool isTx;
     uint32_t size;
     uint32_t imm;
     uint64_t time_in_us;
     TagPayload tags;
-    int mark_tag_num = kTagsInWR;
-    ibv_wc() : mark_tag_num(kDefaultTagNum){};
-    ibv_wc(int _mark_tag_num) : mark_tag_num(_mark_tag_num){};
+    ibv_wc() { tags.mark_tag_bits = kGeneralTagPayloadBits; };
+    ibv_wc(int _mark_tag_bits) { tags.mark_tag_bits = _mark_tag_bits; };
 };
 
 // 20200708

@@ -22,32 +22,37 @@
 #ifndef LAST_PACKET_TAG_H
 #define LAST_PACKET_TAG_H
 
-#include "ns3/tag.h"
 #include "ns3/rdma-queue-pair.h"
+#include "ns3/tag.h"
 
 namespace ns3 {
-
 
 /**
  * \brief This class implements a tag that carries the information about verbs
  * of a SEND_LAST_WITH_IMM packet.
  */
-    class LastPacketTag : public Tag 
-    {
-        public:
-            LastPacketTag();
-            void SetIBV_WR(IBVWorkRequest ibv_wr);
-            IBVWorkRequest GetIBV_WR(void) const;
+class LastPacketTag : public Tag {
+   public:
+    LastPacketTag();
+    void SetIBV_WR(IBVWorkRequest ibv_wr);
+    IBVWorkRequest GetIBV_WR(void) const;
+    inline static bool HasLastPacketTag(OpCodeOperation op);
 
-            static TypeId GetTypeId(void);
-            virtual TypeId GetInstanceTypeId(void) const;
-            virtual uint32_t GetSerializedSize(void) const;
-            virtual void Serialize(TagBuffer i) const;
-            virtual void Deserialize(TagBuffer i);
-            virtual void Print(std::ostream &os) const;
-        private:
-            IBVWorkRequest m_ibv_wr;
-    };
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    IBVWorkRequest m_ibv_wr;
+};
+
+inline bool LastPacketTag::HasLastPacketTag(OpCodeOperation op) {
+    return (op == OpCodeOperation::SEND_LAST_WITH_IMM || op == OpCodeOperation::SEND_LAST || op == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+            op == OpCodeOperation::SEND_ONLY);
+};
 
 }  // namespace ns3
 
