@@ -48,11 +48,17 @@ class ChunkSizeTag : public Tag {
     uint32_t m_chunkSize;
 };
 
-class RPCSizeTag : public Tag {
+// RPCTag consists of RPCSizeTag and RPCRequestResponseTypeIdTag
+
+class RPCTag {
    public:
-    RPCSizeTag();
+    RPCTag();
     void SetRPCSize(uint32_t rpcSize);
+    void SetRPCReqResType(RPCType type);
+    void SetRPCReqResId(uint64_t reqres_id);
     uint32_t GetRPCSize(void) const;
+    RPCType GetRPCReqResType(void) const;
+    uint64_t GetRPCReqResId(void) const;
     static TypeId GetTypeId(void);
     virtual TypeId GetInstanceTypeId(void) const;
     virtual uint32_t GetSerializedSize(void) const;
@@ -62,7 +68,9 @@ class RPCSizeTag : public Tag {
 
    private:
     uint32_t m_rpcSize;
-};
+    RPCType m_type;
+    uint64_t m_reqres_id;
+}
 
 class RPCTotalOffsetTag : public Tag {
    public:
@@ -78,6 +86,39 @@ class RPCTotalOffsetTag : public Tag {
 
    private:
     uint16_t m_rpcTotalOffest;
+};
+
+class WRidTag : public Tag {
+   public:
+    WRidTag();
+    void SetWRid(uint64_t wrid);
+    uint64_t GetWRid(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    uint64_t m_wrid;
+};
+/*
+// change to RPCTag
+class RPCSizeTag : public Tag {
+   public:
+    RPCSizeTag();
+    void SetRPCSize(uint32_t rpcSize);
+    uint32_t GetRPCSize(void) const;
+    static TypeId GetTypeId(void);
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+   private:
+    uint32_t m_rpcSize;
 };
 
 class RPCRequestResponseTypeIdTag : public Tag {
@@ -98,23 +139,7 @@ class RPCRequestResponseTypeIdTag : public Tag {
     RPCType m_type;
     uint64_t m_reqres_id;
 };
-
-class WRidTag : public Tag {
-   public:
-    WRidTag();
-    void SetWRid(uint64_t wrid);
-    uint64_t GetWRid(void) const;
-    static TypeId GetTypeId(void);
-    virtual TypeId GetInstanceTypeId(void) const;
-    virtual uint32_t GetSerializedSize(void) const;
-    virtual void Serialize(TagBuffer i) const;
-    virtual void Deserialize(TagBuffer i);
-    virtual void Print(std::ostream &os) const;
-
-   private:
-    uint64_t m_wrid;
-};
-
+*/
 }  // namespace ns3
 
 #endif /* VERB_TAG_H */

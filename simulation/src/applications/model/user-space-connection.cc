@@ -138,15 +138,14 @@ void UserSpaceConnection::SendNewRPC() {
 
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
-            Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-            rpcSizeTag->SetRPCSize(m_sendingRPC->m_rpc_size);
-            Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-            RPCReqResTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
-            RPCReqResTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
+            Ptr<RPCTag> rpcTag = Create<RPCTag>();
+            rpcTag->SetRPCSize(m_sendingRPC->m_rpc_size);
+            rpcTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
+            rpcTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags.wrid_tag = wrid_tag;
             wr->tags.chunksize_tag = chunkSizeTag;
-            wr->tags.rpcsize_tag = rpcSizeTag;
-            wr->tags.rpctype_tag = RPCReqResTag;
+            wr->tags.rpc_tag = rpcTag;
+
 
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
@@ -189,18 +188,17 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
 
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
     chunkSizeTag->SetChunkSize(0);
-    Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-    rpcSizeTag->SetRPCSize(ACK_size);
+    Ptr<RPCTag> rpcTag = Create<RPCTag>();
+    rpcTag->SetRPCSize(ACK_size);
+    rpcTag->SetRPCReqResId->SetRPCReqResId(0);
+    // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
-    Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-    RPCReqResTag->SetRPCReqResId(0);
-    // RPCReqResTag->SetRPCReqResType(0);
+
 
     m_sendAckWr->tags.wrid_tag = wrid_tag;
     m_sendAckWr->tags.chunksize_tag = chunkSizeTag;
-    m_sendAckWr->tags.rpcsize_tag = rpcSizeTag;
-    m_sendAckWr->tags.rpctype_tag = RPCReqResTag;
+    m_sendAckWr->tags.rpc_tag = rpcTag;
     m_sendAckWr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
     m_sendAckWr->tags.mark_tag_bits = kLastTagPayloadBits;
     m_sendAckWr->size = ACK_size;  // ack size
