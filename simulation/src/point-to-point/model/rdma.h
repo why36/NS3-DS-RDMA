@@ -34,22 +34,20 @@
 namespace ns3 {
 
 enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM };
-// ChunkSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
-
+// ChunkSizeTag,RPCTag,RPCTotalOffsetTag(optional)
 class RdmaQueuePair;
 
-// ChunkSizeTag,RPCSizeTag,RPCRequestResponseTypeIdTag,RPCTotalOffsetTag(optional)
-enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPCSIZE, RPCTYPEID, RPCTOTALOFFSET };
+// ChunkSizeTag,RPCTag,RPCTotalOffsetTag(optional)
+enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPCTAG, RPCTOTALOFFSET };
 
-static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPCSIZE) | (1 << RPCTOTALOFFSET);
+static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPCTAG);
 static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | (1 << RPCTOTALOFFSET);
 
 using TagPayload = struct tag_payload {
     uint8_t mark_tag_bits;
     Ptr<WRidTag> wrid_tag;
     Ptr<ChunkSizeTag> chunksize_tag;
-    Ptr<RPCSizeTag> rpcsize_tag;
-    Ptr<RPCRequestResponseTypeIdTag> rpctype_tag;
+    Ptr<RPCTag> rpc_tag;
     Ptr<RPCTotalOffsetTag> rpctotaloffset_tag;
     inline void Serialize(TagBuffer i) const;
     inline void Deserialize(TagBuffer i);
@@ -63,11 +61,8 @@ void TagPayload::Serialize(TagBuffer i) const {
     if (mark_tag_bits & (1 << CHUNKSIZE)) {
         chunksize_tag->Serialize(i);
     }
-    if (mark_tag_bits & (1 << RPCSIZE)) {
-        rpcsize_tag->Serialize(i);
-    }
-    if (mark_tag_bits & (1 << RPCTYPEID)) {
-        rpctype_tag->Serialize(i);
+    if (mark_tag_bits & (1 << RPCTAG)) {
+        rpc_tag->Serialize(i);
     }
     if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
         rpctotaloffset_tag->Serialize(i);
@@ -75,7 +70,7 @@ void TagPayload::Serialize(TagBuffer i) const {
 }
 
 void TagPayload::Deserialize(TagBuffer i) {
-    NS_ASSERT(!wrid_tag && !chunksize_tag && !rpcsize_tag && !rpcsize_tag && !rpctotaloffset_tag);
+    NS_ASSERT(!wrid_tag && !chunksize_tag && !rpc_tag && !rpctotaloffset_tag);
     if (mark_tag_bits & (1 << WRID)) {
         wrid_tag = Create<WRidTag>();
         wrid_tag->Deserialize(i);
@@ -84,13 +79,9 @@ void TagPayload::Deserialize(TagBuffer i) {
         chunksize_tag = Create<ChunkSizeTag>();
         chunksize_tag->Deserialize(i);
     }
-    if (mark_tag_bits & (1 << RPCSIZE)) {
-        rpcsize_tag = Create<RPCSizeTag>();
-        rpcsize_tag->Deserialize(i);
-    }
-    if (mark_tag_bits & (1 << RPCTYPEID)) {
-        rpctype_tag = Create<RPCRequestResponseTypeIdTag>();
-        rpctype_tag->Deserialize(i);
+    if (mark_tag_bits & (1 << RPCTAG)) {
+        rpc_tag = Create<RPCTag>();
+        rpc_tag->Deserialize(i);
     }
     if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
         rpctotaloffset_tag = Create<RPCTotalOffsetTag>();
@@ -106,11 +97,8 @@ inline uint32_t TagPayload::GetSerializedSize() const {
     if (mark_tag_bits & (1 << CHUNKSIZE)) {
         size += chunksize_tag->GetSerializedSize();
     }
-    if (mark_tag_bits & (1 << RPCSIZE)) {
-        size += rpcsize_tag->GetSerializedSize();
-    }
-    if (mark_tag_bits & (1 << RPCTYPEID)) {
-        size += rpctype_tag->GetSerializedSize();
+    if (mark_tag_bits & (1 << RPCTAG)) {
+        size += rpc_tag->GetSerializedSize();
     }
     if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
         size += rpctotaloffset_tag->GetSerializedSize();

@@ -1,8 +1,10 @@
 
 # Introduction
 This is NS-3 simulation for RDMA.
-*This project is developed based on the simulator of HPCC developed by Rui Miao (miao.rui@alibaba-inc.com).*
+*This project is developed based on the simulator of HPCC.*
 We implement the transport layer of RDMA.
+You can contact Krayecho Yx (<mrgaoxx@smail.nju.edu.cn> (maybe filterd by NJU) / <532820040@qq.com>).
+
    
 ## RDMA QPs
 ### QP Types

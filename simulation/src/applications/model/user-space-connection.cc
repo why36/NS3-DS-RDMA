@@ -137,16 +137,15 @@ void UserSpaceConnection::SendNewRPC() {
 
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
-            Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
+            Ptr<RPCTag> rpcTag = Create<RPCTag>();
             uint32_t rpc_size = (m_sendingRPC->m_rpc_type==RPCType::Request)?m_sendingRPC->m_request_size:m_sendingRPC->m_response_size;
-            rpcSizeTag->SetRPCSize(rpc_size);
-            Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-            RPCReqResTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
-            RPCReqResTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
+            rpcTag->SetRPCSize(rpc_size);
+            rpcTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
+            rpcTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags.wrid_tag = wrid_tag;
             wr->tags.chunksize_tag = chunkSizeTag;
-            wr->tags.rpcsize_tag = rpcSizeTag;
-            wr->tags.rpctype_tag = RPCReqResTag;
+            wr->tags.rpc_tag = rpcTag;
+
 
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
@@ -189,18 +188,17 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
 
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
     chunkSizeTag->SetChunkSize(0);
-    Ptr<RPCSizeTag> rpcSizeTag = Create<RPCSizeTag>();
-    rpcSizeTag->SetRPCSize(ACK_size);
+    Ptr<RPCTag> rpcTag = Create<RPCTag>();
+    rpcTag->SetRPCSize(ACK_size);
+    rpcTag->SetRPCReqResId(0);
+    // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
-    Ptr<RPCRequestResponseTypeIdTag> RPCReqResTag = Create<RPCRequestResponseTypeIdTag>();
-    RPCReqResTag->SetRPCReqResId(0);
-    // RPCReqResTag->SetRPCReqResType(0);
+
 
     m_sendAckWr->tags.wrid_tag = wrid_tag;
     m_sendAckWr->tags.chunksize_tag = chunkSizeTag;
-    m_sendAckWr->tags.rpcsize_tag = rpcSizeTag;
-    m_sendAckWr->tags.rpctype_tag = RPCReqResTag;
+    m_sendAckWr->tags.rpc_tag = rpcTag;
     m_sendAckWr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
     m_sendAckWr->tags.mark_tag_bits = kLastTagPayloadBits;
     m_sendAckWr->size = ACK_size;  // ack size
@@ -247,27 +245,17 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
 
         if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
             //to do. Krayecho Yx: fix this
-            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id,rxIBVWC->tags.rpcsize_tag->GetRPCSize(),rxIBVWC->tags.rpcsize_tag->GetRPCSize(),rxIBVWC->tags.rpctype_tag->GetRPCReqResType());
+            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id,rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCReqResType());
             m_receiveRPCCB(rpc);
  
-            // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
-            /*
-            if (rxIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Request) {
-                Ptr<RpcResponse> response = Create<RpcResponse>(128, rxIBVWC->tags.rpctype_tag->GetRPCReqResId());
-                SendRPC(response);
-            } else if (rxIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Response) {
-                KeepKRpc(rxIBVWC->tags.rpctype_tag->GetRPCReqResId());
-            }
-            */
         }
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
             ACKChunk chunk(rxIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                //to do: Krayecho Yx: fix this
-                Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpcsize_tag->GetRPCSize(),rxIBVWC->tags.rpcsize_tag->GetRPCSize(),rxIBVWC->tags.rpctype_tag->GetRPCReqResType());
-                m_receiveRPCCB(rpc);
+                 Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id,rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+                 m_receiveRPCCB(rpc);
             }
         }
     }
