@@ -50,7 +50,7 @@ class ChunkSizeTag : public Tag {
 
 // RPCTag consists of RPCSizeTag and RPCRequestResponseTypeIdTag
 
-class RPCTag {
+class RPCTag : public Tag {
    public:
     RPCTag();
     void SetRPCSize(uint32_t rpcSize);
@@ -70,7 +70,7 @@ class RPCTag {
     uint32_t m_rpcSize;
     RPCType m_type;
     uint64_t m_reqres_id;
-}
+};
 
 class RPCTotalOffsetTag : public Tag {
    public:

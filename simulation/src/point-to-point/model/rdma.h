@@ -38,9 +38,9 @@ enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_I
 class RdmaQueuePair;
 
 // ChunkSizeTag,RPCTag,RPCTotalOffsetTag(optional)
-enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPC, RPCTOTALOFFSET };
+enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPCTAG, RPCTOTALOFFSET };
 
-static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPC);
+static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPCTAG);
 static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | (1 << RPCTOTALOFFSET);
 
 using TagPayload = struct tag_payload {
@@ -61,7 +61,7 @@ void TagPayload::Serialize(TagBuffer i) const {
     if (mark_tag_bits & (1 << CHUNKSIZE)) {
         chunksize_tag->Serialize(i);
     }
-    if (mark_tag_bits & (1 << RPC)) {
+    if (mark_tag_bits & (1 << RPCTAG)) {
         rpc_tag->Serialize(i);
     }
     if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
@@ -79,7 +79,7 @@ void TagPayload::Deserialize(TagBuffer i) {
         chunksize_tag = Create<ChunkSizeTag>();
         chunksize_tag->Deserialize(i);
     }
-    if (mark_tag_bits & (1 << RPC)) {
+    if (mark_tag_bits & (1 << RPCTAG)) {
         rpc_tag = Create<RPCTag>();
         rpc_tag->Deserialize(i);
     }
@@ -97,7 +97,7 @@ inline uint32_t TagPayload::GetSerializedSize() const {
     if (mark_tag_bits & (1 << CHUNKSIZE)) {
         size += chunksize_tag->GetSerializedSize();
     }
-    if (mark_tag_bits & (1 << RPC)) {
+    if (mark_tag_bits & (1 << RPCTAG)) {
         size += rpc_tag->GetSerializedSize();
     }
     if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {

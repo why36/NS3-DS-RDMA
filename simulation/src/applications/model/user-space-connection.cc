@@ -190,7 +190,7 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     chunkSizeTag->SetChunkSize(0);
     Ptr<RPCTag> rpcTag = Create<RPCTag>();
     rpcTag->SetRPCSize(ACK_size);
-    rpcTag->SetRPCReqResId->SetRPCReqResId(0);
+    rpcTag->SetRPCReqResId(0);
     // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
@@ -239,11 +239,11 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
 
         if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
             // if it identifies as a request, then reply with a Response ,also SendRPC(rpc);
-            if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Request) {
-                Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
+            if (receivingIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Request) {
+                Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpc_tag->GetRPCReqResId());
                 SendRPC(response);
-            } else if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Response) {
-                KeepKRpc(receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
+            } else if (receivingIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Response) {
+                KeepKRpc(receivingIBVWC->tags.rpc_tag->GetRPCReqResId());
             }
         }
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
@@ -251,11 +251,11 @@ void UserSpaceConnection::ReceiveIBVWC(Ptr<IBVWorkCompletion> receivingIBVWC) {
         if (receivingIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
             ACKChunk chunk(receivingIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == receivingIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Request) {
-                    Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
+                if (receivingIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Request) {
+                    Ptr<RpcResponse> response = Create<RpcResponse>(128, receivingIBVWC->tags.rpc_tag->GetRPCReqResId());
                     SendRPC(response);
-                } else if (receivingIBVWC->tags.rpctype_tag->GetRPCReqResType() == RPCType::Response) {
-                    KeepKRpc(receivingIBVWC->tags.rpctype_tag->GetRPCReqResId());
+                } else if (receivingIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Response) {
+                    KeepKRpc(receivingIBVWC->tags.rpc_tag->GetRPCReqResId());
                 }
             }
         }
