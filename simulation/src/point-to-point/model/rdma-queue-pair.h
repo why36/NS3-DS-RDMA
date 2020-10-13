@@ -163,7 +163,6 @@ class RdmaQueuePair : public Object {
     void setRdmaHw(Ptr<RdmaHw> _rdmaHw);
     // app-specified
     Time startTime;
-    Callback<void> m_notifyAppFinish;
     Callback<void, Ptr<IBVWorkCompletion>> m_notifyCompletion;
 
     // connection
@@ -206,7 +205,6 @@ class RdmaQueuePair : public Object {
     RdmaQueuePair(const QPConnectionAttr& attr);
 
     void SetSize(uint64_t size);
-    void SetAppNotifyCallback(Callback<void> notifyAppFinish);
     void SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyAPPCompletion);
     virtual uint64_t GetBytesLeft();
     virtual bool IsFinished();

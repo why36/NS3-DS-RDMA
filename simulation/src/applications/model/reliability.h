@@ -27,7 +27,7 @@
 #include <queue>
 #include <unordered_map>
 
-#include "ns3/distributed-storage-client.h"
+#include "ns3/distributed-storage-daemon.h"
 #include "ns3/pointer.h"
 #include "ns3/rdma-queue-pair.h"
 #include "ns3/uinteger.h"

@@ -85,7 +85,8 @@ class UserSpaceConnection : public Object {
 
     // void ReceiveRPC(Ptr<RPC>);
     // std::queue<RPC> m_receiveQueuingRPCs;
-    void ReceiveIBVWC(Ptr<IBVWorkCompletion> receiveQueuingIBVWC);
+    void OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC);    
+    void OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC);
     uint32_t m_receive_ibv_num = 0;
 
     void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
@@ -93,35 +94,15 @@ class UserSpaceConnection : public Object {
 
     void Retransmit(Ptr<IBVWorkRequest> wc);
 
-    // Keep 8 rpcs
-    static const int kRPCRequest = 8;
-    static const int interval = 10;
-
-    static const int requestSize = 2000;
-
-    uint64_t m_rpcid = 0;
-
-    // Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
-    std::map<uint64_t, Ptr<RPC>> RPCRequestMap;
-    std::map<uint64_t, Ptr<RPC>>::iterator it;
-
-    static const uint8_t kMaxRecordNumber = 100;
-    std::array<uint64_t, kMaxRecordNumber> rpc_latency;
-    uint8_t record_index = 0;
-
-    std::ostream& output = std::cout;
-
-    void init();
-    void SendKRpc();
-    void KeepKRpc(uint64_t response_id);
+    Callback<void,Ptr<RPC> > m_receiveRPCCB;
+    void SetReceiveRPCCallback(Callback<void,Ptr<RPC> > cb);
+    
     void StartDequeueAndTransmit();
 
    private:
     void DoSend();
     void SendRetransmissions();
     void SendNewRPC();
-    // void ReceiveRPC();
-    // void ReceiveIBVWC();
     void SendAck();
     void ReceiveAck();
 };

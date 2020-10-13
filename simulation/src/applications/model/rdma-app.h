@@ -30,11 +30,11 @@
 #define RDMA_APP_H
 
 #include "ns3/application.h"
-#include "ns3/distributed-storage-client.h"
+#include "ns3/distributed-storage-daemon.h"
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
 #include "ns3/rdma-queue-pair.h"
-#include "ns3/rpc-response.h"
+#include "ns3/rpc.h"
 namespace ns3 {
 
 class Buffer;
@@ -50,10 +50,8 @@ class RdmaAppQP : public Object {
     friend class RdmaCM;
 
    public:
-    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>> OnResponseCB,
-              Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB, Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB) {
+    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB, Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB) {
         m_rdmaDriver = driver;
-        m_onResponseCompletion = OnResponseCB;
         m_onSendCompletion = OnSendCompletionCB;
         m_onReceiveCompletion = OnReceiveCompletionCB;
         // m_qp->setAppQp(this);
@@ -86,13 +84,9 @@ class RdmaAppQP : public Object {
     /*
      * Callback
      */
-    // abandon
-    Callback<void, Ptr<RpcResponse>, Ptr<RdmaQueuePair>> m_onResponseCompletion;
     Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
-    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
-
     // Call ReceiveIBVWC ()
-    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletionCB = MakeCallback(&UserSpaceConnection::ReceiveIBVWC, m_usc);
+    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion = MakeCallback(&UserSpaceConnection::OnRxIBVWC, m_usc);
 
     // uint32_t;
 };
@@ -102,7 +96,7 @@ inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
         m_onSendCompletion(completion);
         return;
     } else {
-        m_onReceiveCompletionCB(completion);
+        m_onReceiveCompletion(completion);
         return;
     }
 }
@@ -116,18 +110,15 @@ inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
 // Ensure that each
 class RdmaCM {
    public:
-    inline static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam);
+    inline static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr);
 };
 
-inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr, QpParam& srcParam, QpParam& dstParam) {
-    // srcParam.notifyCompletion = src->OnCompletion;
-    // dstParam.notifyCompletion = dst->OnCompletion;
-    srcParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
-    dstParam.notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst));
-    QPCreateAttribute src_create_attr(srcAttr, srcParam);
+inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr) {
+    srcAttr.completionCB =  MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
+    QPCreateAttribute src_create_attr(srcAttr);
     src->CreateQP(src_create_attr);
     src_create_attr.conAttr.operator~();
-    src_create_attr.qpParam = dstParam;
+    src_create_attr.conAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst)); 
     dst->CreateQP(src_create_attr);
 };
 

@@ -135,8 +135,7 @@ Ptr<RdmaQueuePair> RdmaHw::GetQp(SimpleTuple &tuple) {
     if (it != m_qpMap.end()) return it->second;
     return NULL;
 }
-Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &attr, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish,
-                                        Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) {
+Ptr<RdmaQueuePair> RdmaHw::AddQueuePair( const QPConnectionAttr &attr) {
     // create qp
 
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(attr);
@@ -156,17 +155,16 @@ Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(uint64_t size, const QPConnectionAttr &a
         tuple.dport = 0;
     }
 
-    qp->SetSize(size);
+    qp->SetSize(kDefaultQPSize);
 
     Ptr<CongestionControlEntity> cc_entity;
     if (m_CCRateMap.count(tuple) == 0) {
         m_CCRateMap[tuple] = Create<CongestionControlEntity>();
         cc_entity = m_CCRateMap[tuple];
         qp->m_CCEntity = cc_entity;
-        qp->m_CCEntity->SetWin(win);
-        qp->m_CCEntity->SetBaseRtt(baseRtt);
+        qp->m_CCEntity->SetWin(kDefaultQPWin);
+        qp->m_CCEntity->SetBaseRtt(kDefaultRTT);
         qp->m_CCEntity->SetVarWin(m_var_win);
-        qp->SetAppNotifyCallback(notifyAppFinish);
     }
 
     // set init variables
@@ -706,8 +704,6 @@ void RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp) {
     // This callback will log info
     // It may also delete the rxQp on the receiver
     m_qpCompleteCallback(qp);
-
-    qp->m_notifyAppFinish();
 
     // delete the qp
     DeleteQueuePair(qp);

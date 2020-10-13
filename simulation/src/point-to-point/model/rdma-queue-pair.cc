@@ -134,8 +134,6 @@ uint64_t CongestionControlEntity::HpGetCurWin() {
 
 void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
 
-void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish) { m_notifyAppFinish = notifyAppFinish; }
-
 void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
 
 uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }

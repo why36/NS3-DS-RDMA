@@ -90,7 +90,7 @@ unordered_map<uint64_t, double> rate2pmax;
 /************************************************
  * Runtime varibles
  ***********************************************/
-std::ifstream topof, flowf, tracef;
+std::ifstream topof, flowf, threadf, tracef;
 
 NodeContainer n;
 
@@ -122,77 +122,46 @@ std::vector<Ipv4Address> serverAddress;
 // maintain port number for each host pair
 std::unordered_map<uint32_t, unordered_map<uint32_t, uint16_t> > portNumder;
 
+
+
+
+struct ThreadInput {
+    uint32_t src, num_thread;
+    uint32_t idx;
+};
+ThreadInput thread_input = {0};
+uint32_t app_num;
+void ReadThreadInput() {
+    while(thread_input.idx < app_num){
+        threadf >> thread_input.src >> thread_input.num_thread;
+        Ptr<Node> node = n.Get(thread_input.src);
+        NS_ASSERT_MSG(!node->GetObject<DistributedStorageDaemon>(),"multiple applications on a node");
+        NS_ASSERT_MSG(node->GetNodeType()==kNodeType::Host,"applications must be installed on non-switch nodes");
+        Ptr<DistributedStorageDaemon> client = Create<DistributedStorageDaemon>();
+        client->setIp(serverAddress[thread_input.src]);
+        for(int i =0;i<thread_input.num_thread;i++){
+            client->AddThread(i);
+        }
+        node->AddApplication(client);
+        thread_input.idx++;
+    }
+}
+
 struct FlowInput {
-    uint32_t src, dst, pg, maxPacketCount, port, dport;
-    double start_time;
+    uint32_t src_node, src_thread, dst_node, dst_thread, pg;
     uint32_t idx;
 };
 FlowInput flow_input = {0};
 uint32_t flow_num;
 
-void ReadFlowInput() {
-    if (flow_input.idx < flow_num) {
-        flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
-        NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == kNodeType::Host && n.Get(flow_input.dst)->GetNodeType() == kNodeType::Host);
-    }
-}
 void ScheduleFlowInputs() {
-    while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now()) {
-        uint32_t port = portNumder[flow_input.src][flow_input.dst]++;  // get a new port number
-        /*
-        RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport,
-                                      flow_input.maxPacketCount,
-                                      has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(flow_input.src)][n.Get(flow_input.dst)]) : 0,
-                                      global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
-
-        ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
-        */
-
-        ApplicationContainer appCon;
-        NodeContainer c1 = n.Get(flow_input.src);
-        Ptr<DistributedStorageClient> client = Create<DistributedStorageClient>();
-        client->setIp(serverAddress[flow_input.src]);
-        NodeContainer::Iterator i1 = c1.Begin();
-        Ptr<Node> node1 = *i1;
-        node1->AddApplication(client);
-        appCon.Add(client);
-
-        Ptr<DistributedStorageClient> server = Create<DistributedStorageClient>();
-        server->setIp(serverAddress[flow_input.dst]);
-        NodeContainer c2 = n.Get(flow_input.dst);
-        NodeContainer::Iterator i2 = c2.Begin();
-        Ptr<Node> node2 = *i2;
-        node2->AddApplication(server);
-        appCon.Add(server);
-
-        DistributedStorageClient::Connect(client, server, flow_input.pg);
-        client->GetConnections().back()->init();
-        client->GetConnections().back()->SendKRpc();
-        // client->init();
-        // client->SendKRpc();
-        /* install
-        for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
-        {
-
-            Ptr<RdmaClient> client = m_factory.Create<RdmaClient> ();
-            node->AddApplication (client);
-            appCon.Add (client);
-        }
-        return apps;
-        */
-
-        appCon.Start(Time(0));
-
-        // get the next flow input
+    while (flow_input.idx < flow_num) {
+        flowf >> flow_input.src_node >>  flow_input.src_thread >> flow_input.dst_node >> flow_input.dst_thread >> flow_input.pg;
+        NS_ASSERT(n.Get(flow_input.src_node)->GetNodeType() == kNodeType::Host && n.Get(flow_input.dst_node)->GetNodeType() == kNodeType::Host);
+        Ptr<DistributedStorageDaemon> src_daemon = n.Get(flow_input.src_node)->GetObject<DistributedStorageDaemon>();
+        Ptr<DistributedStorageDaemon> dst_daemon = n.Get(flow_input.dst_node)->GetObject<DistributedStorageDaemon>();
+        DistributedStorageDaemon::Connect(src_daemon, flow_input.src_thread, dst_daemon, flow_input.dst_thread, flow_input.pg);
         flow_input.idx++;
-        ReadFlowInput();
-    }
-
-    // schedule the next time to run this function
-    if (flow_input.idx < flow_num) {
-        Simulator::Schedule(Seconds(flow_input.start_time) - Simulator::Now(), ScheduleFlowInputs);
-    } else {  // no more flows, close the file
-        flowf.close();
     }
 }
 
@@ -1071,10 +1040,14 @@ int main(int argc, char *argv[]) {
             }
     }
 
+    thread_input.idx = 0;
+    if(app_num>0)
+    {
+        ReadThreadInput();
+    }
     flow_input.idx = 0;
     if (flow_num > 0) {
-        ReadFlowInput();
-        Simulator::Schedule(Seconds(flow_input.start_time) - Simulator::Now(), ScheduleFlowInputs);
+        ScheduleFlowInputs();
     }
 
     topof.close();

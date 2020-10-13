@@ -154,6 +154,8 @@ using QPConnectionAttr = struct qp_attr {
     uint16_t sport;
     uint16_t dport;
     QPType qp_type;
+    //to do Krayecho Yx: this is set by directly modify, fix this
+    Callback<void, Ptr<IBVWorkCompletion>> completionCB;
     qp_attr();
     qp_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type);
     qp_attr(const qp_attr&);
@@ -165,7 +167,7 @@ inline QPConnectionAttr::qp_attr() : pg(0), sip(), dip(), sport(0), dport(0), qp
 inline QPConnectionAttr::qp_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type)
     : pg(p_pg), sip(p_sip), dip(p_dip), sport(p_sport), dport(p_dport), qp_type(p_qp_type){};
 inline QPConnectionAttr::qp_attr(const qp_attr& other)
-    : pg(other.pg), sip(other.sip), dip(other.dip), sport(other.sport), dport(other.dport), qp_type(other.qp_type){};
+    : pg(other.pg), sip(other.sip), dip(other.dip), sport(other.sport), dport(other.dport), qp_type(other.qp_type),completionCB(other.completionCB){};
 inline QPConnectionAttr::qp_attr(qp_attr& other) : qp_attr(reinterpret_cast<const qp_attr&>(other)){};
 
 inline QPConnectionAttr& QPConnectionAttr::operator~() {

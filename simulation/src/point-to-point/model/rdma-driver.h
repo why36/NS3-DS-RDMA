@@ -11,43 +11,16 @@
 
 namespace ns3 {
 
-using QpParam = struct qp_param {
-    uint64_t m_size;
-    uint32_t m_win;      // bound of on-the-fly packets
-    uint64_t m_baseRtt;  // base Rtt
-    Callback<void> notifyAppFinish;
-    Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion;
-    qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
-             Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion = MakeNullCallback<void, Ptr<IBVWorkCompletion>>());
-    qp_param& operator=(qp_param& rhs);
-};
-
-inline QpParam::qp_param(uint64_t p_size, uint32_t p_win, int64_t p_base_rtt, Callback<void> p_notifyAppFinish,
-                         Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion)
-    : m_size(p_size), m_win(p_win), m_baseRtt(p_base_rtt), notifyAppFinish(p_notifyAppFinish), notifyCompletion(p_notifyCompletion){};
-
-inline QpParam& QpParam::operator=(QpParam& rhs) {
-    m_size = rhs.m_size;
-    m_win = rhs.m_win;
-    m_baseRtt = rhs.m_baseRtt;
-    notifyAppFinish = rhs.notifyAppFinish;
-    notifyCompletion = rhs.notifyCompletion;
-}
 
 using QPCreateAttribute = struct qp_create_attr {
     QPConnectionAttr conAttr;
-    QpParam qpParam;
-    qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& param);
-    qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type, uint64_t p_size,
-                   uint32_t p_win, uint64_t p_baseRtt, Callback<void> p_notifyAppFinish,
-                   Callback<void, Ptr<IBVWorkCompletion>> p_notifyCompletion = MakeNullCallback<void, Ptr<IBVWorkCompletion>>());
+    qp_create_attr(const QPConnectionAttr& p_con_attr);
+    qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type);
 };
 
-inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr, const QpParam& p_param) : conAttr(p_con_attr), qpParam(p_param){};
-inline QPCreateAttribute::qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type,
-                                         uint64_t p_size, uint32_t p_win, uint64_t p_base_rtt, Callback<void> p_notify_app_finish,
-                                         Callback<void, Ptr<IBVWorkCompletion>> p_notify_completion)
-    : conAttr(p_pg, p_sip, p_dip, p_sport, p_dport, p_qp_type), qpParam(p_size, p_win, p_base_rtt, p_notify_app_finish, p_notify_completion){};
+inline QPCreateAttribute::qp_create_attr(const QPConnectionAttr& p_con_attr) : conAttr(p_con_attr){};
+inline QPCreateAttribute::qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type)
+    : conAttr(p_pg, p_sip, p_dip, p_sport, p_dport, p_qp_type){};
 
 class RdmaDriver : public Object {
    public:
