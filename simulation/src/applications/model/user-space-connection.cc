@@ -138,14 +138,13 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
             Ptr<RPCTag> rpcTag = Create<RPCTag>();
-            uint32_t rpc_size = (m_sendingRPC->m_rpc_type==RPCType::Request)?m_sendingRPC->m_request_size:m_sendingRPC->m_response_size;
+            uint32_t rpc_size = (m_sendingRPC->m_rpc_type == RPCType::Request) ? m_sendingRPC->m_request_size : m_sendingRPC->m_response_size;
             rpcTag->SetRPCSize(rpc_size);
             rpcTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
             rpcTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags.wrid_tag = wrid_tag;
             wr->tags.chunksize_tag = chunkSizeTag;
             wr->tags.rpc_tag = rpcTag;
-
 
             if (m_remainingSendingSize == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
@@ -176,7 +175,8 @@ void UserSpaceConnection::SendNewRPC() {
                     m_sendQueuingRPCs.pop();
                     m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
                     m_reliability->tx_rpc_chunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
-                    m_remainingSendingSize = (m_sendingRPC->m_rpc_type == RPCType::Request)?m_sendingRPC->m_request_size:m_sendingRPC->m_response_size;
+                    m_remainingSendingSize =
+                        (m_sendingRPC->m_rpc_type == RPCType::Request) ? m_sendingRPC->m_request_size : m_sendingRPC->m_response_size;
                 }
             }
         }
@@ -194,7 +194,6 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
-
 
     m_sendAckWr->tags.wrid_tag = wrid_tag;
     m_sendAckWr->tags.chunksize_tag = chunkSizeTag;
@@ -226,11 +225,10 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     m_reliability->AckWR(ackWC->imm, ackWC->tags.wrid_tag->GetWRid());
 }
 
-void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC){
-    //Krayecho Yx: To be done;
-    return ;
+void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
+    // Krayecho Yx: To be done;
+    return;
 }
-
 
 void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
     if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
@@ -244,23 +242,22 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         }
 
         if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
-            //to do. Krayecho Yx: fix this
-            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id,rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+            // to do. Krayecho Yx: fix this
+            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRPCSize(), rxIBVWC->tags.rpc_tag->GetRPCSize(),
+                                       rxIBVWC->tags.rpc_tag->GetRPCReqResType());
             m_receiveRPCCB(rpc);
- 
         }
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
             ACKChunk chunk(rxIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                 Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id,rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCSize(),rxIBVWC->tags.rpc_tag->GetRPCReqResType());
-                 m_receiveRPCCB(rpc);
+                Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRPCSize(), rxIBVWC->tags.rpc_tag->GetRPCSize(),
+                                           rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+                m_receiveRPCCB(rpc);
             }
         }
     }
 }
-
-
 
 }  // Namespace ns3

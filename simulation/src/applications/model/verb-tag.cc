@@ -121,7 +121,6 @@ void RPCTotalOffsetTag::Deserialize(TagBuffer i) { m_rpcTotalOffest = i.ReadU16(
 
 void RPCTotalOffsetTag::Print(std::ostream &os) const { os << "RPCTotalOffsetTag.m_rpcTotalOffest(dec)=" << std::dec << m_rpcTotalOffest; }
 
-
 NS_OBJECT_ENSURE_REGISTERED(WRidTag);
 
 WRidTag::WRidTag() { NS_LOG_FUNCTION(this); }

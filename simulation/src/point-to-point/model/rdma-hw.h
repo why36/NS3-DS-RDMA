@@ -13,7 +13,7 @@
 #include "qbb-net-device.h"
 
 namespace ns3 {
-//for compatible
+// for compatible
 static const int kDefaultQPSize = UINT32_MAX;
 static const int kDefaultRTT = UINT32_MAX;
 static const int kDefaultQPWin = UINT32_MAX;
@@ -61,7 +61,7 @@ class RdmaHw : public Object {
     Ptr<RdmaQueuePair> GetQp(SimpleTuple &tuple);   // get the qp
     uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);  // get the NIC index of the qp
 
-    Ptr<RdmaQueuePair> AddQueuePair( const QPConnectionAttr &conn_att);  // add a new qp (new send)
+    Ptr<RdmaQueuePair> AddQueuePair(const QPConnectionAttr &conn_att);  // add a new qp (new send)
     void DeleteQueuePair(Ptr<RdmaQueuePair> qp);
     void DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg);
 

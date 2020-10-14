@@ -11,7 +11,6 @@
 
 namespace ns3 {
 
-
 using QPCreateAttribute = struct qp_create_attr {
     QPConnectionAttr conAttr;
     qp_create_attr(const QPConnectionAttr& p_con_attr);

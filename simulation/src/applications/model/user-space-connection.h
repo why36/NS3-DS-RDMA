@@ -85,7 +85,7 @@ class UserSpaceConnection : public Object {
 
     // void ReceiveRPC(Ptr<RPC>);
     // std::queue<RPC> m_receiveQueuingRPCs;
-    void OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC);    
+    void OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC);
     void OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC);
     uint32_t m_receive_ibv_num = 0;
 
@@ -94,9 +94,9 @@ class UserSpaceConnection : public Object {
 
     void Retransmit(Ptr<IBVWorkRequest> wc);
 
-    Callback<void,Ptr<RPC> > m_receiveRPCCB;
-    void SetReceiveRPCCallback(Callback<void,Ptr<RPC> > cb);
-    
+    Callback<void, Ptr<RPC>> m_receiveRPCCB;
+    void SetReceiveRPCCallback(Callback<void, Ptr<RPC>> cb);
+
     void StartDequeueAndTransmit();
 
    private:

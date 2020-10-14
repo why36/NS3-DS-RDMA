@@ -50,7 +50,8 @@ class RdmaAppQP : public Object {
     friend class RdmaCM;
 
    public:
-    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB, Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB) {
+    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
+              Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB) {
         m_rdmaDriver = driver;
         m_onSendCompletion = OnSendCompletionCB;
         m_onReceiveCompletion = OnReceiveCompletionCB;
@@ -114,11 +115,11 @@ class RdmaCM {
 };
 
 inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr) {
-    srcAttr.completionCB =  MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
+    srcAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
     QPCreateAttribute src_create_attr(srcAttr);
     src->CreateQP(src_create_attr);
     src_create_attr.conAttr.operator~();
-    src_create_attr.conAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst)); 
+    src_create_attr.conAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst));
     dst->CreateQP(src_create_attr);
 };
 

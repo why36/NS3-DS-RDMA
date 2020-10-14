@@ -56,19 +56,14 @@ NS_LOG_COMPONENT_DEFINE("DistributedStorageDaemon");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageDaemon);
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageThread);
 
-
-void DistributedStorageThread::Start(){
-    for(auto client:m_clients){
+void DistributedStorageThread::Start() {
+    for (auto client : m_clients) {
         client->Start();
     }
 };
 
-void DistributedStorageThread::AddRPCClient(Ptr<RPCClient> client){
-    m_clients.push_back(client);
-}
-void DistributedStorageThread::AddRPCServer(Ptr<RPCServer> server){
-    m_servers.push_back(server);
-}
+void DistributedStorageThread::AddRPCClient(Ptr<RPCClient> client) { m_clients.push_back(client); }
+void DistributedStorageThread::AddRPCServer(Ptr<RPCServer> server) { m_servers.push_back(server); }
 
 TypeId DistributedStorageDaemon::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::DistributedStorageDaemon").AddConstructor<DistributedStorageDaemon>();
@@ -79,37 +74,35 @@ DistributedStorageDaemon::DistributedStorageDaemon() { NS_LOG_FUNCTION_NOARGS();
 
 DistributedStorageDaemon::~DistributedStorageDaemon() { NS_LOG_FUNCTION_NOARGS(); }
 
-void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uint32_t client_thread_index, Ptr<DistributedStorageDaemon> server,uint32_t server_thread_index,uint16_t pg) {
+void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uint32_t client_thread_index, Ptr<DistributedStorageDaemon> server,
+                                       uint32_t server_thread_index, uint16_t pg) {
     Ptr<DistributedStorageThread> client_thread = client->GetThread(client_thread_index);
-    
+
     uint16_t sport = client->GetNextAvailablePort();
     uint16_t dport = server->GetNextAvailablePort();
     NS_ASSERT(sport && dport);
 
     Ptr<Node> client_node = client->GetNode();
     Ptr<UserSpaceConnection> srcConnection = Create<UserSpaceConnection>();
-    Ptr<RdmaAppQP> srcRdmaAppQP = Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(),
-                          MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(srcConnection)),
+    Ptr<RdmaAppQP> srcRdmaAppQP =
+        Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(srcConnection)),
                           MakeCallback(&UserSpaceConnection::OnRxIBVWC, GetPointer(srcConnection)));
     srcConnection->m_appQP = srcRdmaAppQP;
     srcRdmaAppQP->setUSC(srcConnection);
-    Ptr<RPCClient> rpc_client = DynamicCast<RPCClient,KRPCClient>(Create<KRPCClient>());
+    Ptr<RPCClient> rpc_client = DynamicCast<RPCClient, KRPCClient>(Create<KRPCClient>());
     rpc_client->SetUSC(srcConnection);
     client->GetThread(client_thread_index)->AddRPCClient(rpc_client);
 
-
-
     Ptr<Node> server_node = server->GetNode();
     Ptr<UserSpaceConnection> dstConnection = Create<UserSpaceConnection>();
-    Ptr<RdmaAppQP> dstRdmaAppQP = Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(),
-                          MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(dstConnection)),
+    Ptr<RdmaAppQP> dstRdmaAppQP =
+        Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(), MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(dstConnection)),
                           MakeCallback(&UserSpaceConnection::OnRxIBVWC, GetPointer(dstConnection)));
     // Bind with each other
     dstConnection->m_appQP = dstRdmaAppQP;
     dstRdmaAppQP->setUSC(dstConnection);
-    
 
-    Ptr<RPCServer> rpc_server = DynamicCast<RPCServer,KRPCServer>(Create<KRPCServer>());
+    Ptr<RPCServer> rpc_server = DynamicCast<RPCServer, KRPCServer>(Create<KRPCServer>());
     rpc_server->SetUSC(srcConnection);
     server->GetThread(server_thread_index)->AddRPCServer(rpc_server);
 
@@ -123,7 +116,7 @@ void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uin
 
 void DistributedStorageDaemon::StartApplication(void) {
     NS_LOG_FUNCTION_NOARGS();
-    for(auto threads:m_threads){
+    for (auto threads : m_threads) {
         threads->Start();
     }
 }
@@ -133,7 +126,6 @@ void DistributedStorageDaemon::StopApplication() {
     // TODO stop the queue pair
 }
 
-
-void DistributedStorageDaemon::DoDispose(void) {};
+void DistributedStorageDaemon::DoDispose(void){};
 
 }  // Namespace ns3

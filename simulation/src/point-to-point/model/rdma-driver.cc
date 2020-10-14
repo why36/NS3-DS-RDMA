@@ -53,7 +53,7 @@ void RdmaDriver::SetRdmaHw(Ptr<RdmaHw> rdma) { m_rdma = rdma; }
 
 Ptr<RdmaQueuePair> RdmaDriver::AddQueuePair(QPCreateAttribute& create_attr) {
     // TO DO Krayecho Yx: converge this
-    return m_rdma->AddQueuePair( create_attr.conAttr);
+    return m_rdma->AddQueuePair(create_attr.conAttr);
 }
 
 void RdmaDriver::QpComplete(Ptr<RdmaQueuePair> q) { m_traceQpComplete(q); }

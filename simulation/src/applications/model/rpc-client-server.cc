@@ -25,6 +25,7 @@
  */
 
 #include "ns3/rpc-client-server.h"
+
 #include "ns3/log.h"
 
 namespace ns3 {
@@ -35,16 +36,14 @@ NS_OBJECT_ENSURE_REGISTERED(KRPCServer);
 NS_OBJECT_ENSURE_REGISTERED(RPCClient);
 NS_OBJECT_ENSURE_REGISTERED(RPCServer);
 
-
-
 void KRPCClient::KRPCInit() {
     for (int i = 0; i < kRPCRequest; i++) {
-        Ptr<RPC> rpc = Create<RPC>( m_RPCId++,kRequestSize,kResponseSize,RPCType::Request);
+        Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
         m_RPCRequestMap.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
     }
 }
 
-void KRPCClient::Start(){
+void KRPCClient::Start() {
     KRPCInit();
     SendKRPC();
 };
@@ -55,8 +54,7 @@ void KRPCClient::SendKRPC() {
     }
 }
 
-
-void KRPCClient::OnResponseReceived(Ptr<RPC> rpc){
+void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
     // When response is received, it is removed from the Map
     auto it = m_RPCRequestMap.find(rpc->rpc_id);
     NS_ASSERT_MSG(it != m_RPCRequestMap.end(), "Received an invalid response.");
@@ -66,18 +64,15 @@ void KRPCClient::OnResponseReceived(Ptr<RPC> rpc){
     }
 
     while (m_RPCRequestMap.size() <= kRPCRequest) {
-        Ptr<RPC> rpc = Create<RPC>(m_RPCId++,kRequestSize, kResponseSize,RPCType::Request);
+        Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
         m_RPCRequestMap.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
         SendRPC(rpc);
     }
 }
 
-
-void KRPCServer::OnRequestReceived(Ptr<RPC> rpc){
-    Ptr<RPC> response = Create<RPC>(rpc->rpc_id,rpc->m_request_size,rpc->m_response_size,RPCType::Response);
+void KRPCServer::OnRequestReceived(Ptr<RPC> rpc) {
+    Ptr<RPC> response = Create<RPC>(rpc->rpc_id, rpc->m_request_size, rpc->m_response_size, RPCType::Response);
     SendRPC(response);
 }
-
-
 
 }  // Namespace ns3

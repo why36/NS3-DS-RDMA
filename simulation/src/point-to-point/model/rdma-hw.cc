@@ -135,7 +135,7 @@ Ptr<RdmaQueuePair> RdmaHw::GetQp(SimpleTuple &tuple) {
     if (it != m_qpMap.end()) return it->second;
     return NULL;
 }
-Ptr<RdmaQueuePair> RdmaHw::AddQueuePair( const QPConnectionAttr &attr) {
+Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(const QPConnectionAttr &attr) {
     // create qp
 
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(attr);

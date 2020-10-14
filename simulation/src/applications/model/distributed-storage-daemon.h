@@ -41,14 +41,15 @@
 namespace ns3 {
 
 class DistributedStorageDaemon;
-class DistributedStorageThread :public Object{
+class DistributedStorageThread : public Object {
    public:
-    DistributedStorageThread(uint16_t port):m_port(port){}
+    DistributedStorageThread(uint16_t port) : m_port(port) {}
     virtual ~DistributedStorageThread(){};
     void Start();
-    uint16_t GetPort(){return m_port;}
+    uint16_t GetPort() { return m_port; }
     void AddRPCClient(Ptr<RPCClient> client);
     void AddRPCServer(Ptr<RPCServer> server);
+
    private:
     std::vector<Ptr<RPCClient>> m_clients;
     std::vector<Ptr<RPCServer>> m_servers;
@@ -63,20 +64,23 @@ class DistributedStorageThread :public Object{
  * \brief A distributed storage client.
  *
  */
-class DistributedStorageDaemon : public Application{
+class DistributedStorageDaemon : public Application {
    public:
-    
-    static void Connect(Ptr<DistributedStorageDaemon> client, uint32_t client_thread,Ptr<DistributedStorageDaemon> server, uint32_t server_thread, uint16_t pg);
-    
-    static TypeId GetTypeId(void); 
+    static void Connect(Ptr<DistributedStorageDaemon> client, uint32_t client_thread, Ptr<DistributedStorageDaemon> server, uint32_t server_thread,
+                        uint16_t pg);
+
+    static TypeId GetTypeId(void);
     DistributedStorageDaemon();
     virtual ~DistributedStorageDaemon();
 
     void setIp(Ipv4Address ip) { m_ip = ip; }
     Ipv4Address getIp() { return m_ip; }
 
-    void AddThread(int i){ NS_ASSERT(i == m_threads.size()); m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort()));}
-    Ptr<DistributedStorageThread> GetThread(int i){return m_threads[i];}
+    void AddThread(int i) {
+        NS_ASSERT(i == m_threads.size());
+        m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort()));
+    }
+    Ptr<DistributedStorageThread> GetThread(int i) { return m_threads[i]; }
 
    protected:
     virtual void DoDispose(void);
@@ -91,7 +95,6 @@ class DistributedStorageDaemon : public Application{
 
     uint16_t m_port = 1;
     uint16_t GetNextAvailablePort() { return m_port++; }
-
 };
 
 }  // namespace ns3
