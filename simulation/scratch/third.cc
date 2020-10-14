@@ -17,8 +17,6 @@
 #undef PGO_TRAINING
 #define PATH_TO_PGO_CONFIG "path_to_pgo_config"
 
-#include <ns3/rdma-client-helper.h>
-#include <ns3/rdma-client.h>
 #include <ns3/rdma-driver.h>
 #include <ns3/rdma-queue-pair.h>
 #include <ns3/sim-setting.h>
