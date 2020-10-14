@@ -138,8 +138,8 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
             Ptr<RPCTag> rpcTag = Create<RPCTag>();
-            uint32_t rpc_size = (m_sendingRPC->m_rpc_type == RPCType::Request) ? m_sendingRPC->m_request_size : m_sendingRPC->m_response_size;
-            rpcTag->SetRPCSize(rpc_size);
+            rpcTag->SetRequestSize(m_sendingRPC->m_request_size);
+            rpcTag->SetResponseSize(m_sendingRPC->m_response_size);
             rpcTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
             rpcTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
             wr->tags.wrid_tag = wrid_tag;
@@ -189,7 +189,10 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
     chunkSizeTag->SetChunkSize(0);
     Ptr<RPCTag> rpcTag = Create<RPCTag>();
-    rpcTag->SetRPCSize(ACK_size);
+    rpcTag->SetRPCReqResType(RPCType::Request);
+    rpcTag->SetRequestSize(ACK_size);
+    rpcTag->SetResponseSize(0);
+
     rpcTag->SetRPCReqResId(0);
     // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
@@ -243,7 +246,7 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
 
         if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
             // to do. Krayecho Yx: fix this
-            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRPCSize(), rxIBVWC->tags.rpc_tag->GetRPCSize(),
+            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                        rxIBVWC->tags.rpc_tag->GetRPCReqResType());
             m_receiveRPCCB(rpc);
         }
@@ -252,7 +255,7 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
             ACKChunk chunk(rxIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRPCSize(), rxIBVWC->tags.rpc_tag->GetRPCSize(),
+                Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                            rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }

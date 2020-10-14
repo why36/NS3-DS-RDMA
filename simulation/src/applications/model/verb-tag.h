@@ -53,10 +53,12 @@ class ChunkSizeTag : public Tag {
 class RPCTag : public Tag {
    public:
     RPCTag();
-    void SetRPCSize(uint32_t rpcSize);
+    void SetRequestSize(uint32_t requestSize);
+    void SetResponseSize(uint32_t responseSize);
     void SetRPCReqResType(RPCType type);
     void SetRPCReqResId(uint64_t reqres_id);
-    uint32_t GetRPCSize(void) const;
+    uint32_t GetRequestSize(void) const;
+    uint32_t GetResponseSize(void) const;
     RPCType GetRPCReqResType(void) const;
     uint64_t GetRPCReqResId(void) const;
     static TypeId GetTypeId(void);
@@ -67,7 +69,8 @@ class RPCTag : public Tag {
     virtual void Print(std::ostream &os) const;
 
    private:
-    uint32_t m_rpcSize;
+    uint32_t m_requestSize;
+    uint32_t m_responseSize;
     RPCType m_type;
     uint64_t m_reqres_id;
 };
@@ -103,43 +106,7 @@ class WRidTag : public Tag {
    private:
     uint64_t m_wrid;
 };
-/*
-// change to RPCTag
-class RPCSizeTag : public Tag {
-   public:
-    RPCSizeTag();
-    void SetRPCSize(uint32_t rpcSize);
-    uint32_t GetRPCSize(void) const;
-    static TypeId GetTypeId(void);
-    virtual TypeId GetInstanceTypeId(void) const;
-    virtual uint32_t GetSerializedSize(void) const;
-    virtual void Serialize(TagBuffer i) const;
-    virtual void Deserialize(TagBuffer i);
-    virtual void Print(std::ostream &os) const;
 
-   private:
-    uint32_t m_rpcSize;
-};
-
-class RPCRequestResponseTypeIdTag : public Tag {
-   public:
-    RPCRequestResponseTypeIdTag();
-    void SetRPCReqResType(RPCType type);
-    void SetRPCReqResId(uint64_t reqres_id);
-    RPCType GetRPCReqResType(void) const;
-    uint64_t GetRPCReqResId(void) const;
-    static TypeId GetTypeId(void);
-    virtual TypeId GetInstanceTypeId(void) const;
-    virtual uint32_t GetSerializedSize(void) const;
-    virtual void Serialize(TagBuffer i) const;
-    virtual void Deserialize(TagBuffer i);
-    virtual void Print(std::ostream &os) const;
-
-   private:
-    RPCType m_type;
-    uint64_t m_reqres_id;
-};
-*/
 }  // namespace ns3
 
 #endif /* VERB_TAG_H */
