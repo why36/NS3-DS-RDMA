@@ -48,7 +48,7 @@ uint32_t cc_mode = 1;
 bool enable_qcn = true, use_dynamic_pfc_threshold = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
 double pause_time = 5, simulator_stop_time = 3.01;
-std::string data_rate, link_delay, topology_file, flow_file, trace_file, trace_output_file;
+std::string data_rate, link_delay, topology_file, app_file, flow_file, trace_file, trace_output_file;
 std::string fct_output_file = "fct.txt";
 std::string pfc_output_file = "pfc.txt";
 
@@ -90,7 +90,7 @@ unordered_map<uint64_t, double> rate2pmax;
 /************************************************
  * Runtime varibles
  ***********************************************/
-std::ifstream topof, flowf, threadf, tracef;
+std::ifstream topof, flowf, appf, tracef;
 
 NodeContainer n;
 
@@ -122,9 +122,6 @@ std::vector<Ipv4Address> serverAddress;
 // maintain port number for each host pair
 std::unordered_map<uint32_t, unordered_map<uint32_t, uint16_t> > portNumder;
 
-
-
-
 struct ThreadInput {
     uint32_t src, num_thread;
     uint32_t idx;
@@ -132,14 +129,14 @@ struct ThreadInput {
 ThreadInput thread_input = {0};
 uint32_t app_num;
 void ReadThreadInput() {
-    while(thread_input.idx < app_num){
-        threadf >> thread_input.src >> thread_input.num_thread;
+    while (thread_input.idx < app_num) {
+        appf >> thread_input.src >> thread_input.num_thread;
         Ptr<Node> node = n.Get(thread_input.src);
-        NS_ASSERT_MSG(!node->GetObject<DistributedStorageDaemon>(),"multiple applications on a node");
-        NS_ASSERT_MSG(node->GetNodeType()==kNodeType::Host,"applications must be installed on non-switch nodes");
+        NS_ASSERT_MSG(!node->GetObject<DistributedStorageDaemon>(), "multiple applications on a node");
+        NS_ASSERT_MSG(node->GetNodeType() == kNodeType::Host, "applications must be installed on non-switch nodes");
         Ptr<DistributedStorageDaemon> client = Create<DistributedStorageDaemon>();
         client->setIp(serverAddress[thread_input.src]);
-        for(int i =0;i<thread_input.num_thread;i++){
+        for (int i = 0; i < thread_input.num_thread; i++) {
             client->AddThread(i);
         }
         node->AddApplication(client);
@@ -156,10 +153,11 @@ uint32_t flow_num;
 
 void ScheduleFlowInputs() {
     while (flow_input.idx < flow_num) {
-        flowf >> flow_input.src_node >>  flow_input.src_thread >> flow_input.dst_node >> flow_input.dst_thread >> flow_input.pg;
+        flowf >> flow_input.src_node >> flow_input.src_thread >> flow_input.dst_node >> flow_input.dst_thread >> flow_input.pg;
         NS_ASSERT(n.Get(flow_input.src_node)->GetNodeType() == kNodeType::Host && n.Get(flow_input.dst_node)->GetNodeType() == kNodeType::Host);
-        Ptr<DistributedStorageDaemon> src_daemon = n.Get(flow_input.src_node)->GetObject<DistributedStorageDaemon>();
-        Ptr<DistributedStorageDaemon> dst_daemon = n.Get(flow_input.dst_node)->GetObject<DistributedStorageDaemon>();
+        NS_ASSERT(n.Get(flow_input.src_node)->GetNApplications() == 1 && n.Get(flow_input.dst_node)->GetNApplications() == 1);
+        Ptr<DistributedStorageDaemon> src_daemon = DynamicCast<DistributedStorageDaemon, Application>(n.Get(flow_input.src_node)->GetApplication(0));
+        Ptr<DistributedStorageDaemon> dst_daemon = DynamicCast<DistributedStorageDaemon, Application>(n.Get(flow_input.dst_node)->GetApplication(0));
         DistributedStorageDaemon::Connect(src_daemon, flow_input.src_thread, dst_daemon, flow_input.dst_thread, flow_input.pg);
         flow_input.idx++;
     }
@@ -481,6 +479,11 @@ int InitConfiguration(int argc, char *argv[]) {
                 conf >> v;
                 topology_file = v;
                 std::cout << "TOPOLOGY_FILE\t\t\t" << topology_file << "\n";
+            } else if (key.compare("APP_FILE") == 0) {
+                std::string v;
+                conf >> v;
+                app_file = v;
+                std::cout << "APP_FILE\t\t\t" << app_file << "\n";
             } else if (key.compare("FLOW_FILE") == 0) {
                 std::string v;
                 conf >> v;
@@ -720,6 +723,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    appf.open(app_file.c_str());
+    if (!appf.is_open()) {
+        std::cout << "cannot open app file" << std::endl;
+        return 1;
+    }
+
     tracef.open(trace_file.c_str());
     if (!tracef.is_open()) {
         std::cout << "cannot open flow file" << std::endl;
@@ -730,6 +739,7 @@ int main(int argc, char *argv[]) {
 
     topof >> node_num >> switch_num >> link_num;
     flowf >> flow_num;
+    appf >> app_num;
     tracef >> trace_num;
 
     // n.Create(node_num);
@@ -1041,8 +1051,7 @@ int main(int argc, char *argv[]) {
     }
 
     thread_input.idx = 0;
-    if(app_num>0)
-    {
+    if (app_num > 0) {
         ReadThreadInput();
     }
     flow_input.idx = 0;
