@@ -37,6 +37,7 @@ NS_OBJECT_ENSURE_REGISTERED(RPCClient);
 NS_OBJECT_ENSURE_REGISTERED(RPCServer);
 
 void KRPCClient::KRPCInit() {
+    NS_LOG_FUNCTION(this);
     for (int i = 0; i < kRPCRequest; i++) {
         Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
         m_RPCRequestMap.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
@@ -49,6 +50,7 @@ void KRPCClient::Start() {
 };
 
 void KRPCClient::SendKRPC() {
+    NS_LOG_FUNCTION(this);
     for (auto it = m_RPCRequestMap.begin(); it != m_RPCRequestMap.end(); it++) {
         SendRPC(it->second);
     }

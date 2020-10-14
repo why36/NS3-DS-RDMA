@@ -41,7 +41,7 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(at
     startTime = Simulator::Now();
     m_size = 0;
     snd_nxt = snd_una = 0;
-    m_remainingSize = 0;
+    m_WRRemainingSize = 0;
     m_ipid = 0;
     m_nextAvail = Time(0);
     m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
@@ -49,7 +49,9 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(at
 }
 
 int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
+    NS_LOG_FUNCTION(this);
     m_wrs.push(wr);
+    m_size += wr->size;
     return 0;
 }
 
@@ -132,11 +134,9 @@ uint64_t CongestionControlEntity::HpGetCurWin() {
     return w;
 }
 
-void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
-
 void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
 
-uint64_t RdmaQueuePair::GetBytesLeft() { return m_size >= snd_nxt ? m_size - snd_nxt : 0; }
+uint64_t RdmaQueuePair::GetBytesLeft() { return m_size; }
 
 uint32_t RdmaQueuePair::GetHash(void) {
     union {
@@ -166,31 +166,34 @@ bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) { appQp = appQP; }
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
+    NS_LOG_FUNCTION(this);
     // NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
     if (m_sendingWr == nullptr) {
         if (!m_wrs.empty()) {
             m_sendingWr = m_wrs.front();
             m_wrs.pop();
-            m_remainingSize = m_sendingWr->size;
+            m_WRRemainingSize = m_sendingWr->size;
         } else {
             m_sendingWr = nullptr;
             Ptr<Packet> p = Create<Packet>(0);
-            NS_LOG_WARN("Create an zero byte pakcet when GetNextPacket");
+            NS_LOG_ERROR("Create an zero byte pakcet when GetNextPacket");
             return p;
         }
     }
-    uint32_t send_size = m_remainingSize < m_rdma->m_mtu ? m_remainingSize : m_rdma->m_mtu;
-    m_remainingSize -= send_size;
-
+    uint32_t send_size = m_WRRemainingSize < m_rdma->m_mtu ? m_WRRemainingSize : m_rdma->m_mtu;
+    NS_ASSERT(m_WRRemainingSize >= send_size);
+    m_WRRemainingSize -= send_size;
+    NS_ASSERT(m_size >= send_size);
+    m_size -= send_size;
     IBHeader ibheader;
     ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
 
     if (m_sendingWr->size == send_size) {  // WR generate only one packet
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-    } else if (m_remainingSize == 0) {  // WR generate more than one packet, this is the last one
+    } else if (m_WRRemainingSize == 0) {  // WR generate more than one packet, this is the last one
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
-    } else if (m_remainingSize != 0) {                           // WR generate more than one packet. this is not the last one
-        if (send_size + m_remainingSize == m_sendingWr->size) {  // WR generate more than one packet. this is the first one
+    } else if (m_WRRemainingSize != 0) {                           // WR generate more than one packet. this is not the last one
+        if (send_size + m_WRRemainingSize == m_sendingWr->size) {  // WR generate more than one packet. this is the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
         } else {  // WR generate more than one packet. this is neither the last one nor the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
@@ -224,7 +227,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
         if (!m_wrs.empty()) {
             m_sendingWr = m_wrs.front();
             m_wrs.pop();
-            m_remainingSize = m_sendingWr->size;
+            m_WRRemainingSize = m_sendingWr->size;
         } else {
             m_sendingWr = nullptr;
         }

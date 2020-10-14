@@ -155,8 +155,6 @@ Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(const QPConnectionAttr &attr) {
         tuple.dport = 0;
     }
 
-    qp->SetSize(kDefaultQPSize);
-
     Ptr<CongestionControlEntity> cc_entity;
     if (m_CCRateMap.count(tuple) == 0) {
         m_CCRateMap[tuple] = Create<CongestionControlEntity>();

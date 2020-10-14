@@ -57,25 +57,35 @@ NS_OBJECT_ENSURE_REGISTERED(DistributedStorageDaemon);
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageThread);
 
 void DistributedStorageThread::Start() {
+    NS_LOG_FUNCTION("starting thread with " << m_clients.size() << " clients");
+    std::cout << "starting thread with " << m_clients.size() << " clients" << std::endl;
     for (auto client : m_clients) {
         client->Start();
     }
 };
 
-void DistributedStorageThread::AddRPCClient(Ptr<RPCClient> client) { m_clients.push_back(client); }
-void DistributedStorageThread::AddRPCServer(Ptr<RPCServer> server) { m_servers.push_back(server); }
+void DistributedStorageThread::AddRPCClient(Ptr<RPCClient> client) {
+    NS_LOG_FUNCTION(this);
+    m_clients.push_back(client);
+}
+void DistributedStorageThread::AddRPCServer(Ptr<RPCServer> server) {
+    NS_LOG_FUNCTION(this);
+    m_servers.push_back(server);
+}
 
 TypeId DistributedStorageDaemon::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::DistributedStorageDaemon").AddConstructor<DistributedStorageDaemon>();
     return tid;
 }
 
-DistributedStorageDaemon::DistributedStorageDaemon() { NS_LOG_FUNCTION_NOARGS(); }
+DistributedStorageDaemon::DistributedStorageDaemon() { NS_LOG_FUNCTION(this); }
 
-DistributedStorageDaemon::~DistributedStorageDaemon() { NS_LOG_FUNCTION_NOARGS(); }
+DistributedStorageDaemon::~DistributedStorageDaemon() { NS_LOG_FUNCTION(this); }
 
 void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uint32_t client_thread_index, Ptr<DistributedStorageDaemon> server,
                                        uint32_t server_thread_index, uint16_t pg) {
+    NS_LOG_FUNCTION_NOARGS();
+
     Ptr<DistributedStorageThread> client_thread = client->GetThread(client_thread_index);
 
     uint16_t sport = client->GetNextAvailablePort();
@@ -115,14 +125,14 @@ void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uin
 };
 
 void DistributedStorageDaemon::StartApplication(void) {
-    NS_LOG_FUNCTION_NOARGS();
+    NS_LOG_FUNCTION("starting distributed storage daemon with " << m_threads.size() << " threads");
+    std::cout << "starting distributed storage daemon with " << m_threads.size() << " threads" << std::endl;
     for (auto threads : m_threads) {
         threads->Start();
     }
 }
 
 void DistributedStorageDaemon::StopApplication() {
-    NS_LOG_FUNCTION_NOARGS();
     // TODO stop the queue pair
 }
 

@@ -71,18 +71,15 @@ void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
 };
 
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
-    // StartDequeueAndTransmit();
+    NS_LOG_FUNCTION(this);
     rpc->m_info.issue_time = Simulator::Now().GetMicroSeconds();
     m_sendQueuingRPCs.push(rpc);
-    // StartDequeueAndTransmit();
-    // SendRPC();
     DoSend();
     StartDequeueAndTransmit();
 }
 
 void UserSpaceConnection::StartDequeueAndTransmit() {
     uint32_t nic_idx = m_appQP->m_rdmaDriver->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
-    // uint32_t nic_idx = m_appQP->m_qp->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
     Ptr<QbbNetDevice> dev = m_appQP->m_rdmaDriver->m_rdma->m_nic[nic_idx].dev;
     dev->TriggerTransmit();
 }
@@ -93,6 +90,7 @@ void UserSpaceConnection::DoSend() {
 }
 
 void UserSpaceConnection::SendRetransmissions() {
+    NS_LOG_FUNCTION(this);
     NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     uint32_t cc_size = cc_implement->GetCongestionWindow();
@@ -114,6 +112,7 @@ void UserSpaceConnection::SendRetransmissions() {
 };
 
 void UserSpaceConnection::SendNewRPC() {
+    NS_LOG_FUNCTION(this);
     NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     uint32_t cc_size = cc_implement->GetCongestionWindow();

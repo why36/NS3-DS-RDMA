@@ -111,8 +111,7 @@ int RdmaEgressQueue::GetNextQindexInFluid(bool paused[]) {
     for (qIndex = 1; qIndex <= fcount; qIndex++) {
         uint32_t idx = (qIndex + m_rrlast) % fcount;
         Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-        // if (!paused[qp->m_connectionAttr.pg] && qp->GetBytesLeft() > 0 && !qp->m_CCEntity->IsWinBound())
-        if (!paused[qp->m_connectionAttr.pg] && !qp->m_CCEntity->IsWinBound()) {
+        if (!paused[qp->m_connectionAttr.pg] && !qp->m_CCEntity->IsWinBound() && qp->GetBytesLeft() > 0) {
             if (qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep())  // not available now
                 continue;
 
@@ -281,7 +280,7 @@ void QbbNetDevice::DequeueAndTransmit(void) {
             // update for the next avail time
             m_rdmaPktSent(lastQp, p, m_tInterframeGap);
         } else {  // no packet to send
-            NS_LOG_INFO("PAUSE prohibits send at node " << m_node->GetId());
+            NS_LOG_INFO("PAUSE prohibits send at node or no data to send on node: " << m_node->GetId());
             Time t = Simulator::GetMaximumSimulationTime();
             for (uint32_t i = 0; i < m_rdmaEQ->GetFlowCount(); i++) {
                 Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
