@@ -57,6 +57,7 @@ void KRPCClient::SendKRPC() {
 }
 
 void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
+    NS_LOG_FUNCTION(this);
     // When response is received, it is removed from the Map
     auto it = m_RPCRequestMap.find(rpc->rpc_id);
     NS_ASSERT_MSG(it != m_RPCRequestMap.end(), "Received an invalid response.");
@@ -73,6 +74,7 @@ void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
 }
 
 void KRPCServer::OnRequestReceived(Ptr<RPC> rpc) {
+    NS_LOG_FUNCTION(this);
     Ptr<RPC> response = Create<RPC>(rpc->rpc_id, rpc->m_request_size, rpc->m_response_size, RPCType::Response);
     SendRPC(response);
 }

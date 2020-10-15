@@ -57,6 +57,7 @@ NS_LOG_COMPONENT_DEFINE("UserSpaceConnection");
 NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
+    NS_LOG_FUNCTION(this);
     m_UCC = CreateObject<LeapCC>();
     m_chunking = Create<LinearRTTChunking>();
     m_reliability = Create<Reliability>();
@@ -65,7 +66,13 @@ UserSpaceConnection::UserSpaceConnection() {
     // m_appQP->setUSC(this);
 }
 
+void UserSpaceConnection::SetReceiveRPCCallback(Callback<void, Ptr<RPC>> cb) {
+    NS_LOG_FUNCTION(this);
+    m_receiveRPCCB = cb;
+};
+
 void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
+    NS_LOG_FUNCTION(this);
     m_retransmissions.push(wc);
     SendRetransmissions();
 };
@@ -79,12 +86,14 @@ void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
 }
 
 void UserSpaceConnection::StartDequeueAndTransmit() {
+    NS_LOG_FUNCTION(this);
     uint32_t nic_idx = m_appQP->m_rdmaDriver->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
     Ptr<QbbNetDevice> dev = m_appQP->m_rdmaDriver->m_rdma->m_nic[nic_idx].dev;
     dev->TriggerTransmit();
 }
 
 void UserSpaceConnection::DoSend() {
+    NS_LOG_FUNCTION(this);
     SendRetransmissions();
     SendNewRPC();
 }
@@ -183,6 +192,7 @@ void UserSpaceConnection::SendNewRPC() {
 };
 
 void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
+    NS_LOG_FUNCTION(this);
     Ptr<IBVWorkRequest> m_sendAckWr = Create<IBVWorkRequest>();  // There's only one slice
 
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
@@ -210,7 +220,7 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
 // To do.Krayecho Yx: break retransmission into small pieces
 void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
     // repass
-
+    NS_LOG_FUNCTION(this);
     uint32_t ack_imm = ackWC->imm;
 
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
@@ -228,11 +238,13 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
 }
 
 void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
+    NS_LOG_FUNCTION(this);
     // Krayecho Yx: To be done;
     return;
 }
 
 void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
+    NS_LOG_FUNCTION(this);
     if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
         SendAck(rxIBVWC->imm, rxIBVWC->tags.wrid_tag);
 

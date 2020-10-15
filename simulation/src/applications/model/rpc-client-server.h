@@ -87,10 +87,16 @@ class KRPCServer : public RPCServer {
 };
 
 inline void RPCClient::SendRPC(Ptr<RPC> rpc) { m_usc->SendRPC(rpc); }
-inline void RPCClient::SetUSC(Ptr<UserSpaceConnection> usc) { m_usc = usc; }
+inline void RPCClient::SetUSC(Ptr<UserSpaceConnection> usc) {
+    m_usc = usc;
+    m_usc->SetReceiveRPCCallback(MakeCallback(&RPCClient::OnResponseReceived, this));
+}
 
 inline void RPCServer::SendRPC(Ptr<RPC> rpc) { m_usc->SendRPC(rpc); }
-inline void RPCServer::SetUSC(Ptr<UserSpaceConnection> usc) { m_usc = usc; }
+inline void RPCServer::SetUSC(Ptr<UserSpaceConnection> usc) {
+    m_usc = usc;
+    m_usc->SetReceiveRPCCallback(MakeCallback(&RPCServer::OnRequestReceived, this));
+}
 
 inline void RPCLogger::RecordRPCReceive(Ptr<RPC> rpc) {
     m_rpcLatencies[m_recordIndex++] = Simulator::Now().GetMicroSeconds() - rpc->m_info.issue_time;
