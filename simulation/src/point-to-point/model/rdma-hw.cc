@@ -381,7 +381,7 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             Ipv4Header head;  // Prepare IPv4 header
             head.SetDestination(Ipv4Address(ch.sip));
             head.SetSource(Ipv4Address(ch.dip));
-            head.SetProtocol(x == RCSeqState::GENERATE_ACK ? 0xFC : 0xFD);  // ack=0xFC nack=0xFD
+            head.SetProtocol(x == RCSeqState::GENERATE_ACK ? L3Protocol::PROTO_ACK : L3Protocol::PROTO_NACK);  // ack=0xFC nack=0xFD
             head.SetTtl(64);
             head.SetPayloadSize(newp->GetSize());
             head.SetIdentification(rxQp->m_ipid++);
@@ -510,7 +510,8 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
     if (qp == NULL) {
         std::cout << "ERROR: "
-                  << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
+                  << "node:" << m_node->GetId() << ' ' << ((ch.l3Prot == L3Protocol::PROTO_ACK) ? "ACK" : "NACK") << " NIC cannot find the flow"
+                  << rxTuple << "\n";
         return 0;
     }
 
@@ -529,7 +530,7 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
             QpComplete(qp);
         }
     }
-    if (ch.l3Prot == 0xFD)  // NACK
+    if (ch.l3Prot == L3Protocol::PROTO_NACK)  // NACK
         RecoverQueue(qp);
 
     // handle cnp
