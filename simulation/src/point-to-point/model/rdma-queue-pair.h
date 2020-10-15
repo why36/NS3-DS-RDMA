@@ -114,7 +114,6 @@ class CongestionControlEntity : public virtual Object {
     uint64_t GetWin();  // window size calculated from m_rate
     virtual uint64_t GetOnTheFly();
     virtual uint64_t GetBytesLeft();
-    virtual bool IsFinished();
     uint64_t HpGetCurWin();  // window size calculated from hp.m_curRate, used by HPCC
     static TypeId GetTypeId(void);
 
@@ -205,7 +204,6 @@ class RdmaQueuePair : public Object {
     RdmaQueuePair(const QPConnectionAttr& attr);
     void SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyAPPCompletion);
     virtual uint64_t GetBytesLeft();
-    virtual bool IsFinished();
     virtual uint64_t GetOnTheFly();
     uint32_t GetHash(void);
     void Acknowledge(uint64_t ack);

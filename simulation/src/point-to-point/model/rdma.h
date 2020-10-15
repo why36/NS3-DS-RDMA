@@ -186,12 +186,24 @@ using SimpleTuple = struct simple_tuple {
     uint16_t prio;
 };
 
-inline std::ostream& operator<<(std::ostream& os, SimpleTuple& tuple) {
+inline std::ostream& operator<<(std::ostream& os, const SimpleTuple& tuple) {
+    os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, SimpleTuple& _tuple) {
+    const SimpleTuple& tuple = _tuple;
     os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
     return os;
 }
 
 struct SimpleTupleHash {
+    // Krayecho Yx: this is a stupid compress from tuple to uint32_t
+    // only contains the slow 7 bits of each
+    // we have support over 1024 nodes,  thus at least use 11 bits of ip
+
+    // static const uint32_t IP_BITS = 8;
+
     std::size_t operator()(const SimpleTuple& s) const {
         uint32_t magic = (2 << 9) - 1;
         return ((s.sip | magic) << 24) + ((s.dip | magic) << 16) + ((static_cast<uint32_t>(s.sport) | magic) << 8) +

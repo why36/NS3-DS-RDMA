@@ -501,10 +501,10 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
     uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
     int i;
     SimpleTuple rxTuple = {
-        .sip = ch.sip,
-        .dip = ch.dip,
-        .sport = ch.udp.sport,
-        .dport = ch.udp.dport,
+        .sip = ch.dip,
+        .dip = ch.sip,
+        .sport = ch.udp.dport,
+        .dport = ch.udp.sport,
         .prio = ch.udp.pg,
     };
     Ptr<RdmaQueuePair> qp = GetQp(rxTuple);
@@ -512,6 +512,10 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
         std::cout << "ERROR: "
                   << "node:" << m_node->GetId() << ' ' << ((ch.l3Prot == L3Protocol::PROTO_ACK) ? "ACK" : "NACK") << " NIC cannot find the flow"
                   << rxTuple << "\n";
+        std::cout << "displaying all tuples: " << std::endl;
+        for (auto &i : m_qpMap) {
+            std::cout << " tuple: " << i.first << std::endl;
+        }
         return 0;
     }
 
@@ -525,9 +529,6 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
         } else {
             uint32_t goback_seq = seq / m_chunk * m_chunk;
             qp->Acknowledge(goback_seq);
-        }
-        if (qp->IsFinished()) {
-            QpComplete(qp);
         }
     }
     if (ch.l3Prot == L3Protocol::PROTO_NACK)  // NACK

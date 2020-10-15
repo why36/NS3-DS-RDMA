@@ -119,7 +119,6 @@ uint64_t CongestionControlEntity::GetWin() {
 
 uint64_t CongestionControlEntity::GetOnTheFly() { return 0; }
 uint64_t CongestionControlEntity::GetBytesLeft() { return 0; }
-bool CongestionControlEntity::IsFinished() { return true; }
 
 uint64_t CongestionControlEntity::HpGetCurWin() {
     if (m_win == 0) return 0;
@@ -159,8 +158,6 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
 }
 
 uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
-
-bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 
 void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) {
     appQp = appQP;
