@@ -44,7 +44,6 @@ RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(at
     m_WRRemainingSize = 0;
     m_ipid = 0;
     m_nextAvail = Time(0);
-    m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
     // m_rdma = appQp->m_rdmaDriver->m_rdma;
 }
 
@@ -163,7 +162,10 @@ uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
 
 bool RdmaQueuePair::IsFinished() { return snd_una >= m_size; }
 
-void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) { appQp = appQP; }
+void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) {
+    appQp = appQP;
+    m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
+}
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
     NS_LOG_FUNCTION(this);

@@ -55,10 +55,7 @@ class RdmaAppQP : public Object {
         m_rdmaDriver = driver;
         m_onSendCompletion = OnSendCompletionCB;
         m_onReceiveCompletion = OnReceiveCompletionCB;
-        // m_qp->setAppQp(this);
     }
-
-    // RdmaAppQP() { m_qp->setAppQp(this); }
 
     /**
      * \brief ibv_post_send;
@@ -87,7 +84,7 @@ class RdmaAppQP : public Object {
      */
     Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
     // Call ReceiveIBVWC ()
-    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion = MakeCallback(&UserSpaceConnection::OnRxIBVWC, m_usc);
+    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
 
     // uint32_t;
 };
@@ -154,12 +151,6 @@ class RdmaAppAckQP : public Object {
     // void PostReceive();
     Ptr<RdmaDriver> m_rdmaDriver;
     Ptr<RdmaQueuePair> m_qp_ack;
-
-    /*
-     * Callback
-     */
-    // Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
-    // Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
 };
 
 }  // namespace ns3
