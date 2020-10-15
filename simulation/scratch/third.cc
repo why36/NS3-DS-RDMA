@@ -1017,9 +1017,16 @@ int main(int argc, char *argv[]) {
     }
 
     FILE *trace_output = fopen(trace_output_file.c_str(), "w");
-    if (enable_trace) qbb.EnableTracing(trace_output, trace_nodes);
+    // if (enable_trace) qbb.EnableTracing(trace_output, trace_nodes);
+    /*
+    if (enable_trace) {
+        AsciiTraceHelper ascii;
+        qbb.EnableAsciiAll(ascii.CreateFileStream(trace_output_file));
+    }
+    */
 
     // dump link speed to trace file
+    /*
     {
         SimSetting sim_setting;
         for (auto i : nbr2if) {
@@ -1033,6 +1040,7 @@ int main(int argc, char *argv[]) {
         sim_setting.win = maxBdp;
         sim_setting.Serialize(trace_output);
     }
+    */
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
@@ -1069,9 +1077,6 @@ int main(int argc, char *argv[]) {
     FILE *qlen_output = fopen(qlen_mon_file.c_str(), "w");
     Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_buffer, qlen_output, &n);
 
-    //
-    // Now, do the actual simulation.
-    //
     std::cout << "Running Simulation.\n";
     fflush(stdout);
     NS_LOG_INFO("Run Simulation.");
