@@ -57,7 +57,7 @@ NS_LOG_COMPONENT_DEFINE("UserSpaceConnection");
 NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
-    m_UCC = Create<LeapCC>();
+    m_UCC = CreateObject<LeapCC>();
     m_chunking = Create<LinearRTTChunking>();
     m_reliability = Create<Reliability>();
     m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));

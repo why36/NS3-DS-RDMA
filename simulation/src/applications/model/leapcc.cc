@@ -36,8 +36,9 @@ LeapCC::LeapCC() : mUtilization(0), mAvgRTT(0), mIncStage(0), mLastDecreaseTime(
 TypeId LeapCC::GetTypeId() {
     static TypeId tid =
         TypeId("ns3::LeapCC")
+            .SetParent<UserSpaceCongestionControl>()
             .AddConstructor<LeapCC>()
-            .AddAttribute("BaseRTT", "base rtt in LeapCC", DoubleValue(50.0), MakeDoubleAccessor(&LeapCC::mBaseRTT), MakeDoubleChecker<double>())
+            .AddAttribute("LeapBaseRTT", "base rtt in LeapCC", DoubleValue(50.0), MakeDoubleAccessor(&LeapCC::mBaseRTT), MakeDoubleChecker<double>())
             .AddAttribute("TargetRTT", "target rtt in LeapCC", DoubleValue(50.0), MakeDoubleAccessor(&LeapCC::mTargetRTT),
                           MakeDoubleChecker<double>())
             .AddAttribute("NICRate", "NIC rate in LeapCC", DataRateValue(DataRate("25Gbps")), MakeDataRateAccessor(&LeapCC::mNICRate),
