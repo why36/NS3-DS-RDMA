@@ -58,7 +58,7 @@ NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
     m_UCC = CreateObject<LeapCC>();
-    m_chunking = Create<LinearRTTChunking>();
+    m_chunking = CreateObject<LinearRTTChunking>();
     m_reliability = Create<Reliability>();
     m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
     m_remainingSendingSize = 0;
