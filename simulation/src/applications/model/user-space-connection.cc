@@ -239,7 +239,7 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         ACKChunk chunk(rxIBVWC->imm);
         m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
 
-        if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
+        if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             m_reliability->rx_rpc_totalChunk[chunk.rpc_id] = rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset();
         }
 
@@ -251,7 +251,7 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         }
     } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
         // receive the last verbs
-        if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET) {
+        if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             ACKChunk chunk(rxIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
                 Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),

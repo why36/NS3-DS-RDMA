@@ -32,16 +32,20 @@
 #include "ns3/verb-tag.h"
 
 namespace ns3 {
-
 enum class IBVerb { IBV_SEND = 0, IBV_WRITE, IBV_SEND_WITH_IMM, IBV_WRITE_WITH_IMM };
 // ChunkSizeTag,RPCTag,RPCTotalOffsetTag(optional)
 class RdmaQueuePair;
 
 // ChunkSizeTag,RPCTag,RPCTotalOffsetTag(optional)
-enum TagPayloadBit { WRID = 0, CHUNKSIZE, RPCTAG, RPCTOTALOFFSET };
+enum class TagPayloadBit { WRID = 0, CHUNKSIZE, RPCTAG, RPCTOTALOFFSET };
 
-static const uint8_t kGeneralTagPayloadBits = (1 << WRID) | (1 << CHUNKSIZE) | (1 << RPCTAG);
-static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | (1 << RPCTOTALOFFSET);
+static const uint8_t WRID_BIT = 1 << static_cast<uint8_t>(TagPayloadBit::WRID);
+static const uint8_t CHUNKSIZE_BIT = 1 << static_cast<uint8_t>(TagPayloadBit::CHUNKSIZE);
+static const uint8_t RPCTAG_BIT = 1 << static_cast<uint8_t>(TagPayloadBit::RPCTAG);
+static const uint8_t RPCTOTALOFFSET_BIT = 1 << static_cast<uint8_t>(TagPayloadBit::RPCTOTALOFFSET);
+
+static const uint8_t kGeneralTagPayloadBits = WRID_BIT | CHUNKSIZE_BIT | RPCTAG_BIT;
+static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | RPCTOTALOFFSET_BIT;
 
 using TagPayload = struct tag_payload {
     uint8_t mark_tag_bits;
@@ -55,35 +59,35 @@ using TagPayload = struct tag_payload {
 };
 
 void TagPayload::Serialize(TagBuffer i) const {
-    if (mark_tag_bits & (1 << WRID)) {
+    if (mark_tag_bits & WRID_BIT) {
         wrid_tag->Serialize(i);
     }
-    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+    if (mark_tag_bits & CHUNKSIZE_BIT) {
         chunksize_tag->Serialize(i);
     }
-    if (mark_tag_bits & (1 << RPCTAG)) {
+    if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag->Serialize(i);
     }
-    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+    if (mark_tag_bits & RPCTOTALOFFSET_BIT) {
         rpctotaloffset_tag->Serialize(i);
     }
 }
 
 void TagPayload::Deserialize(TagBuffer i) {
     NS_ASSERT(!wrid_tag && !chunksize_tag && !rpc_tag && !rpctotaloffset_tag);
-    if (mark_tag_bits & (1 << WRID)) {
+    if (mark_tag_bits & WRID_BIT) {
         wrid_tag = Create<WRidTag>();
         wrid_tag->Deserialize(i);
     }
-    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+    if (mark_tag_bits & CHUNKSIZE_BIT) {
         chunksize_tag = Create<ChunkSizeTag>();
         chunksize_tag->Deserialize(i);
     }
-    if (mark_tag_bits & (1 << RPCTAG)) {
+    if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag = Create<RPCTag>();
         rpc_tag->Deserialize(i);
     }
-    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+    if (mark_tag_bits & RPCTOTALOFFSET_BIT) {
         rpctotaloffset_tag = Create<RPCTotalOffsetTag>();
         rpctotaloffset_tag->Deserialize(i);
     }
@@ -91,16 +95,16 @@ void TagPayload::Deserialize(TagBuffer i) {
 
 inline uint32_t TagPayload::GetSerializedSize() const {
     uint32_t size = 0;
-    if (mark_tag_bits & (1 << WRID)) {
+    if (mark_tag_bits & WRID_BIT) {
         size += wrid_tag->GetSerializedSize();
     }
-    if (mark_tag_bits & (1 << CHUNKSIZE)) {
+    if (mark_tag_bits & CHUNKSIZE_BIT) {
         size += chunksize_tag->GetSerializedSize();
     }
-    if (mark_tag_bits & (1 << RPCTAG)) {
+    if (mark_tag_bits & RPCTAG_BIT) {
         size += rpc_tag->GetSerializedSize();
     }
-    if (mark_tag_bits & (1 << RPCTOTALOFFSET)) {
+    if (mark_tag_bits & RPCTOTALOFFSET_BIT) {
         size += rpctotaloffset_tag->GetSerializedSize();
     }
     return size;
@@ -142,7 +146,7 @@ using QPConnectionAttr = struct qp_attr {
     uint16_t sport;
     uint16_t dport;
     QPType qp_type;
-    //to do Krayecho Yx: this is set by directly modify, fix this
+    // to do Krayecho Yx: this is set by directly modify, fix this
     Callback<void, Ptr<IBVWorkCompletion>> completionCB;
     qp_attr();
     qp_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type);
@@ -155,7 +159,13 @@ inline QPConnectionAttr::qp_attr() : pg(0), sip(), dip(), sport(0), dport(0), qp
 inline QPConnectionAttr::qp_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4Address p_dip, uint16_t p_sport, uint16_t p_dport, QPType p_qp_type)
     : pg(p_pg), sip(p_sip), dip(p_dip), sport(p_sport), dport(p_dport), qp_type(p_qp_type){};
 inline QPConnectionAttr::qp_attr(const qp_attr& other)
-    : pg(other.pg), sip(other.sip), dip(other.dip), sport(other.sport), dport(other.dport), qp_type(other.qp_type),completionCB(other.completionCB){};
+    : pg(other.pg),
+      sip(other.sip),
+      dip(other.dip),
+      sport(other.sport),
+      dport(other.dport),
+      qp_type(other.qp_type),
+      completionCB(other.completionCB){};
 inline QPConnectionAttr::qp_attr(qp_attr& other) : qp_attr(reinterpret_cast<const qp_attr&>(other)){};
 
 inline QPConnectionAttr& QPConnectionAttr::operator~() {
@@ -175,6 +185,11 @@ using SimpleTuple = struct simple_tuple {
     uint16_t dport;
     uint16_t prio;
 };
+
+inline std::ostream& operator<<(std::ostream& os, SimpleTuple& tuple) {
+    os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
+    return os;
+}
 
 struct SimpleTupleHash {
     std::size_t operator()(const SimpleTuple& s) const {
