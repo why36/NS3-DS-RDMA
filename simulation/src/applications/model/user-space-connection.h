@@ -69,22 +69,9 @@ class UserSpaceConnection : public Object {
    public:
     UserSpaceConnection();
     void SendRPC(Ptr<RPC> rpc);
-    Ptr<UserSpaceCongestionControl> m_UCC;
-    Ptr<ChunkingInterface> m_chunking;
-    Ptr<Reliability> m_reliability;
 
-    Ptr<RdmaAppQP> m_appQP;
-    Ptr<RdmaAppAckQP> m_ackQP;
-    std::queue<Ptr<RPC>> m_sendQueuingRPCs;
-    std::queue<Ptr<IBVWorkRequest>> m_retransmissions;
-    Ptr<RPC> m_sendingRPC;
-
-    Ptr<RpcAckBitMap> m_rpcAckBitMap;
-    uint32_t m_remainingSendingSize;
-
-    void OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC);
-    void OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC);
-    uint32_t m_receive_ibv_num = 0;
+    void OnTxIBVWC(Ptr<IBVWorkCompletion> tx_ibv_wc);
+    void OnRxIBVWC(Ptr<IBVWorkCompletion> rx_ibv_wc);
 
     void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
     void ReceiveAck(Ptr<IBVWorkRequest> m_ackWc);
@@ -98,13 +85,33 @@ class UserSpaceConnection : public Object {
 
     void CalculateRTT(Ptr<IBVWorkRequest> wr);
 
+    Ptr<UserSpaceCongestionControl> get_userspace_congestion_control();
+    Ptr<RdmaAppQP> get_app_qp();
+    void set_app_qp(Ptr<RdmaAppQP> app_qp);
+
    private:
     void DoSend();
     void SendRetransmissions();
     void SendNewRPC();
     void SendAck();
     void ReceiveAck();
+
+    Ptr<UserSpaceCongestionControl> m_userspace_congestion_control;
+    Ptr<ChunkingInterface> m_chunking;
+    Ptr<Reliability> m_reliability;
+
+    Ptr<RdmaAppQP> m_app_qp;
+    Ptr<RdmaAppAckQP> m_ack_qp;
+    std::queue<Ptr<RPC>> m_queuing_rpcs;
+    std::queue<Ptr<IBVWorkRequest>> m_retransmissions;
+    Ptr<RPC> m_sending_rpc;
+
+    Ptr<RpcAckBitMap> m_rpc_ack_bitmap;
+    uint32_t m_remaining_size;
+    uint32_t m_receive_ibv_num = 0;
 };
+
+inline Ptr<UserSpaceCongestionControl> UserSpaceConnection::get_userspace_congestion_control() { return m_userspace_congestion_control; }
 
 }  // namespace ns3
 

@@ -25,36 +25,6 @@ namespace ns3 {
 /**************************
  * RdmaQueuePair
  *************************/
-TypeId RdmaQueuePair::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
-    return tid;
-}
-
-RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(attr) {
-    {
-        ReceiverNextExpectedSeq = 0;
-        m_nackTimer = Time(0);
-        m_milestone_rx = 0;
-        m_lastNACK = 0;
-    }
-
-    startTime = Simulator::Now();
-    m_size = 0;
-    snd_nxt = snd_una = 0;
-    m_WRRemainingSize = 0;
-    m_ipid = 0;
-    m_nextAvail = Time(0);
-    // m_rdma = appQp->m_rdmaDriver->m_rdma;
-}
-
-int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
-    NS_LOG_FUNCTION(this);
-    m_wrs.push(wr);
-    m_size += wr->size;
-    return 0;
-}
-
-void RdmaQueuePair::setRdmaHw(Ptr<RdmaHw> _rdmaHw) { m_rdma = _rdmaHw; }
 
 void CongestionControlEntity::SetWin(uint32_t win) { m_win = win; }
 
@@ -153,58 +123,55 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
     if (ack > snd_una) {
         snd_una = ack;
     }
-    NS_ASSERT(!m_inflight_wrs.empty());
-    while (!m_inflight_wrs.empty() && m_inflight_wrs.front()->last_packet_seq < ack) {
-        Ptr<IBVWorkRequest> wr = m_inflight_wrs.front();
-        m_inflight_wrs.pop();
-        Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(wr->tags.mark_tag_bits);
-        wc->imm = wr->imm;
-        wc->isTx = true;
-        wc->qp = this;
-        wc->size = wr->size;
-        wc->tags = wr->tags;
-        wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
-        wc->verb = wr->verb;
-        m_notifyCompletion(wc);
+    if (GetQPType() == QPType::RDMA_RC) {
+        NS_ASSERT(!m_inflight_wrs.empty());
+        while (!m_inflight_wrs.empty() && m_inflight_wrs.front()->last_packet_seq < ack) {
+            Ptr<IBVWorkRequest> wr = m_inflight_wrs.front();
+            m_inflight_wrs.pop();
+            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(wr->tags.mark_tag_bits);
+            wc->imm = wr->imm;
+            wc->isTx = true;
+            wc->qp = this;
+            wc->size = wr->size;
+            wc->tags = wr->tags;
+            wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
+            wc->verb = wr->verb;
+            wc->wr = wr;
+            m_notify_completion(wc);
+        }
     }
 }
 
-uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
-
-void RdmaQueuePair::setAppQp(Ptr<RdmaAppQP> appQP) {
-    appQp = appQP;
-    m_notifyCompletion = MakeCallback(&RdmaAppQP::OnCompletion, this->appQp);
-}
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
     NS_LOG_FUNCTION(this);
-    // NS_ASSERT_MSG(m_sendingWr != nullptr, "m_sendingWr is NULL");
-    if (m_sendingWr == nullptr) {
+    // NS_ASSERT_MSG(m_sending_wr != nullptr, "m_sending_wr is NULL");
+    if (m_sending_wr == nullptr) {
         if (!m_wrs.empty()) {
-            m_sendingWr = m_wrs.front();
+            m_sending_wr = m_wrs.front();
             m_wrs.pop();
-            m_WRRemainingSize = m_sendingWr->size;
+            m_wr_remaining_size = m_sending_wr->size;
         } else {
-            m_sendingWr = nullptr;
+            m_sending_wr = nullptr;
             Ptr<Packet> p = Create<Packet>(0);
             NS_LOG_ERROR("Create an zero byte pakcet when GetNextPacket");
             return p;
         }
     }
-    uint32_t send_size = m_WRRemainingSize < m_rdma->m_mtu ? m_WRRemainingSize : m_rdma->m_mtu;
-    NS_ASSERT(m_WRRemainingSize >= send_size);
-    m_WRRemainingSize -= send_size;
+    uint32_t send_size = m_wr_remaining_size < m_rdma_hw->m_mtu ? m_wr_remaining_size : m_rdma_hw->m_mtu;
+    NS_ASSERT(m_wr_remaining_size >= send_size);
+    m_wr_remaining_size -= send_size;
     NS_ASSERT(m_size >= send_size);
     m_size -= send_size;
     IBHeader ibheader;
     ibheader.GetOpCode().SetOpCodeType(static_cast<OpCodeType>(m_connectionAttr.qp_type));
 
-    if (m_sendingWr->size == send_size) {  // WR generate only one packet
+    if (m_sending_wr->size == send_size) {  // WR generate only one packet
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_ONLY_WITH_IMM);
-    } else if (m_WRRemainingSize == 0) {  // WR generate more than one packet, this is the last one
+    } else if (m_wr_remaining_size == 0) {  // WR generate more than one packet, this is the last one
         ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_LAST_WITH_IMM);
-    } else if (m_WRRemainingSize != 0) {                           // WR generate more than one packet. this is not the last one
-        if (send_size + m_WRRemainingSize == m_sendingWr->size) {  // WR generate more than one packet. this is the first one
+    } else if (m_wr_remaining_size != 0) {                            // WR generate more than one packet. this is not the last one
+        if (send_size + m_wr_remaining_size == m_sending_wr->size) {  // WR generate more than one packet. this is the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_FIRST);
         } else {  // WR generate more than one packet. this is neither the last one nor the first one
             ibheader.GetOpCode().SetOpCodeOperation(OpCodeOperation::SEND_MIDDLE);
@@ -215,30 +182,31 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
 
     if (LastPacketTag::HasLastPacketTag(ibheader.GetOpCode().GetOpCodeOperation())) {  // if this is the last packet, add Tags
         LastPacketTag last_pack_tag;
-        last_pack_tag.SetIBV_WR(m_sendingWr);
+        last_pack_tag.SetIBV_WR(m_sending_wr);
         packet->AddPacketTag(last_pack_tag);
 
         if (m_connectionAttr.qp_type == QPType::RDMA_UC) {
-            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(m_sendingWr->tags.mark_tag_bits);
-            wc->imm = m_sendingWr->imm;
+            Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(m_sending_wr->tags.mark_tag_bits);
+            wc->imm = m_sending_wr->imm;
             wc->isTx = true;
             wc->qp = this;
-            wc->size = m_sendingWr->size;
-            wc->tags = m_sendingWr->tags;
+            wc->size = m_sending_wr->size;
+            wc->tags = m_sending_wr->tags;
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
-            wc->verb = m_sendingWr->verb;
-            m_notifyCompletion(wc);
+            wc->verb = m_sending_wr->verb;
+            wc->wr = m_sending_wr;
+            m_notify_completion(wc);
         } else {
-            m_sendingWr->last_packet_seq = snd_nxt;
-            m_inflight_wrs.push(m_sendingWr);
+            m_sending_wr->last_packet_seq = snd_nxt;
+            m_inflight_wrs.push(m_sending_wr);
         }
 
         if (!m_wrs.empty()) {
-            m_sendingWr = m_wrs.front();
+            m_sending_wr = m_wrs.front();
             m_wrs.pop();
-            m_WRRemainingSize = m_sendingWr->size;
+            m_wr_remaining_size = m_sending_wr->size;
         } else {
-            m_sendingWr = nullptr;
+            m_sending_wr = nullptr;
         }
     }
 
@@ -300,6 +268,42 @@ bool RdmaQueuePair::GetNextIbvRequest_AssemblePacket_Finished(
     }
     return false;
 }
+
+TypeId RdmaQueuePair::GetTypeId(void) {
+    static TypeId tid = TypeId("ns3::RdmaQueuePair").SetParent<Object>();
+    return tid;
+}
+
+RdmaQueuePair::RdmaQueuePair(const QPConnectionAttr &attr) : m_connectionAttr(attr) {
+    {
+        ReceiverNextExpectedSeq = 0;
+        m_nackTimer = Time(0);
+        m_milestone_rx = 0;
+        m_lastNACK = 0;
+    }
+
+    startTime = Simulator::Now();
+    m_size = 0;
+    snd_nxt = snd_una = 0;
+    m_wr_remaining_size = 0;
+    m_ipid = 0;
+    m_nextAvail = Time(0);
+    // m_rdma = appQp->get_rdma_driver()->m_rdma;
+}
+
+int RdmaQueuePair::ibv_post_send(Ptr<IBVWorkRequest> wr) {
+    NS_LOG_FUNCTION(this);
+    m_wrs.push(wr);
+    m_size += wr->size;
+    return 0;
+}
+
+void RdmaQueuePair::set_app_qp(Ptr<RdmaAppQP> app_qp) {
+    m_app_qp = app_qp;
+    m_notify_completion = MakeCallback(&RdmaAppQP::OnCompletion, m_app_qp);
+}
+
+void RdmaQueuePair::set_rdma_hw(Ptr<RdmaHw> rdma_hw) { m_rdma_hw = rdma_hw; }
 
 /*********************
  * QueuePairSet

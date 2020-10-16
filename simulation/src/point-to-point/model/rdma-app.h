@@ -43,65 +43,84 @@ class Buffer;
 /**
  * \brief RdmaAppQP is a useable QP interface for application;
  */
-
+class RdmaCM;
 class UserSpaceConnection;
 
 class RdmaAppQP : public Object {
     friend class RdmaCM;
 
    public:
-    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
-              Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB) {
-        m_rdmaDriver = driver;
-        m_onSendCompletion = OnSendCompletionCB;
-        m_onReceiveCompletion = OnReceiveCompletionCB;
-    }
-
-    /**
-     * \brief ibv_post_send;
-     * \param IBVWorkRequest wr;
-     */
-    void PostSend(Ptr<IBVWorkRequest> wr) { m_qp->ibv_post_send(wr); };
-
-    Ptr<UserSpaceConnection> m_usc;
-
-    void setUSC(Ptr<UserSpaceConnection> usc) { this->m_usc = usc; }
-    Ptr<RdmaQueuePair> m_qp;
-    // private:
-    /**
-     * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
-     * \param create_attr connect attr for this QP;
-     */
+    RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> on_send_completion_cb,
+              Callback<void, Ptr<IBVWorkCompletion>> on_receive_completion_cb);
     void CreateQP(QPCreateAttribute& create_attr);
 
+    void PostSend(Ptr<IBVWorkRequest> wr);
     void OnCompletion(Ptr<IBVWorkCompletion> completion);
-    // TO DO Krayecho Yx:
-    // void PostReceive();
-    Ptr<RdmaDriver> m_rdmaDriver;
-    QPType GetQPType() { return m_qp->m_connectionAttr.qp_type; }
-    /*
-     * Callback
-     */
-    Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
-    Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
+
+    QPType GetQPType();
+    void set_userspace_connection(Ptr<UserSpaceConnection> usc);
+    Ptr<RdmaDriver> get_rdma_driver();
+
+    Ptr<RdmaDriver> m_rdma_driver;
+    Ptr<UserSpaceConnection> m_userspace_connection;
+    Ptr<RdmaQueuePair> m_qp;
+    Callback<void, Ptr<IBVWorkCompletion>> m_on_send_completion;
+    Callback<void, Ptr<IBVWorkCompletion>> m_on_receive_completion;
 };
 
-inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
-    if (completion->isTx) {
-        m_onSendCompletion(completion);
-        return;
-    } else {
-        m_onReceiveCompletion(completion);
-        return;
-    }
-}
+class RdmaAppAckQP : public Object {
+    friend class RdmaCM;
 
-inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) { m_qp = m_rdmaDriver->AddQueuePair(create_attr); };
+   public:
+    RdmaAppAckQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> on_send_completion_cb,
+                 Callback<void, Ptr<IBVWorkCompletion>> on_receive_completion_cb);
+    RdmaAppAckQP(Ptr<RdmaDriver> driver);
+
+    void CreateQP(QPCreateAttribute& create_attr);
+
+    void PostSendAck(Ptr<IBVWorkRequest> wr);
+
+    Ptr<RdmaDriver> m_rdma_driver;
+    Ptr<RdmaQueuePair> m_qp_ack;
+    uint32_t m_ack_qp_interval;
+    uint32_t m_milestone_rx = 0;
+};
 
 class RdmaCM {
    public:
     inline static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr);
 };
+
+inline RdmaAppQP::RdmaAppQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> on_send_completion_cb,
+                            Callback<void, Ptr<IBVWorkCompletion>> on_receive_completion_cb) {
+    m_rdma_driver = driver;
+    m_on_send_completion = on_send_completion_cb;
+    m_on_receive_completion = on_receive_completion_cb;
+}
+
+inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
+    if (completion->isTx) {
+        m_on_send_completion(completion);
+        return;
+    } else {
+        m_on_receive_completion(completion);
+        return;
+    }
+}
+
+inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) { m_qp = m_rdma_driver->AddQueuePair(create_attr); }
+
+inline void RdmaAppQP::PostSend(Ptr<IBVWorkRequest> wr) { m_qp->ibv_post_send(wr); }
+
+inline QPType RdmaAppQP::GetQPType(void) { return m_qp->GetQPType(); }
+
+inline Ptr<RdmaDriver> RdmaAppQP::get_rdma_driver() { return m_rdma_driver; }
+
+inline void RdmaAppQP::set_userspace_connection(Ptr<UserSpaceConnection> usc) { m_userspace_connection = usc; }
+
+inline void RdmaAppAckQP::CreateQP(QPCreateAttribute& create_attr) { m_qp_ack = m_rdma_driver->AddQueuePair(create_attr); }
+
+inline void RdmaAppAckQP::PostSendAck(Ptr<IBVWorkRequest> wr) { m_qp_ack->ibv_post_send(wr); }
 
 inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr) {
     srcAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(src));
@@ -110,31 +129,6 @@ inline int RdmaCM::Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionA
     src_create_attr.conAttr.operator~();
     src_create_attr.conAttr.completionCB = MakeCallback(&RdmaAppQP::OnCompletion, GetPointer(dst));
     dst->CreateQP(src_create_attr);
-};
-
-class RdmaAppAckQP : public Object {
-    friend class RdmaCM;
-
-   public:
-    RdmaAppAckQP(Ptr<RdmaDriver> driver, Callback<void, Ptr<IBVWorkCompletion>> OnSendCompletionCB,
-                 Callback<void, Ptr<IBVWorkCompletion>> OnReceiveCompletionCB);
-    RdmaAppAckQP(Ptr<RdmaDriver> driver);
-    /**
-     * \param Packet p;
-     */
-    void PostSendAck(Ptr<IBVWorkRequest> wr) { m_qp_ack->ibv_post_send(wr); }
-    uint32_t m_ack_qp_interval;
-    uint32_t m_milestone_rx = 0;
-
-   private:
-    /**
-     * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
-     * \param create_attr connect attr for this QP;
-     */
-    void CreateQP(QPCreateAttribute& create_attr) { m_qp_ack = m_rdmaDriver->AddQueuePair(create_attr); }
-
-    Ptr<RdmaDriver> m_rdmaDriver;
-    Ptr<RdmaQueuePair> m_qp_ack;
 };
 
 }  // namespace ns3

@@ -23,12 +23,6 @@ inline QPCreateAttribute::qp_create_attr(uint16_t p_pg, Ipv4Address p_sip, Ipv4A
 
 class RdmaDriver : public Object {
    public:
-    Ptr<Node> m_node;
-    Ptr<RdmaHw> m_rdma;
-
-    // trace
-    TracedCallback<Ptr<RdmaQueuePair>> m_traceQpComplete;
-
     static TypeId GetTypeId(void);
     RdmaDriver();
 
@@ -36,20 +30,27 @@ class RdmaDriver : public Object {
     // So this must be called after all NICs are installed
     void Init(void);
 
-    // Set Node
-    void SetNode(Ptr<Node> node);
-
-    // Set RdmaHw
-    void SetRdmaHw(Ptr<RdmaHw> rdma);
-
     // add a queue pair
     Ptr<RdmaQueuePair> AddQueuePair(QPCreateAttribute& QPCreateAttr);
 
     // callback when qp completes
     void QpComplete(Ptr<RdmaQueuePair> q);
 
+    void set_node(Ptr<Node> node);
+    void set_rdma_hw(Ptr<RdmaHw> rdma);
+    Ptr<RdmaHw> get_rdma_hw();
+
    private:
+    Ptr<Node> m_node;
+    Ptr<RdmaHw> m_rdma_hw;
+
+    // trace
+    TracedCallback<Ptr<RdmaQueuePair>> m_traceQpComplete;
 };
+
+inline void RdmaDriver::set_node(Ptr<Node> node) { m_node = node; }
+inline void RdmaDriver::set_rdma_hw(Ptr<RdmaHw> rdma) { m_rdma_hw = rdma; }
+inline Ptr<RdmaHw> RdmaDriver::get_rdma_hw() { return m_rdma_hw; };
 
 }  // namespace ns3
 

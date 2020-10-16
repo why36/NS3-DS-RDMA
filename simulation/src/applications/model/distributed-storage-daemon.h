@@ -43,10 +43,10 @@ namespace ns3 {
 class DistributedStorageDaemon;
 class DistributedStorageThread : public Object {
    public:
-    DistributedStorageThread(uint16_t port) : m_port(port) {}
+    explicit DistributedStorageThread(uint16_t port);
     virtual ~DistributedStorageThread(){};
     void Start();
-    uint16_t GetPort() { return m_port; }
+    uint16_t GetPort();
     void AddRPCClient(Ptr<RPCClient> client);
     void AddRPCServer(Ptr<RPCServer> server);
 
@@ -70,17 +70,15 @@ class DistributedStorageDaemon : public Application {
                         uint16_t pg);
 
     static TypeId GetTypeId(void);
+
     DistributedStorageDaemon();
     virtual ~DistributedStorageDaemon();
 
-    void setIp(Ipv4Address ip) { m_ip = ip; }
-    Ipv4Address getIp() { return m_ip; }
+    void AddThread(int i);
+    Ptr<DistributedStorageThread> GetThread(int i);
 
-    void AddThread(int i) {
-        NS_ASSERT(i == m_threads.size());
-        m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort()));
-    }
-    Ptr<DistributedStorageThread> GetThread(int i) { return m_threads[i]; }
+    void setIp(Ipv4Address ip);
+    Ipv4Address getIp();
 
    protected:
     virtual void DoDispose(void);
@@ -88,14 +86,27 @@ class DistributedStorageDaemon : public Application {
    private:
     virtual void StartApplication(void);
     virtual void StopApplication(void);
+    uint16_t GetNextAvailablePort();
 
     std::vector<Ptr<DistributedStorageThread>> m_threads;
-
     Ipv4Address m_ip;
-
-    uint16_t m_port = 1;
-    uint16_t GetNextAvailablePort() { return m_port++; }
+    uint16_t m_port;
 };
+
+inline uint16_t DistributedStorageThread::GetPort() { return m_port; }
+
+inline void DistributedStorageDaemon::setIp(Ipv4Address ip) { m_ip = ip; }
+
+inline Ipv4Address DistributedStorageDaemon::getIp() { return m_ip; }
+
+inline void DistributedStorageDaemon::AddThread(int i) {
+    NS_ASSERT(i == m_threads.size());
+    m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort()));
+}
+
+inline Ptr<DistributedStorageThread> DistributedStorageDaemon::GetThread(int i) { return m_threads[i]; }
+
+inline uint16_t DistributedStorageDaemon::GetNextAvailablePort() { return m_port++; }
 
 }  // namespace ns3
 

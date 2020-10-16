@@ -58,12 +58,11 @@ NS_OBJECT_ENSURE_REGISTERED(UserSpaceConnection);
 
 UserSpaceConnection::UserSpaceConnection() {
     NS_LOG_FUNCTION(this);
-    m_UCC = CreateObject<LeapCC>();
+    m_userspace_congestion_control = CreateObject<LeapCC>();
     m_chunking = CreateObject<LinearRTTChunking>();
     m_reliability = Create<Reliability>();
-    m_reliability->SetUSC(Ptr<UserSpaceConnection>(this));
-    m_remainingSendingSize = 0;
-    // m_appQP->setUSC(this);
+    m_reliability->set_userspace_connection(Ptr<UserSpaceConnection>(this));
+    m_remaining_size = 0;
 }
 
 void UserSpaceConnection::SetReceiveRPCCallback(Callback<void, Ptr<RPC>> cb) {
@@ -80,15 +79,15 @@ void UserSpaceConnection::Retransmit(Ptr<IBVWorkRequest> wc) {
 void UserSpaceConnection::SendRPC(Ptr<RPC> rpc) {
     NS_LOG_FUNCTION(this);
     rpc->m_info.issue_time = Simulator::Now().GetMicroSeconds();
-    m_sendQueuingRPCs.push(rpc);
+    m_queuing_rpcs.push(rpc);
     DoSend();
     StartDequeueAndTransmit();
 }
 
 void UserSpaceConnection::StartDequeueAndTransmit() {
     NS_LOG_FUNCTION(this);
-    uint32_t nic_idx = m_appQP->m_rdmaDriver->m_rdma->GetNicIdxOfQp(m_appQP->m_qp);
-    Ptr<QbbNetDevice> dev = m_appQP->m_rdmaDriver->m_rdma->m_nic[nic_idx].dev;
+    uint32_t nic_idx = m_app_qp->get_rdma_driver()->get_rdma_hw()->GetNicIdxOfQp(m_app_qp->m_qp);
+    Ptr<QbbNetDevice> dev = m_app_qp->get_rdma_driver()->get_rdma_hw()->m_nic[nic_idx].dev;
     dev->TriggerTransmit();
 }
 
@@ -100,8 +99,9 @@ void UserSpaceConnection::DoSend() {
 
 void UserSpaceConnection::SendRetransmissions() {
     NS_LOG_FUNCTION(this);
-    NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
-    Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
+    NS_ASSERT(m_userspace_congestion_control->GetCongestionContorlType() == RTTWindowCCType);
+    Ptr<RttWindowCongestionControl> cc_implement =
+        DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_userspace_congestion_control);
     uint32_t cc_size = cc_implement->GetCongestionWindow();
     while (cc_size && !m_retransmissions.empty()) {
         auto wr = m_retransmissions.front();
@@ -111,7 +111,7 @@ void UserSpaceConnection::SendRetransmissions() {
         Ptr<WRidTag> wrid_tag1 = Create<WRidTag>();
         wrid_tag1->SetWRid(wr->wr_id);
         wr->tags.wrid_tag = wrid_tag1;
-        m_appQP->PostSend(wr);
+        m_app_qp->PostSend(wr);
         m_reliability->InsertWWR(wr);
 
         cc_implement->IncreaseInflight(wr->size);
@@ -121,22 +121,23 @@ void UserSpaceConnection::SendRetransmissions() {
 
 void UserSpaceConnection::SendNewRPC() {
     NS_LOG_FUNCTION(this);
-    NS_ASSERT(m_UCC->GetCongestionContorlType() == RTTWindowCCType);
-    Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
+    NS_ASSERT(m_userspace_congestion_control->GetCongestionContorlType() == RTTWindowCCType);
+    Ptr<RttWindowCongestionControl> cc_implement =
+        DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_userspace_congestion_control);
     uint32_t cc_size = cc_implement->GetCongestionWindow();
 
     while (cc_size) {
-        if (m_remainingSendingSize) {
+        if (m_remaining_size) {
             uint32_t chunksize = m_chunking->GetChunkSize(cc_size);
             Ptr<IBVWorkRequest> wr;
-            if (m_remainingSendingSize > chunksize) {
+            if (m_remaining_size > chunksize) {
                 wr = Create<IBVWorkRequest>();
                 wr->size = chunksize;
-            } else if (m_remainingSendingSize <= chunksize) {
+            } else if (m_remaining_size <= chunksize) {
                 wr = Create<IBVWorkRequest>();
-                wr->size = m_remainingSendingSize;
+                wr->size = m_remaining_size;
             }
-            wr->imm = ACKChunk::GetImm(m_sendingRPC->rpc_id, m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
+            wr->imm = ACKChunk::GetImm(m_sending_rpc->rpc_id, m_reliability->tx_rpc_chunk[m_sending_rpc->rpc_id]);
             // tags assignment
             Ptr<WRidTag> wrid_tag = Create<WRidTag>();
             wr->wr_id = m_reliability->GetWRid();
@@ -145,43 +146,43 @@ void UserSpaceConnection::SendNewRPC() {
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
             Ptr<RPCTag> rpcTag = Create<RPCTag>();
-            rpcTag->SetRequestSize(m_sendingRPC->m_request_size);
-            rpcTag->SetResponseSize(m_sendingRPC->m_response_size);
-            rpcTag->SetRPCReqResId(m_sendingRPC->m_reqres_id);
-            rpcTag->SetRPCReqResType(m_sendingRPC->m_rpc_type);
+            rpcTag->SetRequestSize(m_sending_rpc->m_request_size);
+            rpcTag->SetResponseSize(m_sending_rpc->m_response_size);
+            rpcTag->SetRPCReqResId(m_sending_rpc->m_reqres_id);
+            rpcTag->SetRPCReqResType(m_sending_rpc->m_rpc_type);
             wr->tags.wrid_tag = wrid_tag;
             wr->tags.chunksize_tag = chunkSizeTag;
             wr->tags.rpc_tag = rpcTag;
 
-            if (m_remainingSendingSize == wr->size) {
+            if (m_remaining_size == wr->size) {
                 Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag = Create<RPCTotalOffsetTag>();
-                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
+                rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_chunk[m_sending_rpc->rpc_id]);
                 wr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
                 wr->tags.mark_tag_bits = kLastTagPayloadBits;
             } else {
-                m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]++;
+                m_reliability->tx_rpc_chunk[m_sending_rpc->rpc_id]++;
                 wr->tags.mark_tag_bits = kGeneralTagPayloadBits;
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
-            m_appQP->PostSend(wr);
+            m_app_qp->PostSend(wr);
             m_reliability->InsertWWR(wr);
-            m_remainingSendingSize = m_remainingSendingSize > wr->size ? m_remainingSendingSize - wr->size : 0;
+            m_remaining_size = m_remaining_size > wr->size ? m_remaining_size - wr->size : 0;
 
             cc_implement->IncreaseInflight(wr->size);
             cc_size = cc_implement->GetCongestionWindow();
         }
-        if (!m_remainingSendingSize) {
-            if (m_sendQueuingRPCs.empty()) {
-                m_sendingRPC = nullptr;
+        if (!m_remaining_size) {
+            if (m_queuing_rpcs.empty()) {
+                m_sending_rpc = nullptr;
                 break;
-            } else if (!m_sendQueuingRPCs.empty()) {
-                if (!m_remainingSendingSize) {
-                    m_sendingRPC = m_sendQueuingRPCs.front();
-                    m_sendQueuingRPCs.pop();
-                    m_sendingRPC->rpc_id = m_reliability->GetMessageNumber();
-                    m_reliability->tx_rpc_chunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id, 0));
-                    m_remainingSendingSize =
-                        (m_sendingRPC->m_rpc_type == RPCType::Request) ? m_sendingRPC->m_request_size : m_sendingRPC->m_response_size;
+            } else if (!m_queuing_rpcs.empty()) {
+                if (!m_remaining_size) {
+                    m_sending_rpc = m_queuing_rpcs.front();
+                    m_queuing_rpcs.pop();
+                    m_sending_rpc->rpc_id = m_reliability->GetMessageNumber();
+                    m_reliability->tx_rpc_chunk.insert(std::pair<uint32_t, uint16_t>(m_sending_rpc->rpc_id, 0));
+                    m_remaining_size =
+                        (m_sending_rpc->m_rpc_type == RPCType::Request) ? m_sending_rpc->m_request_size : m_sending_rpc->m_response_size;
                 }
             }
         }
@@ -208,12 +209,13 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     m_sendAckWr->tags.mark_tag_bits = kLastTagPayloadBits;
     m_sendAckWr->size = ACK_size;  // ack size
     m_sendAckWr->verb = IBVerb::IBV_SEND_WITH_IMM;
-    m_ackQP->PostSendAck(m_sendAckWr);
+    m_ack_qp->PostSendAck(m_sendAckWr);
 }
 
 void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
     NS_LOG_FUNCTION(this);
-    Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
+    Ptr<RttWindowCongestionControl> cc_implement =
+        DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_userspace_congestion_control);
     RTTSignal rtt;
     rtt.mRTT = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
     cc_implement->UpdateSignal(&rtt);
@@ -228,7 +230,7 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
 void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
     NS_LOG_FUNCTION(this);
     txIBVWC->wr->send_completion_time = txIBVWC->completion_time_in_us;
-    if (m_appQP->GetQPType() == QPType::RDMA_RC) {
+    if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         m_reliability->AckWR(txIBVWC->imm, txIBVWC->wr->wr_id);
     }
     return;
@@ -236,27 +238,27 @@ void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
 
 void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
     NS_LOG_FUNCTION(this);
-    if (m_appQP->GetQPType() == QPType::RDMA_UC) {
+    if (m_app_qp->GetQPType() == QPType::RDMA_UC) {
         if (rxIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Message) {
             m_reliability->AckWR(rxIBVWC->imm, rxIBVWC->tags.wrid_tag->GetWRid());
         } else {
             SendAck(rxIBVWC->imm, rxIBVWC->tags.wrid_tag);
 
             ACKChunk chunk(rxIBVWC->imm);
-            m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
+            m_rpc_ack_bitmap->Set(chunk.rpc_id, chunk.chunk_id);
 
             if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
                 m_reliability->rx_rpc_totalChunk[chunk.rpc_id] = rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset();
             }
 
             if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] &&
-                m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
+                m_rpc_ack_bitmap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
                 Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                            rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }
         }
-    } else if (m_appQP->GetQPType() == QPType::RDMA_RC) {
+    } else if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         NS_ASSERT(rxIBVWC->tags.rpc_tag->GetRPCReqResType() != RPCType::Message);
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             ACKChunk chunk(rxIBVWC->imm);
@@ -268,5 +270,8 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         }
     }
 }
+
+Ptr<RdmaAppQP> UserSpaceConnection::get_app_qp() { return m_app_qp; }
+void UserSpaceConnection::set_app_qp(Ptr<RdmaAppQP> app_qp) { m_app_qp = app_qp; }
 
 }  // Namespace ns3

@@ -61,7 +61,7 @@ class Reliability : public Object {
     void InsertWWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
 
-    void SetUSC(Ptr<UserSpaceConnection> usc) { m_usc = usc; };
+    void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
     // When an RPC is sent, the ChunkId of the RPC sent at this time is recorded
     std::map<uint32_t, uint16_t> tx_rpc_chunk;
     // key is rpc_id, value is the total chunk numer of this rpc
@@ -72,7 +72,7 @@ class Reliability : public Object {
    private:
     uint32_t m_messageNumber = 0;
     uint64_t m_wruuid = 0;
-    Ptr<UserSpaceConnection> m_usc;
+    Ptr<UserSpaceConnection> m_userspace_connection;
 };
 
 static const int MAX_CHUNK = 2 << CHUNK_BIT;
@@ -124,14 +124,16 @@ inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
     while (rpcImm_verb.front()->wr_id <= wr_id) {
         if (rpcImm_verb.front()->wr_id < wr_id) {
             auto wr = rpcImm_verb.front();
-            m_usc->Retransmit(wr);
+            m_userspace_connection->Retransmit(wr);
         } else {
-            m_usc->ReceiveAck(rpcImm_verb.front());
+            m_userspace_connection->ReceiveAck(rpcImm_verb.front());
             rpcImm_verb.pop();
             return;
         }
     }
 };
+
+inline void Reliability::set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection) { m_userspace_connection = userspace_connection; }
 
 }  // namespace ns3
 #endif /* RELIABILITY_H */

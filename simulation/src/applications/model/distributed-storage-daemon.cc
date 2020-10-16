@@ -56,6 +56,8 @@ NS_LOG_COMPONENT_DEFINE("DistributedStorageDaemon");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageDaemon);
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageThread);
 
+DistributedStorageThread::DistributedStorageThread(uint16_t port) : m_port(port){};
+
 void DistributedStorageThread::Start() {
     NS_LOG_FUNCTION("starting thread with " << m_clients.size() << " clients");
     std::cout << "starting thread with " << m_clients.size() << " clients" << std::endl;
@@ -78,7 +80,7 @@ TypeId DistributedStorageDaemon::GetTypeId(void) {
     return tid;
 }
 
-DistributedStorageDaemon::DistributedStorageDaemon() { NS_LOG_FUNCTION(this); }
+DistributedStorageDaemon::DistributedStorageDaemon() : m_port(1) { NS_LOG_FUNCTION(this); };
 
 DistributedStorageDaemon::~DistributedStorageDaemon() { NS_LOG_FUNCTION(this); }
 
@@ -97,10 +99,10 @@ void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uin
     Ptr<RdmaAppQP> srcRdmaAppQP =
         Create<RdmaAppQP>(client_node->GetObject<RdmaDriver>(), MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(srcConnection)),
                           MakeCallback(&UserSpaceConnection::OnRxIBVWC, GetPointer(srcConnection)));
-    srcConnection->m_appQP = srcRdmaAppQP;
-    srcRdmaAppQP->setUSC(srcConnection);
+    srcConnection->set_app_qp(srcRdmaAppQP);
+    srcRdmaAppQP->set_userspace_connection(srcConnection);
     Ptr<RPCClient> rpc_client = DynamicCast<RPCClient, KRPCClient>(Create<KRPCClient>());
-    rpc_client->SetUSC(srcConnection);
+    rpc_client->set_userspace_connection(srcConnection);
     client->GetThread(client_thread_index)->AddRPCClient(rpc_client);
 
     Ptr<Node> server_node = server->GetNode();
@@ -109,19 +111,19 @@ void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uin
         Create<RdmaAppQP>(server_node->GetObject<RdmaDriver>(), MakeCallback(&UserSpaceConnection::OnTxIBVWC, GetPointer(dstConnection)),
                           MakeCallback(&UserSpaceConnection::OnRxIBVWC, GetPointer(dstConnection)));
     // Bind with each other
-    dstConnection->m_appQP = dstRdmaAppQP;
-    dstRdmaAppQP->setUSC(dstConnection);
+    dstConnection->set_app_qp(dstRdmaAppQP);
+    dstRdmaAppQP->set_userspace_connection(dstConnection);
 
     Ptr<RPCServer> rpc_server = DynamicCast<RPCServer, KRPCServer>(Create<KRPCServer>());
-    rpc_server->SetUSC(srcConnection);
+    rpc_server->set_userspace_connection(srcConnection);
     server->GetThread(server_thread_index)->AddRPCServer(rpc_server);
 
     QPConnectionAttr srcConnAttr(pg, client->m_ip, server->m_ip, sport, dport, QPType::RDMA_RC);
     RdmaCM::Connect(srcRdmaAppQP, dstRdmaAppQP, srcConnAttr);
-    srcRdmaAppQP->m_qp->setAppQp(srcRdmaAppQP);
-    srcRdmaAppQP->m_qp->setRdmaHw(srcConnection->m_appQP->m_rdmaDriver->m_rdma);
-    dstRdmaAppQP->m_qp->setAppQp(dstRdmaAppQP);
-    dstRdmaAppQP->m_qp->setRdmaHw(dstConnection->m_appQP->m_rdmaDriver->m_rdma);
+    srcRdmaAppQP->m_qp->set_app_qp(srcRdmaAppQP);
+    srcRdmaAppQP->m_qp->set_rdma_hw(srcConnection->get_app_qp()->get_rdma_driver()->get_rdma_hw());
+    dstRdmaAppQP->m_qp->set_app_qp(dstRdmaAppQP);
+    dstRdmaAppQP->m_qp->set_rdma_hw(dstConnection->get_app_qp()->get_rdma_driver()->get_rdma_hw());
 };
 
 void DistributedStorageDaemon::StartApplication(void) {

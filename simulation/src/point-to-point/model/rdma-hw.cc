@@ -300,30 +300,32 @@ bool RdmaHw::CheckOpcodeOperationSupported(IBHeader ibh) {
 }
 
 bool RdmaHw::UCCheckOpcodeSequence(IBHeader ibh, Ptr<RdmaQueuePair> rxQp) {
-    if (rxQp->m_lastReceiveOperation == static_cast<OpCodeOperation>(33)) {  // the first packet
+    if (rxQp->m_last_receive_operation == static_cast<OpCodeOperation>(33)) {  // the first packet
         if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
-            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            rxQp->m_last_receive_operation = ibh.GetOpCode().GetOpCodeOperation();
             return true;
         } else {
             return false;
         }
-    } else if (rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_FIRST || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_MIDDLE) {
+    } else if (rxQp->m_last_receive_operation == OpCodeOperation::SEND_FIRST || rxQp->m_last_receive_operation == OpCodeOperation::SEND_MIDDLE) {
         if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_MIDDLE ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST_WITH_IMM ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_LAST) {
-            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            rxQp->m_last_receive_operation = ibh.GetOpCode().GetOpCodeOperation();
             return true;
         } else {
             return false;
         }
-    } else if (rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_LAST_WITH_IMM || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_LAST ||
-               rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_ONLY_WITH_IMM || rxQp->m_lastReceiveOperation == OpCodeOperation::SEND_ONLY) {
+    } else if (rxQp->m_last_receive_operation == OpCodeOperation::SEND_LAST_WITH_IMM ||
+               rxQp->m_last_receive_operation == OpCodeOperation::SEND_LAST ||
+               rxQp->m_last_receive_operation == OpCodeOperation::SEND_ONLY_WITH_IMM ||
+               rxQp->m_last_receive_operation == OpCodeOperation::SEND_ONLY) {
         if (ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
             ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY) {
-            rxQp->m_lastReceiveOperation = ibh.GetOpCode().GetOpCodeOperation();
+            rxQp->m_last_receive_operation = ibh.GetOpCode().GetOpCodeOperation();
             return true;
         } else {
             return false;
@@ -363,7 +365,7 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
                 wc->tags = tag.GetIBV_WR().tags;
                 wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
                 wc->verb = IBVerb::IBV_SEND_WITH_IMM;
-                rxQp->m_notifyCompletion(wc);
+                rxQp->m_notify_completion(wc);
             }
         }
         if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
@@ -424,7 +426,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             wc->tags = tag.GetIBV_WR().tags;
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = IBVerb::IBV_SEND_WITH_IMM;
-            rxQp->m_notifyCompletion(wc);
+            rxQp->m_notify_completion(wc);
         }
     } else if (x == UCSeqState::OOS) {
         if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_ONLY_WITH_IMM ||
@@ -439,7 +441,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             wc->tags = tag.GetIBV_WR().tags;
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = IBVerb::IBV_SEND_WITH_IMM;
-            rxQp->m_notifyCompletion(wc);
+            rxQp->m_notify_completion(wc);
         } else if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {
         }
     }

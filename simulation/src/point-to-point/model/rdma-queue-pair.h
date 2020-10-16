@@ -156,13 +156,27 @@ class QueuePairSet : public Object {
 
 class RdmaQueuePair : public Object {
    public:
-    // Bind RdmaQueuePair and RdmaAppQP to each other
-    Ptr<RdmaAppQP> appQp;
-    void setAppQp(Ptr<RdmaAppQP> appQp);
-    void setRdmaHw(Ptr<RdmaHw> _rdmaHw);
+    static TypeId GetTypeId(void);
+
+    RdmaQueuePair(const QPConnectionAttr& attr);
+    virtual uint64_t GetBytesLeft();
+    virtual uint64_t GetOnTheFly();
+    uint32_t GetHash(void);
+    void Acknowledge(uint64_t ack);
+
+    // data path
+    int ibv_post_send(Ptr<IBVWorkRequest> wr);
+    Ptr<Packet> GetNextPacket();
+    bool GetNextIbvRequest_AssemblePacket_Finished(Ptr<Packet> p, Ptr<IBVWorkRequest>& m_receiveWr);
+    int Empty();
+
+    QPType GetQPType();
+    void set_app_qp(Ptr<RdmaAppQP> appQp);
+    void set_rdma_hw(Ptr<RdmaHw> rdma_hw);
+
     // app-specified
     Time startTime;
-    Callback<void, Ptr<IBVWorkCompletion>> m_notifyCompletion;
+    Callback<void, Ptr<IBVWorkCompletion>> m_notify_completion;
 
     // connection
     QPConnectionAttr m_connectionAttr;
@@ -186,46 +200,21 @@ class RdmaQueuePair : public Object {
 
     // data path
     std::queue<Ptr<IBVWorkRequest>> m_wrs;
-    Ptr<IBVWorkRequest> m_sendingWr;
+    Ptr<IBVWorkRequest> m_sending_wr;
     std::queue<Ptr<IBVWorkRequest>> m_inflight_wrs;
 
-    uint32_t m_WRRemainingSize;
-    OpCodeOperation m_sendingOperation;
+    uint32_t m_wr_remaining_size;
+    OpCodeOperation m_sending_operation;
     // the initialization value is max opcodeoperation + 1
-    OpCodeOperation m_lastReceiveOperation = static_cast<OpCodeOperation>(33);
+    OpCodeOperation m_last_receive_operation = static_cast<OpCodeOperation>(33);
 
-    Ptr<RdmaHw> m_rdma;
-    // uint32_t m_mtu;
-    /***********
-     * methods
-     **********/
-    static TypeId GetTypeId(void);
-
-    RdmaQueuePair(const QPConnectionAttr& attr);
-    virtual uint64_t GetBytesLeft();
-    virtual uint64_t GetOnTheFly();
-    uint32_t GetHash(void);
-    void Acknowledge(uint64_t ack);
-
-    // data path
-    int ibv_post_send(Ptr<IBVWorkRequest> wr);
-    Ptr<Packet> GetNextPacket();
-    bool GetNextIbvRequest_AssemblePacket_Finished(Ptr<Packet> p, Ptr<IBVWorkRequest>& m_receiveWr);
-    int Empty();
+    Ptr<RdmaAppQP> m_app_qp;
+    Ptr<RdmaHw> m_rdma_hw;
 };
 
-/*
-class IPBasedCongestionControlEntity : public CongestionControlEntity {
-public:
-virtual Ptr<RdmaQueuePair> GetNextQp() override;
-static TypeId GetTypeId(void);
-void SetIPBasedFlow(QPConnectionAttr& attr);
-IPBasedFlow mIPBasedFlow;
-std::vector<Ptr<RdmaQueuePair>> m_QPs;
+inline QPType RdmaQueuePair::GetQPType(void) { return m_connectionAttr.qp_type; };
 
-private:
-uint32_t m_lastQP = 0;
-};
-*/
+inline uint64_t RdmaQueuePair::GetOnTheFly() { return snd_nxt - snd_una; }
+
 }  // namespace ns3
 #endif /* RDMA_QUEUE_PAIR_H */

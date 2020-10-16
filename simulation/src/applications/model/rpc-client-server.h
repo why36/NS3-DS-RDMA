@@ -51,12 +51,12 @@ class RPCClient : public Object {
     virtual void Start() = 0;
     virtual void OnResponseReceived(Ptr<RPC>) = 0;
     void SendRPC(Ptr<RPC> rpc);
-    void SetUSC(Ptr<UserSpaceConnection> usc);
+    void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
 
    protected:
     uint64_t m_RPCId = 0;
-    std::map<uint64_t, Ptr<RPC>> m_RPCRequestMap;
-    Ptr<UserSpaceConnection> m_usc;
+    std::map<uint64_t, Ptr<RPC>> m_rpc_request_map;
+    Ptr<UserSpaceConnection> m_userspace_connection;
     RPCLogger m_logger;
 };
 
@@ -75,10 +75,10 @@ class RPCServer : public Object {
    public:
     virtual void OnRequestReceived(Ptr<RPC>) = 0;
     void SendRPC(Ptr<RPC> rpc);
-    void SetUSC(Ptr<UserSpaceConnection> usc);
+    void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
 
    private:
-    Ptr<UserSpaceConnection> m_usc;
+    Ptr<UserSpaceConnection> m_userspace_connection;
 };
 
 class KRPCServer : public RPCServer {
@@ -86,16 +86,16 @@ class KRPCServer : public RPCServer {
     virtual void OnRequestReceived(Ptr<RPC>) override;
 };
 
-inline void RPCClient::SendRPC(Ptr<RPC> rpc) { m_usc->SendRPC(rpc); }
-inline void RPCClient::SetUSC(Ptr<UserSpaceConnection> usc) {
-    m_usc = usc;
-    m_usc->SetReceiveRPCCallback(MakeCallback(&RPCClient::OnResponseReceived, this));
+inline void RPCClient::SendRPC(Ptr<RPC> rpc) { m_userspace_connection->SendRPC(rpc); }
+inline void RPCClient::set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection) {
+    m_userspace_connection = userspace_connection;
+    m_userspace_connection->SetReceiveRPCCallback(MakeCallback(&RPCClient::OnResponseReceived, this));
 }
 
-inline void RPCServer::SendRPC(Ptr<RPC> rpc) { m_usc->SendRPC(rpc); }
-inline void RPCServer::SetUSC(Ptr<UserSpaceConnection> usc) {
-    m_usc = usc;
-    m_usc->SetReceiveRPCCallback(MakeCallback(&RPCServer::OnRequestReceived, this));
+inline void RPCServer::SendRPC(Ptr<RPC> rpc) { m_userspace_connection->SendRPC(rpc); }
+inline void RPCServer::set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection) {
+    m_userspace_connection = userspace_connection;
+    m_userspace_connection->SetReceiveRPCCallback(MakeCallback(&RPCServer::OnRequestReceived, this));
 }
 
 inline void RPCLogger::RecordRPCReceive(Ptr<RPC> rpc) {

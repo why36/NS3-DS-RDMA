@@ -40,7 +40,7 @@ void KRPCClient::KRPCInit() {
     NS_LOG_FUNCTION(this);
     for (int i = 0; i < kRPCRequest; i++) {
         Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
-        m_RPCRequestMap.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
+        m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
     }
 }
 
@@ -51,7 +51,7 @@ void KRPCClient::Start() {
 
 void KRPCClient::SendKRPC() {
     NS_LOG_FUNCTION(this);
-    for (auto it = m_RPCRequestMap.begin(); it != m_RPCRequestMap.end(); it++) {
+    for (auto it = m_rpc_request_map.begin(); it != m_rpc_request_map.end(); it++) {
         SendRPC(it->second);
     }
 }
@@ -59,16 +59,16 @@ void KRPCClient::SendKRPC() {
 void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
     NS_LOG_FUNCTION(this);
     // When response is received, it is removed from the Map
-    auto it = m_RPCRequestMap.find(rpc->rpc_id);
-    NS_ASSERT_MSG(it != m_RPCRequestMap.end(), "Received an invalid response.");
-    if (it != m_RPCRequestMap.end()) {
+    auto it = m_rpc_request_map.find(rpc->rpc_id);
+    NS_ASSERT_MSG(it != m_rpc_request_map.end(), "Received an invalid response.");
+    if (it != m_rpc_request_map.end()) {
         m_logger.RecordRPCReceive(it->second);
-        m_RPCRequestMap.erase(it);
+        m_rpc_request_map.erase(it);
     }
 
-    while (m_RPCRequestMap.size() <= kRPCRequest) {
+    while (m_rpc_request_map.size() <= kRPCRequest) {
         Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
-        m_RPCRequestMap.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
+        m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
         SendRPC(rpc);
     }
 }
