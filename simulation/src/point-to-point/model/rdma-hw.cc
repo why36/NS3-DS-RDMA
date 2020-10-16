@@ -361,7 +361,7 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
                 wc->qp = rxQp;
                 wc->size = tag.GetIBV_WR().size;
                 wc->tags = tag.GetIBV_WR().tags;
-                wc->time_in_us = Simulator::Now().GetMicroSeconds();
+                wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
                 wc->verb = IBVerb::IBV_SEND_WITH_IMM;
                 rxQp->m_notifyCompletion(wc);
             }
@@ -422,7 +422,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             wc->qp = rxQp;
             wc->size = tag.GetIBV_WR().size;
             wc->tags = tag.GetIBV_WR().tags;
-            wc->time_in_us = Simulator::Now().GetMicroSeconds();
+            wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = IBVerb::IBV_SEND_WITH_IMM;
             rxQp->m_notifyCompletion(wc);
         }
@@ -437,7 +437,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             wc->qp = rxQp;
             wc->size = tag.GetIBV_WR().size;
             wc->tags = tag.GetIBV_WR().tags;
-            wc->time_in_us = Simulator::Now().GetMicroSeconds();
+            wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = IBVerb::IBV_SEND_WITH_IMM;
             rxQp->m_notifyCompletion(wc);
         } else if (ch.udp.ibh.GetOpCode().GetOpCodeOperation() == OpCodeOperation::SEND_FIRST) {

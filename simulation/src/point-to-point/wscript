@@ -49,6 +49,7 @@ def build(bld):
 		'model/rdma-driver.h',
 		'model/rdma-queue-pair.h',
 		'model/rdma-hw.h',
+        'model/rdma-app.h',
         'model/switch-node.h',
 		'model/switch-mmu.h',
 		'model/pint.h',

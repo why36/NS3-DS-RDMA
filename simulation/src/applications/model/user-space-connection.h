@@ -79,18 +79,15 @@ class UserSpaceConnection : public Object {
     std::queue<Ptr<IBVWorkRequest>> m_retransmissions;
     Ptr<RPC> m_sendingRPC;
 
-    // Ptr<IBVWorkRequest> m_ackIbvWr;
     Ptr<RpcAckBitMap> m_rpcAckBitMap;
     uint32_t m_remainingSendingSize;
 
-    // void ReceiveRPC(Ptr<RPC>);
-    // std::queue<RPC> m_receiveQueuingRPCs;
     void OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC);
     void OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC);
     uint32_t m_receive_ibv_num = 0;
 
     void SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag);
-    void ReceiveAck(Ptr<IBVWorkCompletion> m_ackWc);
+    void ReceiveAck(Ptr<IBVWorkRequest> m_ackWc);
 
     void Retransmit(Ptr<IBVWorkRequest> wc);
 
@@ -98,6 +95,8 @@ class UserSpaceConnection : public Object {
     void SetReceiveRPCCallback(Callback<void, Ptr<RPC>> cb);
 
     void StartDequeueAndTransmit();
+
+    void CalculateRTT(Ptr<IBVWorkRequest> wr);
 
    private:
     void DoSend();

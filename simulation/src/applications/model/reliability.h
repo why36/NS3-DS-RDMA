@@ -122,10 +122,11 @@ inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { rpcImm_verb.push(wr
 inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
     NS_ASSERT(wr_id >= rpcImm_verb.front()->wr_id);
     while (rpcImm_verb.front()->wr_id <= wr_id) {
-        if (rpcImm_verb.front()->wr_id == wr_id) {
+        if (rpcImm_verb.front()->wr_id < wr_id) {
             auto wr = rpcImm_verb.front();
             m_usc->Retransmit(wr);
         } else {
+            m_usc->ReceiveAck(rpcImm_verb.front());
             rpcImm_verb.pop();
             return;
         }

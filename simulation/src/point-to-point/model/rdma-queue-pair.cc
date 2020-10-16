@@ -132,8 +132,6 @@ uint64_t CongestionControlEntity::HpGetCurWin() {
     return w;
 }
 
-void RdmaQueuePair::SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyCompletion) { m_notifyCompletion = notifyCompletion; }
-
 uint64_t RdmaQueuePair::GetBytesLeft() { return m_size; }
 
 uint32_t RdmaQueuePair::GetHash(void) {
@@ -154,6 +152,20 @@ uint32_t RdmaQueuePair::GetHash(void) {
 void RdmaQueuePair::Acknowledge(uint64_t ack) {
     if (ack > snd_una) {
         snd_una = ack;
+    }
+    NS_ASSERT(!m_inflight_wrs.empty());
+    while (!m_inflight_wrs.empty() && m_inflight_wrs.front()->last_packet_seq < ack) {
+        Ptr<IBVWorkRequest> wr = m_inflight_wrs.front();
+        m_inflight_wrs.pop();
+        Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(wr->tags.mark_tag_bits);
+        wc->imm = wr->imm;
+        wc->isTx = true;
+        wc->qp = this;
+        wc->size = wr->size;
+        wc->tags = wr->tags;
+        wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
+        wc->verb = wr->verb;
+        m_notifyCompletion(wc);
     }
 }
 
@@ -203,13 +215,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
 
     if (LastPacketTag::HasLastPacketTag(ibheader.GetOpCode().GetOpCodeOperation())) {  // if this is the last packet, add Tags
         LastPacketTag last_pack_tag;
-        IBVWorkRequest tmp_sendingWr;
-        tmp_sendingWr.verb = IBVerb::IBV_SEND_WITH_IMM;
-        tmp_sendingWr.size = m_sendingWr->size;
-        tmp_sendingWr.imm = m_sendingWr->imm;
-        tmp_sendingWr.tags = m_sendingWr->tags;
-
-        last_pack_tag.SetIBV_WR(tmp_sendingWr);
+        last_pack_tag.SetIBV_WR(m_sendingWr);
         packet->AddPacketTag(last_pack_tag);
 
         if (m_connectionAttr.qp_type == QPType::RDMA_UC) {
@@ -219,10 +225,14 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
             wc->qp = this;
             wc->size = m_sendingWr->size;
             wc->tags = m_sendingWr->tags;
-            wc->time_in_us = Simulator::Now().GetMicroSeconds();
-            wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+            wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
+            wc->verb = m_sendingWr->verb;
             m_notifyCompletion(wc);
+        } else {
+            m_sendingWr->last_packet_seq = snd_nxt;
+            m_inflight_wrs.push(m_sendingWr);
         }
+
         if (!m_wrs.empty()) {
             m_sendingWr = m_wrs.front();
             m_wrs.pop();

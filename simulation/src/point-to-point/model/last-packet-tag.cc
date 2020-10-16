@@ -33,7 +33,13 @@ NS_OBJECT_ENSURE_REGISTERED(LastPacketTag);
 
 LastPacketTag::LastPacketTag() { NS_LOG_FUNCTION(this); }
 
-void LastPacketTag::SetIBV_WR(IBVWorkRequest ibv_wr) { m_ibv_wr = ibv_wr; }
+void LastPacketTag::SetIBV_WR(Ptr<IBVWorkRequest> ibv_wr) {
+    m_ibv_wr.verb = ibv_wr->verb;
+    m_ibv_wr.size = ibv_wr->size;
+    m_ibv_wr.imm = ibv_wr->imm;
+    m_ibv_wr.tags = ibv_wr->tags;
+    m_ibv_wr.wr_id = ibv_wr->wr_id;
+}
 
 IBVWorkRequest LastPacketTag::GetIBV_WR(void) const { return m_ibv_wr; }
 

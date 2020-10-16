@@ -186,9 +186,9 @@ class RdmaQueuePair : public Object {
 
     // data path
     std::queue<Ptr<IBVWorkRequest>> m_wrs;
-    std::queue<Ptr<IBVWorkRequest>> m_receive_wrs;
     Ptr<IBVWorkRequest> m_sendingWr;
-    Ptr<IBVWorkRequest> m_receiveWr;
+    std::queue<Ptr<IBVWorkRequest>> m_inflight_wrs;
+
     uint32_t m_WRRemainingSize;
     OpCodeOperation m_sendingOperation;
     // the initialization value is max opcodeoperation + 1
@@ -202,7 +202,6 @@ class RdmaQueuePair : public Object {
     static TypeId GetTypeId(void);
 
     RdmaQueuePair(const QPConnectionAttr& attr);
-    void SetCompletionCallback(Callback<void, Ptr<IBVWorkCompletion>> notifyAPPCompletion);
     virtual uint64_t GetBytesLeft();
     virtual uint64_t GetOnTheFly();
     uint32_t GetHash(void);

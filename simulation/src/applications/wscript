@@ -70,7 +70,6 @@ def build(bld):
 		#'model/rdma-client.h',
 		#'helper/rdma-client-helper.h',
         'model/verb-tag.h',
-        'model/rdma-app.h',
         'model/rpc.h',
         'model/reliability.h',
         'model/distributed-storage-daemon.h',

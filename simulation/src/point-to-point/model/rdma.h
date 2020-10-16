@@ -119,6 +119,10 @@ using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
     // to do. Krayecho: serialized this
     uint64_t wr_id;
 
+    // for RC QP to obtain accurate RTT,
+    // in real we do not use this method
+    uint64_t send_completion_time;
+    uint32_t last_packet_seq;
     ibv_wr() { tags.mark_tag_bits = kGeneralTagPayloadBits; }
     ibv_wr(int _mark_tag_bits) { tags.mark_tag_bits = _mark_tag_bits; };
 };
@@ -129,8 +133,10 @@ using IBVWorkCompletion = struct ibv_wc : public SimpleRefCount<ibv_wc> {
     bool isTx;
     uint32_t size;
     uint32_t imm;
-    uint64_t time_in_us;
+    uint64_t completion_time_in_us;
     TagPayload tags;
+
+    Ptr<IBVWorkRequest> wr;
     ibv_wc() { tags.mark_tag_bits = kGeneralTagPayloadBits; };
     ibv_wc(int _mark_tag_bits) { tags.mark_tag_bits = _mark_tag_bits; };
 };

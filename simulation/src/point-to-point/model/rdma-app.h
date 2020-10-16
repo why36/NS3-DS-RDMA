@@ -29,12 +29,12 @@
 #ifndef RDMA_APP_H
 #define RDMA_APP_H
 
-#include "ns3/application.h"
-#include "ns3/distributed-storage-daemon.h"
 #include "ns3/ptr.h"
 #include "ns3/rdma-driver.h"
 #include "ns3/rdma-queue-pair.h"
 #include "ns3/rpc.h"
+#include "ns3/user-space-connection.h"
+
 namespace ns3 {
 
 class Buffer;
@@ -44,7 +44,7 @@ class Buffer;
  * \brief RdmaAppQP is a useable QP interface for application;
  */
 
-// class UserSpaceConnection;
+class UserSpaceConnection;
 
 class RdmaAppQP : public Object {
     friend class RdmaCM;
@@ -78,15 +78,12 @@ class RdmaAppQP : public Object {
     // TO DO Krayecho Yx:
     // void PostReceive();
     Ptr<RdmaDriver> m_rdmaDriver;
-
+    QPType GetQPType() { return m_qp->m_connectionAttr.qp_type; }
     /*
      * Callback
      */
     Callback<void, Ptr<IBVWorkCompletion>> m_onSendCompletion;
-    // Call ReceiveIBVWC ()
     Callback<void, Ptr<IBVWorkCompletion>> m_onReceiveCompletion;
-
-    // uint32_t;
 };
 
 inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
@@ -99,13 +96,8 @@ inline void RdmaAppQP::OnCompletion(Ptr<IBVWorkCompletion> completion) {
     }
 }
 
-inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) {
-    m_qp = m_rdmaDriver->AddQueuePair(create_attr);
-    // return m_qp;
-};
+inline void RdmaAppQP::CreateQP(QPCreateAttribute& create_attr) { m_qp = m_rdmaDriver->AddQueuePair(create_attr); };
 
-//
-// Ensure that each
 class RdmaCM {
    public:
     inline static int Connect(Ptr<RdmaAppQP> src, Ptr<RdmaAppQP> dst, QPConnectionAttr& srcAttr);
@@ -130,9 +122,7 @@ class RdmaAppAckQP : public Object {
     /**
      * \param Packet p;
      */
-    // void PostSend(IBVWorkRequest& wr);
     void PostSendAck(Ptr<IBVWorkRequest> wr) { m_qp_ack->ibv_post_send(wr); }
-    // void PostReceiveAck(Ptr<Packet> p);
     uint32_t m_ack_qp_interval;
     uint32_t m_milestone_rx = 0;
 
@@ -141,14 +131,8 @@ class RdmaAppAckQP : public Object {
      * \brief add a qp to this` application, only can be called by RdmaApplicationInstaller;
      * \param create_attr connect attr for this QP;
      */
-    void CreateQP(QPCreateAttribute& create_attr) {
-        m_qp_ack = m_rdmaDriver->AddQueuePair(create_attr);
-        // return m_qp_ack;
-    }
+    void CreateQP(QPCreateAttribute& create_attr) { m_qp_ack = m_rdmaDriver->AddQueuePair(create_attr); }
 
-    // void OnCompletion(Ptr<IBVWorkCompletion> completion);
-    // TO DO Krayecho Yx:
-    // void PostReceive();
     Ptr<RdmaDriver> m_rdmaDriver;
     Ptr<RdmaQueuePair> m_qp_ack;
 };

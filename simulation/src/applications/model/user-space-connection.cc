@@ -111,7 +111,6 @@ void UserSpaceConnection::SendRetransmissions() {
         Ptr<WRidTag> wrid_tag1 = Create<WRidTag>();
         wrid_tag1->SetWRid(wr->wr_id);
         wr->tags.wrid_tag = wrid_tag1;
-
         m_appQP->PostSend(wr);
         m_reliability->InsertWWR(wr);
 
@@ -159,8 +158,6 @@ void UserSpaceConnection::SendNewRPC() {
                 rpcTotalOffsetTag->SetRPCTotalOffset(m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]);
                 wr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
                 wr->tags.mark_tag_bits = kLastTagPayloadBits;
-                // m_reliability->rpc_totalChunk.insert(std::pair<uint32_t, uint16_t>(m_sendingRPC->rpc_id,
-                // m_reliability->rpc_chunk[m_sendingRPC->rpc_id]));
             } else {
                 m_reliability->tx_rpc_chunk[m_sendingRPC->rpc_id]++;
                 wr->tags.mark_tag_bits = kGeneralTagPayloadBits;
@@ -198,12 +195,9 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
     chunkSizeTag->SetChunkSize(0);
     Ptr<RPCTag> rpcTag = Create<RPCTag>();
-    rpcTag->SetRPCReqResType(RPCType::Request);
-    rpcTag->SetRequestSize(ACK_size);
-    rpcTag->SetResponseSize(0);
+    rpcTag->SetRPCReqResType(RPCType::Message);
 
     rpcTag->SetRPCReqResId(0);
-    // rpcTag->SetRPCReqResType(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
 
@@ -213,56 +207,57 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     m_sendAckWr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
     m_sendAckWr->tags.mark_tag_bits = kLastTagPayloadBits;
     m_sendAckWr->size = ACK_size;  // ack size
+    m_sendAckWr->verb = IBVerb::IBV_SEND_WITH_IMM;
     m_ackQP->PostSendAck(m_sendAckWr);
 }
 
-// To do.Krayecho Yx: fix ack
-// To do.Krayecho Yx: break retransmission into small pieces
-void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkCompletion> ackWC) {
-    // repass
+void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
     NS_LOG_FUNCTION(this);
-    uint32_t ack_imm = ackWC->imm;
-
     Ptr<RttWindowCongestionControl> cc_implement = DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_UCC);
     RTTSignal rtt;
-    rtt.mRTT = 10;
+    rtt.mRTT = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
     cc_implement->UpdateSignal(&rtt);
-    cc_implement->DecreaseInflight(ackWC->size);  // A size is missing
+    cc_implement->DecreaseInflight(ackWR->size);
 
     ChunkingSignal chunkSignal;
-    chunkSignal.rtt = 10;
+    chunkSignal.rtt = rtt.mRTT;
     Ptr<LinearRTTChunking> chunksing = DynamicCast<LinearRTTChunking, ChunkingInterface>(m_chunking);
     m_chunking->UpdateChunkSize(chunkSignal);
-
-    m_reliability->AckWR(ackWC->imm, ackWC->tags.wrid_tag->GetWRid());
 }
 
 void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
     NS_LOG_FUNCTION(this);
-    // Krayecho Yx: To be done;
+    txIBVWC->wr->send_completion_time = txIBVWC->completion_time_in_us;
+    if (m_appQP->GetQPType() == QPType::RDMA_RC) {
+        m_reliability->AckWR(txIBVWC->imm, txIBVWC->wr->wr_id);
+    }
     return;
 }
 
 void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
     NS_LOG_FUNCTION(this);
-    if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_UC) {
-        SendAck(rxIBVWC->imm, rxIBVWC->tags.wrid_tag);
+    if (m_appQP->GetQPType() == QPType::RDMA_UC) {
+        if (rxIBVWC->tags.rpc_tag->GetRPCReqResType() == RPCType::Message) {
+            m_reliability->AckWR(rxIBVWC->imm, rxIBVWC->tags.wrid_tag->GetWRid());
+        } else {
+            SendAck(rxIBVWC->imm, rxIBVWC->tags.wrid_tag);
 
-        ACKChunk chunk(rxIBVWC->imm);
-        m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
+            ACKChunk chunk(rxIBVWC->imm);
+            m_rpcAckBitMap->Set(chunk.rpc_id, chunk.chunk_id);
 
-        if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
-            m_reliability->rx_rpc_totalChunk[chunk.rpc_id] = rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset();
+            if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
+                m_reliability->rx_rpc_totalChunk[chunk.rpc_id] = rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset();
+            }
+
+            if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] &&
+                m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
+                Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
+                                           rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+                m_receiveRPCCB(rpc);
+            }
         }
-
-        if (m_reliability->rx_rpc_totalChunk[chunk.rpc_id] && m_rpcAckBitMap->Check(chunk.rpc_id, m_reliability->rx_rpc_totalChunk[chunk.rpc_id])) {
-            // to do. Krayecho Yx: fix this
-            Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
-                                       rxIBVWC->tags.rpc_tag->GetRPCReqResType());
-            m_receiveRPCCB(rpc);
-        }
-    } else if (m_appQP->m_qp->m_connectionAttr.qp_type == QPType::RDMA_RC) {
-        // receive the last verbs
+    } else if (m_appQP->GetQPType() == QPType::RDMA_RC) {
+        NS_ASSERT(rxIBVWC->tags.rpc_tag->GetRPCReqResType() != RPCType::Message);
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             ACKChunk chunk(rxIBVWC->imm);
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {

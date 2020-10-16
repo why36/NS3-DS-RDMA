@@ -77,7 +77,11 @@ private:
     std::map<std::string, std::function<RpcResponse(RpcRequest)>> funcMap;
 };
 */
-enum class RPCType { Request = 0, Response = 1 };
+enum class RPCType {
+    Request = 0,
+    Response = 1,
+    Message = 2,  // for easy to implement ACK in USC
+};
 
 using RPCInfo = struct rpc_info {
     uint64_t issue_time;

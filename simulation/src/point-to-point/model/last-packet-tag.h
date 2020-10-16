@@ -34,7 +34,7 @@ namespace ns3 {
 class LastPacketTag : public Tag {
    public:
     LastPacketTag();
-    void SetIBV_WR(IBVWorkRequest ibv_wr);
+    void SetIBV_WR(Ptr<IBVWorkRequest> ibv_wr);
     IBVWorkRequest GetIBV_WR(void) const;
     inline static bool HasLastPacketTag(OpCodeOperation op);
 
