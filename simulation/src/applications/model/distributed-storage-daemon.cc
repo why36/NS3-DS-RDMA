@@ -115,7 +115,7 @@ void DistributedStorageDaemon::Connect(Ptr<DistributedStorageDaemon> client, uin
     dstRdmaAppQP->set_userspace_connection(dstConnection);
 
     Ptr<RPCServer> rpc_server = DynamicCast<RPCServer, KRPCServer>(Create<KRPCServer>());
-    rpc_server->set_userspace_connection(srcConnection);
+    rpc_server->set_userspace_connection(dstConnection);
     server->GetThread(server_thread_index)->AddRPCServer(rpc_server);
 
     QPConnectionAttr srcConnAttr(pg, client->m_ip, server->m_ip, sport, dport, QPType::RDMA_RC);
