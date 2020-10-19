@@ -12,13 +12,15 @@
 #include "ns3/data-rate.h"
 #include "ns3/double.h"
 #include "ns3/last-packet-tag.h"
+#include "ns3/log.h"
 #include "ns3/pointer.h"
 #include "ns3/ppp-header.h"
 #include "ns3/uinteger.h"
 #include "ppp-header.h"
 #include "qbb-header.h"
-
 namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE("RdmaHw");
 
 TypeId RdmaHw::GetTypeId(void) {
     static TypeId tid =
@@ -93,6 +95,7 @@ RdmaHw::RdmaHw() {}
 
 void RdmaHw::SetNode(Ptr<Node> node) { m_node = node; }
 void RdmaHw::Setup(QpCompleteCallback cb) {
+    NS_LOG_FUNCTION(this);
     for (uint32_t i = 0; i < m_nic.size(); i++) {
         Ptr<QbbNetDevice> dev = m_nic[i].dev;
         if (dev == NULL) continue;
@@ -137,7 +140,7 @@ Ptr<RdmaQueuePair> RdmaHw::GetQp(SimpleTuple &tuple) {
 }
 Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(const QPConnectionAttr &attr) {
     // create qp
-
+    NS_LOG_FUNCTION(attr);
     Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(attr);
     SimpleTuple tuple = {
         .sip = attr.sip.Get(),
@@ -191,6 +194,7 @@ Ptr<RdmaQueuePair> RdmaHw::AddQueuePair(const QPConnectionAttr &attr) {
 }
 
 void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp) {
+    NS_LOG_FUNCTION(qp->m_connectionAttr);
     // remove qp from the m_qpMap
     QPConnectionAttr &attr = qp->m_connectionAttr;
     SimpleTuple tuple = {
@@ -205,61 +209,11 @@ void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp) {
 
 void RdmaHw::DeleteQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg) {
     SimpleTuple tuple = {.sip = sip, .dip = dip, .sport = sport, .dport = dport, .prio = pg};
-
+    NS_LOG_FUNCTION("tuple: " << tuple);
     NS_ASSERT_MSG(m_qpMap.count(tuple), "Cannot find rxQP when deleting");
     m_qpMap.erase(tuple);
 }
 
-/* change to RCReceiveInboundRequest
-void RdmaHw::RCReceiveUdp(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch)
-{
-    uint8_t ecnbits = ch.GetIpv4EcnBits();
-    uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
-
-    if (ecnbits != 0)
-    {
-        rxQp->m_CCEntity->m_ecn_source.ecnbits |= ecnbits;
-        rxQp->m_CCEntity->m_ecn_source.qfb++;
-    }
-    rxQp->m_CCEntity->m_ecn_source.total++;
-    rxQp->m_milestone_rx = m_ack_interval;
-
-    RCSeqState x = RCReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
-    switch (x)
-    {
-    case RCSeqState::GENERATE_ACK:
-    case RCSeqState::GENERATE_NACK:
-    {
-        qbbHeader seqh;
-        seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
-        seqh.SetPG(ch.udp.pg);
-        seqh.SetSport(ch.udp.dport);
-        seqh.SetDport(ch.udp.sport);
-        seqh.SetIntHeader(ch.udp.ih);
-        if (ecnbits)
-            seqh.SetCnp();
-
-        Ptr<Packet> newp = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
-        newp->AddHeader(seqh);
-
-        Ipv4Header head; // Prepare IPv4 header
-        head.SetDestination(Ipv4Address(ch.sip));
-        head.SetSource(Ipv4Address(ch.dip));
-        head.SetProtocol(x == RCSeqState::GENERATE_ACK ? 0xFC : 0xFD); // ack=0xFC nack=0xFD
-        head.SetTtl(64);
-        head.SetPayloadSize(newp->GetSize());
-        head.SetIdentification(rxQp->m_ipid++);
-
-        newp->AddHeader(head);
-        AddHeader(newp, 0x800); // Attach PPP header
-        // send
-        uint32_t nic_idx = GetNicIdxOfQp(rxQp);
-        m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(newp);
-        m_nic[nic_idx].dev->TriggerTransmit();
-    }
-    }
-}
-*/
 bool RdmaHw::CheckOpcodeValid(IBHeader ibh, OpCodeType type) {
     switch (ibh.GetOpCode().GetOpCodeType()) {
         case OpCodeType::RC:
@@ -336,6 +290,7 @@ bool RdmaHw::UCCheckOpcodeSequence(IBHeader ibh, Ptr<RdmaQueuePair> rxQp) {
 }
 
 void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
+    NS_LOG_FUNCTION(*p);
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
     rxQp->m_milestone_rx = m_ack_interval;
 
@@ -354,9 +309,10 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
                 x = RCSeqState::GENERATE_NACK;
             }
             if (LastPacketTag::HasLastPacketTag(ch.udp.ibh.GetOpCode().GetOpCodeOperation())) {
-                // need to do something about completion, collect verbs successfully
                 LastPacketTag tag;
                 p->PeekPacketTag(tag);
+                tag.Print(std::cout);
+                std::cout << std::endl;
                 Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().tags.mark_tag_bits);
                 wc->imm = tag.GetIBV_WR().imm;
                 wc->isTx = false;
@@ -364,11 +320,14 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
                 wc->size = tag.GetIBV_WR().size;
                 wc->tags = tag.GetIBV_WR().tags;
                 wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
+                // to do Krayecho Yx, by now only an IBV_SEND_WITH_IMM is generated
                 wc->verb = IBVerb::IBV_SEND_WITH_IMM;
+                NS_LOG_LOGIC("successfully received a wr, postibg WC");
                 rxQp->m_notify_completion(wc);
             }
         }
         if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
+            NS_LOG_LOGIC(" generating an ack");
             qbbHeader seqh;
             seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
             seqh.SetPG(ch.udp.pg);
@@ -399,6 +358,7 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
 }
 
 void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, CustomHeader &ch) {
+    NS_LOG_FUNCTION(*p);
     uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
     rxQp->m_milestone_rx = m_ack_interval;
 
@@ -448,6 +408,7 @@ void RdmaHw::UCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
 }
 
 int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
+    NS_LOG_FUNCTION(*p);
     // QCN on NIC
     // This is a Congestion signal
     // Then, extract data from the congestion packet.
@@ -497,6 +458,7 @@ int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch) {
 }  // namespace ns3
 
 int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
+    NS_LOG_FUNCTION(*p);
     uint16_t qIndex = ch.ack.pg;
     uint16_t port = ch.ack.dport;
     uint32_t seq = ch.ack.seq;
@@ -558,6 +520,7 @@ int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch) {
 }
 
 int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch) {
+    NS_LOG_FUNCTION(*p);
     L3Protocol proto = static_cast<L3Protocol>(ch.l3Prot);
     switch (proto) {
         case L3Protocol::PROTO_UDP: {
@@ -693,9 +656,16 @@ uint16_t RdmaHw::EtherToPpp(uint16_t proto) {
     return 0;
 }
 
-void RdmaHw::RecoverQueue(Ptr<RdmaQueuePair> qp) { qp->snd_nxt = qp->snd_una; }
+void RdmaHw::RecoverQueue(Ptr<RdmaQueuePair> qp) {
+    NS_LOG_FUNCTION(qp->m_connectionAttr);
+    // to do Krayecho: fix retransmissions in RC
+    NS_ASSERT_MSG(false, "this function is not implemented by now");
+
+    qp->snd_nxt = qp->snd_una;
+}
 
 void RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp) {
+    NS_LOG_FUNCTION(qp->m_connectionAttr);
     NS_ASSERT(!m_qpCompleteCallback.IsNull());
     if (m_cc_mode == 1) {
         Simulator::Cancel(qp->m_CCEntity->mlx.m_eventUpdateAlpha);
@@ -725,9 +695,13 @@ void RdmaHw::AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx) {
     m_rtTable[dip]->push_back(intf_idx);
 }
 
-void RdmaHw::ClearTable() { m_rtTable.clear(); }
+void RdmaHw::ClearTable() {
+    NS_LOG_FUNCTION(this);
+    m_rtTable.clear();
+}
 
 void RdmaHw::RedistributeQp() {
+    NS_LOG_FUNCTION(this);
     // clear old qpGrp
     for (uint32_t i = 0; i < m_nic.size(); i++) {
         if (m_nic[i].dev == NULL) continue;
@@ -786,6 +760,7 @@ Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp) {
 }
 
 void RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap) {
+    NS_LOG_FUNCTION(*pkt);
     qp->m_CCEntity->lastPktSize = pkt->GetSize();
     UpdateNextAvail(qp, interframeGap, pkt->GetSize());
 }

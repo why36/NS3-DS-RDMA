@@ -38,7 +38,7 @@ namespace ns3 {
 static const int CHUNK_BIT = 9;
 using RPCNumber = uint32_t;
 using ACKChunk = struct ack_chunk {
-    ack_chunk(uint32_t imm) : rpc_id(imm >> CHUNK_BIT), chunk_id(rpc_id & (((uint32_t)2 << (CHUNK_BIT + 1)) - 1)){};
+    ack_chunk(uint32_t imm) : rpc_id(imm >> CHUNK_BIT), chunk_id(imm & ((static_cast<uint32_t>(1) << CHUNK_BIT) - 1)){};
     static uint32_t GetImm(uint32_t rpc_id, uint32_t chunk_id) { return (rpc_id << CHUNK_BIT) + chunk_id; };
     uint32_t GetImm() { return GetImm(rpc_id, chunk_id); };
     RPCNumber rpc_id;
@@ -64,7 +64,7 @@ class Reliability : public Object {
     uint32_t GetTotalChunks(uint32_t rpc_id);
     void SetTotalChunks(uint32_t rpc_id, uint32_t maximal_chunk);
     void DeleteTotalChunks(uint32_t rpc_id);
-    void InsertWWR(Ptr<IBVWorkRequest> wr);
+    void InsertWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
 
     void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
@@ -143,7 +143,7 @@ inline void Reliability::DeleteTotalChunks(uint32_t rpc_id) {
     NS_ASSERT(m_rx_rpc_totalChunk.count(rpc_id) == 1);
     m_rx_rpc_totalChunk.erase(rpc_id);
 };
-inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { m_rpc_verbs.push(wr); };
+inline void Reliability::InsertWR(Ptr<IBVWorkRequest> wr) { m_rpc_verbs.push(wr); };
 inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
     NS_ASSERT(wr_id >= m_rpc_verbs.front()->wr_id);
     while (m_rpc_verbs.front()->wr_id <= wr_id) {

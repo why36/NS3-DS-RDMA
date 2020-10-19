@@ -192,17 +192,6 @@ using SimpleTuple = struct simple_tuple {
     uint16_t prio;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const SimpleTuple& tuple) {
-    os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
-    return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, SimpleTuple& _tuple) {
-    const SimpleTuple& tuple = _tuple;
-    os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
-    return os;
-}
-
 struct SimpleTupleHash {
     // Krayecho Yx: this is a stupid compress from tuple to uint32_t
     // only contains the slow 7 bits of each
@@ -222,5 +211,26 @@ struct SimpleTupleEqual {
         return ((lhs.sip == rhs.sip) && (lhs.dip == rhs.dip) && (lhs.sport == rhs.sport) && (lhs.dport == rhs.dport) && (lhs.prio == rhs.prio));
     }
 };
+
+inline std::ostream& operator<<(std::ostream& os, const SimpleTuple& tuple) {
+    os << " sip " << tuple.sip << " dip " << tuple.dip << " sport " << tuple.sport << " dport " << tuple.dport << " prio " << tuple.prio << std::endl;
+    return os;
+}
+inline std::ostream& operator<<(std::ostream& os, SimpleTuple& _tuple) {
+    const SimpleTuple& tuple = _tuple;
+    os << tuple;
+    return os;
+}
+inline std::ostream& operator<<(std::ostream& os, const QPConnectionAttr& attr) {
+    os << " pg " << attr.pg << " sip " << attr.sip << " dip " << attr.dip << " sport " << attr.sport << " dport " << attr.dport << " qp type "
+       << static_cast<int>(attr.qp_type) << " callback " << &attr.completionCB << std::endl;
+    return os;
+}
+inline std::ostream& operator<<(std::ostream& os, QPConnectionAttr& _attr) {
+    const QPConnectionAttr& attr = _attr;
+    os << attr;
+    return os;
+}
+
 }  // namespace ns3
 #endif /* RDMA_H */

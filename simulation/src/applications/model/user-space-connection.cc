@@ -111,7 +111,7 @@ void UserSpaceConnection::SendRetransmissions() {
         Ptr<WRidTag> wrid_tag1 = Create<WRidTag>();
         wrid_tag1->SetWRid(wr->wr_id);
         wr->tags.wrid_tag = wrid_tag1;
-        m_reliability->InsertWWR(wr);
+        m_reliability->InsertWR(wr);
         m_app_qp->PostSend(wr);
 
         cc_implement->IncreaseInflight(wr->size);
@@ -136,12 +136,12 @@ void UserSpaceConnection::SendNewRPC() {
                 wr->size = m_remaining_size;
             }
             uint32_t chunk_id = m_reliability->GetNewChunkId(m_sending_rpc->rpc_id);
+            NS_LOG_LOGIC("sending wr with rpc_id" << (int)m_sending_rpc->rpc_id << " chunk_id " << (int)chunk_id);
             wr->imm = ACKChunk::GetImm(m_sending_rpc->rpc_id, chunk_id);
-            // tags assignment
+
             Ptr<WRidTag> wrid_tag = Create<WRidTag>();
             wr->wr_id = m_reliability->GetWRid();
             wrid_tag->SetWRid(wr->wr_id);
-
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
             chunkSizeTag->SetChunkSize(chunksize);
             Ptr<RPCTag> rpcTag = Create<RPCTag>();
@@ -158,11 +158,13 @@ void UserSpaceConnection::SendNewRPC() {
                 rpcTotalOffsetTag->SetRPCTotalOffset(chunk_id);
                 wr->tags.rpctotaloffset_tag = rpcTotalOffsetTag;
                 wr->tags.mark_tag_bits = kLastTagPayloadBits;
+                NS_LOG_LOGIC("sending packet with last tag payload");
             } else {
                 wr->tags.mark_tag_bits = kGeneralTagPayloadBits;
+                NS_LOG_LOGIC("sending packet without last tag payload");
             }
             wr->verb = IBVerb::IBV_SEND_WITH_IMM;
-            m_reliability->InsertWWR(wr);
+            m_reliability->InsertWR(wr);
             m_app_qp->PostSend(wr);
             m_remaining_size = m_remaining_size > wr->size ? m_remaining_size - wr->size : 0;
 
@@ -260,12 +262,18 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
     } else if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         NS_ASSERT(rxIBVWC->tags.rpc_tag->GetRPCReqResType() != RPCType::Message);
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
+            NS_LOG_LOGIC("usc receives a last wc");
             ACKChunk chunk(rxIBVWC->imm);
+            std::cout << " the chunk is: rpc_id" << (int)chunk.rpc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
+                      << (int)(rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset());
+
             if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
                 Ptr<RPC> rpc = Create<RPC>(chunk.rpc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                            rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }
+        } else {
+            NS_LOG_LOGIC("usc receives a middle wc");
         }
     }
 }

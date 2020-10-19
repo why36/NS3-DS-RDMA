@@ -137,6 +137,7 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = wr->verb;
             wc->wr = wr;
+            NS_LOG_INFO("successfully send a wr, posting wcs");
             m_notify_completion(wc);
         }
     }
@@ -145,7 +146,6 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
 // data path
 Ptr<Packet> RdmaQueuePair::GetNextPacket() {
     NS_LOG_FUNCTION(this);
-    // NS_ASSERT_MSG(m_sending_wr != nullptr, "m_sending_wr is NULL");
     if (m_sending_wr == nullptr) {
         if (!m_wrs.empty()) {
             m_sending_wr = m_wrs.front();
@@ -183,6 +183,8 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
     if (LastPacketTag::HasLastPacketTag(ibheader.GetOpCode().GetOpCodeOperation())) {  // if this is the last packet, add Tags
         LastPacketTag last_pack_tag;
         last_pack_tag.SetIBV_WR(m_sending_wr);
+        NS_LOG_LOGIC("sending last packet with tags: " << ((m_sending_wr->tags.mark_tag_bits == kGeneralTagPayloadBits) ? ("kGeneralTagPayloadBits")
+                                                                                                                        : ("kLastTagPayloadBits")));
         packet->AddPacketTag(last_pack_tag);
 
         if (m_connectionAttr.qp_type == QPType::RDMA_UC) {
@@ -195,6 +197,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = m_sending_wr->verb;
             wc->wr = m_sending_wr;
+            NS_LOG_LOGIC("successfully received a wr, posting wcs");
             m_notify_completion(wc);
         } else {
             m_sending_wr->last_packet_seq = snd_nxt;
@@ -208,6 +211,8 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
         } else {
             m_sending_wr = nullptr;
         }
+    } else {
+        NS_LOG_LOGIC("sending packets without tags");
     }
 
     // add IBHeader
