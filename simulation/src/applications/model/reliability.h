@@ -54,24 +54,30 @@ class ACK {
 
 class Reliability : public Object {
    public:
+    Reliability();
     uint32_t GetMessageNumber() { return m_messageNumber++; }
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
     uint64_t GetWRid() { return m_wruuid++; }
 
+    uint32_t GetNewChunkId(uint32_t rpc_id);
+    void DeleteChunkIds(uint32_t rpc_id);
+    uint32_t GetTotalChunks(uint32_t rpc_id);
+    void SetTotalChunks(uint32_t rpc_id, uint32_t maximal_chunk);
+    void DeleteTotalChunks(uint32_t rpc_id);
     void InsertWWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
 
     void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
     // When an RPC is sent, the ChunkId of the RPC sent at this time is recorded
-    std::map<uint32_t, uint16_t> tx_rpc_chunk;
+    std::map<uint32_t, uint16_t> m_tx_rpc_chunk;
     // key is rpc_id, value is the total chunk numer of this rpc
-    std::map<uint32_t, uint16_t> rx_rpc_totalChunk;
+    std::map<uint32_t, uint16_t> m_rx_rpc_totalChunk;
     // Save RPC's verb for repass
-    std::queue<Ptr<IBVWorkRequest>> rpcImm_verb;
+    std::queue<Ptr<IBVWorkRequest>> m_rpc_verbs;
 
    private:
-    uint32_t m_messageNumber = 0;
-    uint64_t m_wruuid = 0;
+    uint32_t m_messageNumber;
+    uint64_t m_wruuid;
     Ptr<UserSpaceConnection> m_userspace_connection;
 };
 
@@ -108,31 +114,49 @@ class RpcAckBitMap : public Object {
 
     void Erase(uint32_t message_id) {
         if (!m_maps.count(message_id)) return;
-        m_iter = m_maps.find(message_id);
+        auto iter = m_maps.find(message_id);
         // delete m_maps[message_id];
-        m_maps.erase(m_iter);
+        m_maps.erase(iter);
     }
 
    private:
     std::unordered_map<uint32_t, std::bitset<MAX_CHUNK>> m_maps;
-    std::unordered_map<uint32_t, std::bitset<MAX_CHUNK>>::iterator m_iter;
 };
 
-inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { rpcImm_verb.push(wr); };
+inline Reliability::Reliability() : m_messageNumber(0), m_wruuid(0){};
+inline uint32_t Reliability::GetNewChunkId(uint32_t rpc_id) {
+    if (m_tx_rpc_chunk.count(rpc_id) == 0) {
+        m_tx_rpc_chunk[rpc_id] = 0;
+    }
+    return m_tx_rpc_chunk[rpc_id]++;
+};
+inline void Reliability::DeleteChunkIds(uint32_t rpc_id) {
+    NS_ASSERT(m_tx_rpc_chunk.count(rpc_id) == 1);
+    m_tx_rpc_chunk.erase(rpc_id);
+};
+inline uint32_t Reliability::GetTotalChunks(uint32_t rpc_id) {
+    NS_ASSERT(m_rx_rpc_totalChunk.count(rpc_id) == 1);
+    return m_rx_rpc_totalChunk[rpc_id];
+}
+inline void Reliability::SetTotalChunks(uint32_t rpc_id, uint32_t maximal_chunk) { m_rx_rpc_totalChunk[rpc_id] = maximal_chunk; };
+inline void Reliability::DeleteTotalChunks(uint32_t rpc_id) {
+    NS_ASSERT(m_rx_rpc_totalChunk.count(rpc_id) == 1);
+    m_rx_rpc_totalChunk.erase(rpc_id);
+};
+inline void Reliability::InsertWWR(Ptr<IBVWorkRequest> wr) { m_rpc_verbs.push(wr); };
 inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {
-    NS_ASSERT(wr_id >= rpcImm_verb.front()->wr_id);
-    while (rpcImm_verb.front()->wr_id <= wr_id) {
-        if (rpcImm_verb.front()->wr_id < wr_id) {
-            auto wr = rpcImm_verb.front();
+    NS_ASSERT(wr_id >= m_rpc_verbs.front()->wr_id);
+    while (m_rpc_verbs.front()->wr_id <= wr_id) {
+        if (m_rpc_verbs.front()->wr_id < wr_id) {
+            auto wr = m_rpc_verbs.front();
             m_userspace_connection->Retransmit(wr);
         } else {
-            m_userspace_connection->ReceiveAck(rpcImm_verb.front());
-            rpcImm_verb.pop();
+            m_userspace_connection->ReceiveAck(m_rpc_verbs.front());
+            m_rpc_verbs.pop();
             return;
         }
     }
 };
-
 inline void Reliability::set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection) { m_userspace_connection = userspace_connection; }
 
 }  // namespace ns3
