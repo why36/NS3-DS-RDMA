@@ -120,11 +120,14 @@ uint32_t RdmaQueuePair::GetHash(void) {
 }
 
 void RdmaQueuePair::Acknowledge(uint64_t ack) {
+    NS_LOG_FUNCTION(this);
+    NS_LOG_LOGIC(" last_packet_seq: "
+                 << " ack = " << std::dec << ack);
     if (ack > snd_una) {
         snd_una = ack;
     }
     if (GetQPType() == QPType::RDMA_RC) {
-        NS_ASSERT(!m_inflight_wrs.empty());
+        // NS_ASSERT(!m_inflight_wrs.empty());
         while (!m_inflight_wrs.empty() && m_inflight_wrs.front()->last_packet_seq < ack) {
             Ptr<IBVWorkRequest> wr = m_inflight_wrs.front();
             m_inflight_wrs.pop();
@@ -137,7 +140,7 @@ void RdmaQueuePair::Acknowledge(uint64_t ack) {
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = wr->verb;
             wc->wr = wr;
-            NS_LOG_INFO("successfully send a wr, posting wcs");
+            NS_LOG_INFO(this << " posting wc, last_packet_seq = " << std::dec << wr->last_packet_seq << " ack = " << ack);
             m_notify_completion(wc);
         }
     }
@@ -201,6 +204,7 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
             m_notify_completion(wc);
         } else {
             m_sending_wr->last_packet_seq = snd_nxt;
+            NS_LOG_LOGIC(this << " finished sending wr, waiting for acks, last_packet_seq = " << std::dec << m_sending_wr->last_packet_seq);
             m_inflight_wrs.push(m_sending_wr);
         }
 

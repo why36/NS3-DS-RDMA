@@ -122,7 +122,7 @@ using IBVWorkRequest = struct ibv_wr : public SimpleRefCount<ibv_wr> {
     // for RC QP to obtain accurate RTT,
     // in real we do not use this method
     uint64_t send_completion_time;
-    uint32_t last_packet_seq;
+    uint64_t last_packet_seq;
     ibv_wr() { tags.mark_tag_bits = kGeneralTagPayloadBits; }
     ibv_wr(int _mark_tag_bits) { tags.mark_tag_bits = _mark_tag_bits; };
 };
