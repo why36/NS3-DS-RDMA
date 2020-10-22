@@ -47,8 +47,8 @@ TypeId LeapCC::GetTypeId() {
                           MakeUintegerAccessor(&LeapCC::mMinWindow), MakeUintegerChecker<uint64_t>())
             .AddAttribute("MaxCongestionWindow", "maximal congestion window in LeapCC", UintegerValue(64 * kMTUSize),
                           MakeUintegerAccessor(&LeapCC::mMaxWindow), MakeUintegerChecker<uint64_t>())
-            .AddAttribute("CongestionWindow", "congestion window in LeapCC", UintegerValue(8 * kMTUSize), MakeUintegerAccessor(&LeapCC::mWindow),
-                          MakeUintegerChecker<uint64_t>())
+            .AddAttribute("CongestionWindow", "congestion window in LeapCC", UintegerValue(8 * kMTUSize),
+                          MakeUintegerAccessor(&LeapCC::m_window_in_bytes), MakeUintegerChecker<uint64_t>())
             .AddAttribute("Alpha", "alpha in LeapCC", DoubleValue(0.8), MakeDoubleAccessor(&LeapCC::mAlpha), MakeDoubleChecker<double>())
             .AddAttribute("MaxStage", "minimal congestion window in LeapCC", UintegerValue(5), MakeUintegerAccessor(&LeapCC::mMaxStage),
                           MakeUintegerChecker<uint64_t>())
@@ -62,11 +62,11 @@ TypeId LeapCC::GetTypeId() {
 
 void LeapCC::UpdateSignal(CongestionSignal* signal) {
     LeapCCSignal* leap_signal = reinterpret_cast<LeapCCSignal*>(signal);
-    if (leap_signal->mRTT > kAbnormalRTTThreshold) return;
+    if (leap_signal->m_rtt > kAbnormalRTTThreshold) return;
     AjustRTT();
-    double cur_utilization = CalculateUtilization(leap_signal->mRTT);
+    double cur_utilization = CalculateUtilization(leap_signal->m_rtt);
     uint64_t updated_window = CalulateNewWindow(cur_utilization, leap_signal->mBytesAcked);
-    mWindow = LimiteCongestionWindow(updated_window, mWindow);
+    m_window_in_bytes = LimiteCongestionWindow(updated_window, m_window_in_bytes);
     return;
 };
 
@@ -86,23 +86,23 @@ double LeapCC::CalculateUtilization(double rtt) {
 uint64_t LeapCC::CalulateNewWindow(double utilization, uint32_t bytes_acked) {
     uint64_t rtnWindow = 0;
     if (utilization > 0) {
-        rtnWindow = mWindow * std::max(0.5, 1 - utilization);
+        rtnWindow = m_window_in_bytes * std::max(0.5, 1 - utilization);
         mIncStage = 0;
     } else if (utilization == 0) {
         double increased_cwnd = kMTUSize;
         if (mIncStage < mMaxStage) {
-            increased_cwnd = (2 * kMTUSize * 1.0 / mWindow) * bytes_acked;
-            rtnWindow = mWindow + increased_cwnd;
+            increased_cwnd = (2 * kMTUSize * 1.0 / m_window_in_bytes) * bytes_acked;
+            rtnWindow = m_window_in_bytes + increased_cwnd;
             mIncStage++;
         } else {
-            increased_cwnd = (mHAI * kMTUSize * 1.0 / mWindow) * bytes_acked;
-            rtnWindow = mWindow + increased_cwnd;
+            increased_cwnd = (mHAI * kMTUSize * 1.0 / m_window_in_bytes) * bytes_acked;
+            rtnWindow = m_window_in_bytes + increased_cwnd;
         }
     }
     return rtnWindow;
 };
 
-uint32_t LeapCC::GetCongestionWindow() { return mWindow; };
-void LeapCC::OnPacketLost() { mWindow = mMinWindow; }
-void LeapCC::OnRetransmissionTimeout() { mWindow = mMinWindow; }
+uint32_t LeapCC::GetCongestionWindow() { return m_window_in_bytes; };
+void LeapCC::OnPacketLost() { m_window_in_bytes = mMinWindow; }
+void LeapCC::OnRetransmissionTimeout() { m_window_in_bytes = mMinWindow; }
 }  // namespace ns3

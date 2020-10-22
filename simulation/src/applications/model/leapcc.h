@@ -57,7 +57,6 @@ class LeapCC : public RttWindowCongestionControl {
     static uint64_t kMTUSize;
     static uint64_t kAbnormalRTTThreshold;
 
-    uint64_t mWindow;
     uint64_t mMinWindow;
     uint64_t mMaxWindow;
 
@@ -84,14 +83,14 @@ class LeapCC : public RttWindowCongestionControl {
 };
 
 inline uint64_t LeapCC::LimiteCongestionWindow(uint64_t updateWindow, uint64_t tmpWindow) {
-    tmpWindow = std::max(updateWindow, static_cast<uint64_t>(mWindow * 1.0 / 2));
+    tmpWindow = std::max(updateWindow, static_cast<uint64_t>(m_window_in_bytes * 1.0 / 2));
     tmpWindow = std::min(tmpWindow, mMaxWindow);
     tmpWindow = std::max(tmpWindow, mMinWindow);
     return tmpWindow;
 };
 
 inline void LeapCC::AjustRTT() {
-    mTargetRTT = mBaseRTT + std::max(1.0, mBeta * 1.0 / sqrt(mWindow * 1.0 / kMTUSize));
+    mTargetRTT = mBaseRTT + std::max(1.0, mBeta * 1.0 / sqrt(m_window_in_bytes * 1.0 / kMTUSize));
     mTargetRTT = std::max(mTargetRTT, mBaseRTT);
     mTargetRTT = std::min(mTargetRTT, mMaxRTT);
 }

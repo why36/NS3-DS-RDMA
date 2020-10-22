@@ -27,28 +27,28 @@
 namespace ns3 {
 
 bool WindowCongestionControl::IncreaseInflight(uint32_t size) {
-    mInflight += size;
-    if (mWindow <= mInflight) {
-        mThrottled = true;
+    m_inflight_in_bytes += size;
+    if (m_window_in_bytes <= m_inflight_in_bytes) {
+        m_throttled = true;
     }
-    return mThrottled;
+    return m_throttled;
 }
 
 bool WindowCongestionControl::DecreaseInflight(uint32_t size) {
-    NS_ASSERT(mInflight >= size);
-    mInflight -= size;
-    if (mInflight < mWindow) {
-        mThrottled = false;
+    NS_ASSERT(m_inflight_in_bytes >= size);
+    m_inflight_in_bytes -= size;
+    if (m_inflight_in_bytes < m_window_in_bytes) {
+        m_throttled = false;
     }
-    return mThrottled;
+    return m_throttled;
 }
 
 uint32_t WindowCongestionControl::GetAvailableSize() {
-    if (mThrottled) {
+    if (m_throttled) {
         return 0;
     } else {
-        NS_ASSERT(mWindow > mInflight);
-        return mWindow - mInflight;
+        NS_ASSERT(m_window_in_bytes > m_inflight_in_bytes);
+        return m_window_in_bytes - m_inflight_in_bytes;
     }
 }
 

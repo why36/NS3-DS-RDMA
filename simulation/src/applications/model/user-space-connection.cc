@@ -219,12 +219,12 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
     Ptr<RttWindowCongestionControl> cc_implement =
         DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_userspace_congestion_control);
     RTTSignal rtt;
-    rtt.mRTT = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
+    rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
     cc_implement->UpdateSignal(&rtt);
     cc_implement->DecreaseInflight(ackWR->size);
 
     ChunkingSignal chunkSignal;
-    chunkSignal.rtt = rtt.mRTT;
+    chunkSignal.rtt = rtt.m_rtt;
     Ptr<LinearRTTChunking> chunksing = DynamicCast<LinearRTTChunking, ChunkingInterface>(m_chunking);
     m_chunking->UpdateChunkSize(chunkSignal);
 }

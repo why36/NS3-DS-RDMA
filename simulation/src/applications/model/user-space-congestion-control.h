@@ -33,52 +33,39 @@ enum class CongestionControlPacingType { WINDOW_BASE = 0, RATE_BASE = 1 };
 
 class CongestionSignal {
    public:
-    CongestionControlSignalType mType;
-    CongestionSignal(CongestionControlSignalType _type) : mType(_type) {}
+    CongestionSignal(CongestionControlSignalType _type);
+    CongestionControlSignalType m_type;
 };
 
 class RTTSignal : public CongestionSignal {
    public:
-    RTTSignal() : CongestionSignal(CongestionControlSignalType::RTT_SIGNAL) {}
-    uint8_t mRTT;
+    RTTSignal();
+    uint8_t m_rtt;
 };
 
 using CCType = struct cctype {
-    CongestionControlSignalType signalType;
-    CongestionControlPacingType pacingType;
-    cctype() {}
-    cctype(CongestionControlSignalType signal_t) : signalType(signal_t) {}
-    cctype(CongestionControlPacingType pacing_t) : pacingType(pacing_t) {}
-    cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) : signalType(signal_t), pacingType(pacing_t) {}
-    bool operator==(cctype c) { return (c.signalType == signalType && c.pacingType == pacingType); }
+    CongestionControlSignalType signal_type;
+    CongestionControlPacingType pacing_type;
+    cctype();
+    cctype(CongestionControlSignalType signal_t);
+    cctype(CongestionControlPacingType pacing_t);
+    cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t);
+    bool operator==(cctype c);
 };
 
 static const CCType RTTWindowCCType = CCType(CongestionControlSignalType::RTT_SIGNAL, CongestionControlPacingType::WINDOW_BASE);
 
 class UserSpaceCongestionControl : public Object {
    public:
-    // UserSpaceCongestionControl() = delete;
-    UserSpaceCongestionControl(CongestionControlSignalType _signalType) {
-        mType.signalType = _signalType;
-        mType.pacingType = CongestionControlPacingType::WINDOW_BASE;
-    }
+    UserSpaceCongestionControl(CongestionControlSignalType _signal_type);
+    UserSpaceCongestionControl(CongestionControlPacingType _pacing_type);
+    UserSpaceCongestionControl(CongestionControlSignalType _signal_type, CongestionControlPacingType _pacing_type);
 
-    UserSpaceCongestionControl(CongestionControlPacingType _pacingType) {
-        mType.signalType = CongestionControlSignalType::RTT_SIGNAL;
-        mType.pacingType = _pacingType;
-    }
-
-    UserSpaceCongestionControl(CongestionControlSignalType _signalType, CongestionControlPacingType _pacingType) {
-        mType.signalType = _signalType;
-        mType.pacingType = _pacingType;
-    }
-
-    CCType GetCongestionContorlType() { return mType; };
-
+    CCType GetCongestionContorlType();
     virtual void UpdateSignal(CongestionSignal* signal) = 0;
 
    protected:
-    CCType mType;
+    CCType m_type;
 };
 
 class WindowCongestionControl : public UserSpaceCongestionControl {
@@ -91,12 +78,11 @@ class WindowCongestionControl : public UserSpaceCongestionControl {
 
    protected:
     // forbids to construct
-    WindowCongestionControl() : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), mWindow(4096), mInflight(0) {}
-    WindowCongestionControl(CongestionControlSignalType _signalType)
-        : UserSpaceCongestionControl(_signalType, CongestionControlPacingType::WINDOW_BASE), mWindow(4096), mInflight(0) {}
-    uint32_t mWindow;
-    uint32_t mInflight;
-    bool mThrottled;
+    WindowCongestionControl();
+    WindowCongestionControl(CongestionControlSignalType _signal_type);
+    uint32_t m_window_in_bytes;
+    uint32_t m_inflight_in_bytes;
+    bool m_throttled;
 };
 
 class RttWindowCongestionControl : public WindowCongestionControl {
@@ -105,6 +91,35 @@ class RttWindowCongestionControl : public WindowCongestionControl {
     virtual void UpdateSignal(CongestionSignal* signal) = 0;
     virtual uint32_t GetCongestionWindow() = 0;
 };
+
+inline CongestionSignal::CongestionSignal(CongestionControlSignalType _type) : m_type(_type) {}
+
+inline RTTSignal::RTTSignal() : CongestionSignal(CongestionControlSignalType::RTT_SIGNAL) {}
+
+inline CCType::cctype() {}
+inline CCType::cctype(CongestionControlSignalType signal_t) : signal_type(signal_t) {}
+inline CCType::cctype(CongestionControlPacingType pacing_t) : pacing_type(pacing_t) {}
+inline CCType::cctype(CongestionControlSignalType signal_t, CongestionControlPacingType pacing_t) : signal_type(signal_t), pacing_type(pacing_t) {}
+inline bool CCType::operator==(cctype c) { return (c.signal_type == signal_type && c.pacing_type == pacing_type); }
+
+inline UserSpaceCongestionControl::UserSpaceCongestionControl(CongestionControlSignalType _signal_type) {
+    m_type.signal_type = _signal_type;
+    m_type.pacing_type = CongestionControlPacingType::WINDOW_BASE;
+}
+inline UserSpaceCongestionControl::UserSpaceCongestionControl(CongestionControlPacingType _pacing_type) {
+    m_type.signal_type = CongestionControlSignalType::RTT_SIGNAL;
+    m_type.pacing_type = _pacing_type;
+}
+inline UserSpaceCongestionControl::UserSpaceCongestionControl(CongestionControlSignalType _signal_type, CongestionControlPacingType _pacing_type) {
+    m_type.signal_type = _signal_type;
+    m_type.pacing_type = _pacing_type;
+}
+inline CCType UserSpaceCongestionControl::GetCongestionContorlType() { return m_type; };
+
+inline WindowCongestionControl::WindowCongestionControl()
+    : UserSpaceCongestionControl(CongestionControlPacingType::WINDOW_BASE), m_window_in_bytes(4096), m_inflight_in_bytes(0) {}
+inline WindowCongestionControl::WindowCongestionControl(CongestionControlSignalType _signal_type)
+    : UserSpaceCongestionControl(_signal_type, CongestionControlPacingType::WINDOW_BASE), m_window_in_bytes(4096), m_inflight_in_bytes(0) {}
 
 }  // namespace ns3
 #endif /* USER_SPACE_CONGESTION_CONTROL_H */
