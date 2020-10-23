@@ -62,7 +62,7 @@ class RPCClient : public Object {
 
 class KRPCClient : public RPCClient {
     static const int kInterval = 10;
-    static const int kRequestSize = 80000;
+    static const int kRequestSize = 1000;
     static const int kResponseSize = 128;
     static const int kRPCRequest = 8;
     void KRPCInit();

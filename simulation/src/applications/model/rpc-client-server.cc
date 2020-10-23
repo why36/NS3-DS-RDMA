@@ -41,6 +41,7 @@ void KRPCClient::KRPCInit() {
     for (int i = 0; i < kRPCRequest; i++) {
         Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
         m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
+        std::cout<<"RPC insert into m_rpc_request_map: "<< rpc->rpc_id << std::endl;
     }
 }
 
@@ -64,11 +65,13 @@ void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
     if (it != m_rpc_request_map.end()) {
         m_logger.RecordRPCReceive(it->second);
         m_rpc_request_map.erase(it);
+        std::cout<<"erase RPC in m_rpc_request_map "<< it->first <<std::endl;
     }
 
     while (m_rpc_request_map.size() <= kRPCRequest) {
         Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
         m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
+        std::cout<<"RPC insert into m_rpc_request_map: "<< rpc->rpc_id << std::endl;
         SendRPC(rpc);
     }
 }

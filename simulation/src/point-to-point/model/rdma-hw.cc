@@ -327,7 +327,10 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             }
         }
         if (x == RCSeqState::GENERATE_ACK || x == RCSeqState::GENERATE_NACK) {
-            NS_LOG_LOGIC(" generating an ack");
+            if (x == RCSeqState::GENERATE_ACK)
+                NS_LOG_LOGIC("generating an Ack");
+            else if (x == RCSeqState::GENERATE_ACK)
+                NS_LOG_LOGIC("generating an Nack");
             qbbHeader seqh;
             seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
             seqh.SetPG(ch.udp.pg);

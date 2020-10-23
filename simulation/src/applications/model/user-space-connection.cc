@@ -234,6 +234,7 @@ void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
     txIBVWC->wr->send_completion_time = txIBVWC->completion_time_in_us;
     if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         m_reliability->AckWR(txIBVWC->imm, txIBVWC->wr->wr_id);
+        //gyy test
     }
     return;
 }
