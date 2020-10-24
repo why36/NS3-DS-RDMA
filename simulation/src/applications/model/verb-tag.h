@@ -56,7 +56,7 @@ class RPCTag : public Tag {
     void SetRequestSize(uint32_t requestSize);
     void SetResponseSize(uint32_t responseSize);
     void SetRPCReqResType(RPCType type);
-    void SetRPCReqResId(uint64_t reqres_id);
+    void SetRPCUSCId(uint64_t reqres_id);
     uint32_t GetRequestSize(void) const;
     uint32_t GetResponseSize(void) const;
     RPCType GetRPCReqResType(void) const;
@@ -72,7 +72,7 @@ class RPCTag : public Tag {
     uint32_t m_requestSize;
     uint32_t m_responseSize;
     RPCType m_type;
-    uint64_t m_reqres_id;
+    uint64_t m_usc_id;
 };
 
 class RPCTotalOffsetTag : public Tag {

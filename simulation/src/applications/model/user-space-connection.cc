@@ -128,28 +128,30 @@ void UserSpaceConnection::SendNewRPC() {
 
     while (cc_size) {
         if (m_remaining_size) {
-            uint32_t chunksize = m_chunking->GetChunkSize(cc_size);
+            uint32_t chunk_size = m_chunking->GetChunkSize(cc_size);
             Ptr<IBVWorkRequest> wr = Create<IBVWorkRequest>();
-            if (m_remaining_size > chunksize) {
-                wr->size = chunksize;
-            } else if (m_remaining_size <= chunksize) {
+            if (m_remaining_size > chunk_size) {
+                wr->size = chunk_size;
+            } else if (m_remaining_size <= chunk_size) {
                 wr->size = m_remaining_size;
             }
-            uint32_t chunk_id = m_reliability->GetNewChunkId(m_sending_rpc->rpc_id);
-            NS_LOG_LOGIC("sending wr with rpc_id" << (int)m_sending_rpc->rpc_id << " chunk_id " << (int)chunk_id);
-            wr->imm = ACKChunk::GetImm(m_sending_rpc->rpc_id, chunk_id);
+            uint32_t chunk_id = m_reliability->GetNewChunkId(m_sending_rpc->m_usc_id);
+            NS_LOG_LOGIC("sending wr with rpc_id: " << (int)m_sending_rpc->rpc_id << " usc_id: " << (int)m_sending_rpc->m_usc_id << " chunk_id "
+                                                    << (int)chunk_id << std::endl;)
 
-            Ptr<WRidTag> wrid_tag = Create<WRidTag>();
+            wr->imm = ACKChunk::GetImm(m_sending_rpc->m_usc_id, chunk_id);
+
+            Ptr<WRidTag> wr_id_tag = Create<WRidTag>();
             wr->wr_id = m_reliability->GetWRid();
-            wrid_tag->SetWRid(wr->wr_id);
+            wr_id_tag->SetWRid(wr->wr_id);
             Ptr<ChunkSizeTag> chunkSizeTag = Create<ChunkSizeTag>();
-            chunkSizeTag->SetChunkSize(chunksize);
+            chunkSizeTag->SetChunkSize(chunk_size);
             Ptr<RPCTag> rpcTag = Create<RPCTag>();
             rpcTag->SetRequestSize(m_sending_rpc->m_request_size);
             rpcTag->SetResponseSize(m_sending_rpc->m_response_size);
-            rpcTag->SetRPCReqResId(m_sending_rpc->m_reqres_id);
+            rpcTag->SetRPCUSCId(m_sending_rpc->m_usc_id);
             rpcTag->SetRPCReqResType(m_sending_rpc->m_rpc_type);
-            wr->tags.wrid_tag = wrid_tag;
+            wr->tags.wrid_tag = wr_id_tag;
             wr->tags.chunksize_tag = chunkSizeTag;
             wr->tags.rpc_tag = rpcTag;
 
@@ -182,7 +184,7 @@ void UserSpaceConnection::SendNewRPC() {
                 if (!m_remaining_size) {
                     m_sending_rpc = m_queuing_rpcs.front();
                     m_queuing_rpcs.pop();
-                    m_sending_rpc->rpc_id = m_reliability->GetMessageNumber();
+                    m_sending_rpc->m_usc_id = m_reliability->GetMessageNumber();
                     m_remaining_size =
                         (m_sending_rpc->m_rpc_type == RPCType::Request) ? m_sending_rpc->m_request_size : m_sending_rpc->m_response_size;
                 }
@@ -200,7 +202,7 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     Ptr<RPCTag> rpcTag = Create<RPCTag>();
     rpcTag->SetRPCReqResType(RPCType::Message);
 
-    rpcTag->SetRPCReqResId(0);
+    rpcTag->SetRPCUSCId(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
 
@@ -234,7 +236,6 @@ void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
     txIBVWC->wr->send_completion_time = txIBVWC->completion_time_in_us;
     if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         m_reliability->AckWR(txIBVWC->imm, txIBVWC->wr->wr_id);
-        //gyy test
     }
     return;
 }
