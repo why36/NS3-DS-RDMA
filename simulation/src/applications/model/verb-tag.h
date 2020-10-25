@@ -53,10 +53,12 @@ class ChunkSizeTag : public Tag {
 class RPCTag : public Tag {
    public:
     RPCTag();
-    void SetRequestSize(uint32_t requestSize);
-    void SetResponseSize(uint32_t responseSize);
+    void SetRPCId(uint32_t rpc_id);
+    void SetRequestSize(uint32_t request_size);
+    void SetResponseSize(uint32_t response_size);
     void SetRPCReqResType(RPCType type);
-    void SetRPCUSCId(uint64_t reqres_id);
+    void SetRPCUSCId(uint64_t usc_id);
+    uint32_t GetRPCId(void) const;
     uint32_t GetRequestSize(void) const;
     uint32_t GetResponseSize(void) const;
     RPCType GetRPCReqResType(void) const;
@@ -69,8 +71,9 @@ class RPCTag : public Tag {
     virtual void Print(std::ostream &os) const;
 
    private:
-    uint32_t m_requestSize;
-    uint32_t m_responseSize;
+    uint32_t m_rpc_id;
+    uint32_t m_request_size;
+    uint32_t m_response_size;
     RPCType m_type;
     uint64_t m_usc_id;
 };
