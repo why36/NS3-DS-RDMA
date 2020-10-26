@@ -59,19 +59,21 @@ NS_OBJECT_ENSURE_REGISTERED(RPCTag);
 
 RPCTag::RPCTag() { NS_LOG_FUNCTION(this); }
 
-void RPCTag::SetRequestSize(uint32_t requestSize) { m_requestSize = requestSize; }
-void RPCTag::SetResponseSize(uint32_t responseSize) { m_responseSize = responseSize; }
+void RPCTag::SetRPCId(uint32_t rpc_id) { m_rpc_id = rpc_id; }
+void RPCTag::SetRequestSize(uint32_t request_size) { m_request_size = request_size; }
+void RPCTag::SetResponseSize(uint32_t response_size) { m_response_size = response_size; }
 
 void RPCTag::SetRPCReqResType(RPCType type) { m_type = type; }
 
-void RPCTag::SetRPCReqResId(uint64_t reqres_id) { m_reqres_id = reqres_id; }
+void RPCTag::SetRPCUSCId(uint64_t usc_id) { m_usc_id = usc_id; }
 
-uint32_t RPCTag::GetRequestSize(void) const { return m_requestSize; }
-uint32_t RPCTag::GetResponseSize(void) const { return m_responseSize; }
+uint32_t RPCTag::GetRPCId(void) const { return m_rpc_id; }
+uint32_t RPCTag::GetRequestSize(void) const { return m_request_size; }
+uint32_t RPCTag::GetResponseSize(void) const { return m_response_size; }
 
 RPCType RPCTag::GetRPCReqResType(void) const { return m_type; }
 
-uint64_t RPCTag::GetRPCReqResId(void) const { return m_reqres_id; }
+uint64_t RPCTag::GetRPCReqResId(void) const { return m_usc_id; }
 
 TypeId RPCTag::GetTypeId(void) {
     static TypeId tid = TypeId("ns3::RPCTag").SetParent<Tag>().AddConstructor<RPCTag>();
@@ -80,26 +82,29 @@ TypeId RPCTag::GetTypeId(void) {
 
 TypeId RPCTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
-uint32_t RPCTag::GetSerializedSize(void) const { return sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint64_t); }
+uint32_t RPCTag::GetSerializedSize(void) const { return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint64_t); }
 
 void RPCTag::Serialize(TagBuffer i) const {
-    i.WriteU32(m_requestSize);
-    i.WriteU32(m_responseSize);
+    i.WriteU32(m_rpc_id);
+    i.WriteU32(m_request_size);
+    i.WriteU32(m_response_size);
     i.WriteU8(static_cast<uint8_t>(m_type));
-    i.WriteU64(m_reqres_id);
+    i.WriteU64(m_usc_id);
 }
 
 void RPCTag::Deserialize(TagBuffer i) {
-    m_requestSize = i.ReadU32();
-    m_responseSize = i.ReadU32();
+    m_rpc_id = i.ReadU32(); 
+    m_request_size = i.ReadU32();
+    m_response_size = i.ReadU32();
     m_type = static_cast<RPCType>(i.ReadU8());
-    m_reqres_id = i.ReadU64();
+    m_usc_id = i.ReadU64();
 }
 
 void RPCTag::Print(std::ostream &os) const {
-    os << "RPCTag.m_requestSize(dec)=" << std::dec << m_requestSize << "\n"
-       << "RPCTag.m_responseSize(dec)=" << std::dec << m_responseSize << "\n"
-       << "RPCTag.m_reqres_id(dec)=" << std::dec << m_reqres_id << "\n"
+    os << "RPCTag.m_rpc_id(dec)=" << std::dec << m_rpc_id << "\n"
+       << "RPCTag.m_request_size(dec)=" << std::dec << m_request_size << "\n"
+       << "RPCTag.m_responseSize(dec)=" << std::dec << m_response_size << "\n"
+       << "RPCTag.m_usc_id(dec)=" << std::dec << m_usc_id << "\n"
        << " RPCTag.m_type(dec)=" << std::dec << static_cast<uint8_t>(m_type);
 }
 

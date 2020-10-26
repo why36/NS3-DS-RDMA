@@ -36,12 +36,12 @@
 namespace ns3 {
 
 static const int CHUNK_BIT = 9;
-using RPCNumber = uint32_t;
+using USCNumber = uint32_t;
 using ACKChunk = struct ack_chunk {
-    ack_chunk(uint32_t imm) : rpc_id(imm >> CHUNK_BIT), chunk_id(imm & ((static_cast<uint32_t>(1) << CHUNK_BIT) - 1)){};
-    static uint32_t GetImm(uint32_t rpc_id, uint32_t chunk_id) { return (rpc_id << CHUNK_BIT) + chunk_id; };
-    uint32_t GetImm() { return GetImm(rpc_id, chunk_id); };
-    RPCNumber rpc_id;
+    ack_chunk(uint32_t imm) : usc_id(imm >> CHUNK_BIT), chunk_id(imm & ((static_cast<uint32_t>(1) << CHUNK_BIT) - 1)){};
+    static uint32_t GetImm(uint32_t usc_id, uint32_t chunk_id) { return (usc_id << CHUNK_BIT) + chunk_id; };
+    uint32_t GetImm() { return GetImm(usc_id, chunk_id); };
+    USCNumber usc_id;
     uint32_t chunk_id;
 };
 
@@ -59,11 +59,11 @@ class Reliability : public Object {
     uint32_t GetMessageTotalNumber() { return m_messageNumber; }
     uint64_t GetWRid() { return m_wruuid++; }
 
-    uint32_t GetNewChunkId(uint32_t rpc_id);
-    void DeleteChunkIds(uint32_t rpc_id);
-    uint32_t GetTotalChunks(uint32_t rpc_id);
-    void SetTotalChunks(uint32_t rpc_id, uint32_t maximal_chunk);
-    void DeleteTotalChunks(uint32_t rpc_id);
+    uint32_t GetNewChunkId(uint32_t usc_id);
+    void DeleteChunkIds(uint32_t usc_id);
+    uint32_t GetTotalChunks(uint32_t usc_id);
+    void SetTotalChunks(uint32_t usc_id, uint32_t maximal_chunk);
+    void DeleteTotalChunks(uint32_t usc_id);
     void InsertWR(Ptr<IBVWorkRequest> wr);
     void AckWR(uint32_t imm, uint64_t number);
 
@@ -124,24 +124,24 @@ class RpcAckBitMap : public Object {
 };
 
 inline Reliability::Reliability() : m_messageNumber(0), m_wruuid(0){};
-inline uint32_t Reliability::GetNewChunkId(uint32_t rpc_id) {
-    if (m_tx_rpc_chunk.count(rpc_id) == 0) {
-        m_tx_rpc_chunk[rpc_id] = 0;
+inline uint32_t Reliability::GetNewChunkId(uint32_t usc_id) {
+    if (m_tx_rpc_chunk.count(usc_id) == 0) {
+        m_tx_rpc_chunk[usc_id] = 0;
     }
-    return m_tx_rpc_chunk[rpc_id]++;
+    return m_tx_rpc_chunk[usc_id]++;
 };
-inline void Reliability::DeleteChunkIds(uint32_t rpc_id) {
-    NS_ASSERT(m_tx_rpc_chunk.count(rpc_id) == 1);
-    m_tx_rpc_chunk.erase(rpc_id);
+inline void Reliability::DeleteChunkIds(uint32_t usc_id) {
+    NS_ASSERT(m_tx_rpc_chunk.count(usc_id) == 1);
+    m_tx_rpc_chunk.erase(usc_id);
 };
-inline uint32_t Reliability::GetTotalChunks(uint32_t rpc_id) {
-    NS_ASSERT(m_rx_rpc_totalChunk.count(rpc_id) == 1);
-    return m_rx_rpc_totalChunk[rpc_id];
+inline uint32_t Reliability::GetTotalChunks(uint32_t usc_id) {
+    NS_ASSERT(m_rx_rpc_totalChunk.count(usc_id) == 1);
+    return m_rx_rpc_totalChunk[usc_id];
 }
-inline void Reliability::SetTotalChunks(uint32_t rpc_id, uint32_t maximal_chunk) { m_rx_rpc_totalChunk[rpc_id] = maximal_chunk; };
-inline void Reliability::DeleteTotalChunks(uint32_t rpc_id) {
-    NS_ASSERT(m_rx_rpc_totalChunk.count(rpc_id) == 1);
-    m_rx_rpc_totalChunk.erase(rpc_id);
+inline void Reliability::SetTotalChunks(uint32_t usc_id, uint32_t maximal_chunk) { m_rx_rpc_totalChunk[usc_id] = maximal_chunk; };
+inline void Reliability::DeleteTotalChunks(uint32_t usc_id) {
+    NS_ASSERT(m_rx_rpc_totalChunk.count(usc_id) == 1);
+    m_rx_rpc_totalChunk.erase(usc_id);
 };
 inline void Reliability::InsertWR(Ptr<IBVWorkRequest> wr) { m_rpc_verbs.push(wr); };
 inline void Reliability::AckWR(uint32_t imm, uint64_t wr_id) {

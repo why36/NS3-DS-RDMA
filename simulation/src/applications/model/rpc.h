@@ -93,12 +93,12 @@ class RPC : public Object {
     uint32_t rpc_id;
     uint32_t m_request_size;
     uint32_t m_response_size;
-    uint64_t m_reqres_id;  // request or response id
+    uint64_t m_usc_id;  // request/response/ack id, Monotonically increasing
     RPCType m_rpc_type;
     RPCInfo m_info;
     RPC();
     RPC(uint64_t id, uint32_t request_size, uint32_t response_size, RPCType type)
-        : m_reqres_id(id), m_request_size(request_size), m_response_size(response_size), m_rpc_type(type) {}
+        : rpc_id(id), m_request_size(request_size), m_response_size(response_size), m_rpc_type(type) {}
 };
 
 }  // namespace ns3

@@ -59,7 +59,7 @@ RPCTestCase::~RPCTestCase() {}
 static const int kRPCRequest = 8;
 static const int interval = 10;
 
-static const int requestSize = 2000;
+static const int request_size = 2000;
 
 //Key is request_id and value is RPC. When the response_id received equals request_id, it is removed from the map.
 std::map<uint64_t,Ptr<RPC>> RPCRequestMap;
@@ -68,7 +68,7 @@ std::map<uint64_t,Ptr<RPC>>::iterator it;
 
 RPCTestCase::init() {
     for (int i = 0; i < kRPCRequest; i++) {
-        Ptr<RpcRequest> req = Create<RpcRequest>(requestSize);  
+        Ptr<RpcRequest> req = Create<RpcRequest>(request_size);  
         RPCRequestMap.insert(pair<uint64_t,Ptr<RPC>>(req.requestId,req));
     }
 }

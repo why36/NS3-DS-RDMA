@@ -49,8 +49,8 @@ static const uint8_t kLastTagPayloadBits = kGeneralTagPayloadBits | RPCTOTALOFFS
 
 using TagPayload = struct tag_payload {
     uint8_t mark_tag_bits;
-    Ptr<WRidTag> wrid_tag;
-    Ptr<ChunkSizeTag> chunksize_tag;
+    Ptr<WRidTag> wr_id_tag;
+    Ptr<ChunkSizeTag> chunk_size_tag;
     Ptr<RPCTag> rpc_tag;
     Ptr<RPCTotalOffsetTag> rpctotaloffset_tag;
     inline void Serialize(TagBuffer i) const;
@@ -60,10 +60,10 @@ using TagPayload = struct tag_payload {
 
 void TagPayload::Serialize(TagBuffer i) const {
     if (mark_tag_bits & WRID_BIT) {
-        wrid_tag->Serialize(i);
+        wr_id_tag->Serialize(i);
     }
     if (mark_tag_bits & CHUNKSIZE_BIT) {
-        chunksize_tag->Serialize(i);
+        chunk_size_tag->Serialize(i);
     }
     if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag->Serialize(i);
@@ -74,14 +74,14 @@ void TagPayload::Serialize(TagBuffer i) const {
 }
 
 void TagPayload::Deserialize(TagBuffer i) {
-    NS_ASSERT(!wrid_tag && !chunksize_tag && !rpc_tag && !rpctotaloffset_tag);
+    NS_ASSERT(!wr_id_tag && !chunk_size_tag && !rpc_tag && !rpctotaloffset_tag);
     if (mark_tag_bits & WRID_BIT) {
-        wrid_tag = Create<WRidTag>();
-        wrid_tag->Deserialize(i);
+        wr_id_tag = Create<WRidTag>();
+        wr_id_tag->Deserialize(i);
     }
     if (mark_tag_bits & CHUNKSIZE_BIT) {
-        chunksize_tag = Create<ChunkSizeTag>();
-        chunksize_tag->Deserialize(i);
+        chunk_size_tag = Create<ChunkSizeTag>();
+        chunk_size_tag->Deserialize(i);
     }
     if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag = Create<RPCTag>();
@@ -96,10 +96,10 @@ void TagPayload::Deserialize(TagBuffer i) {
 inline uint32_t TagPayload::GetSerializedSize() const {
     uint32_t size = 0;
     if (mark_tag_bits & WRID_BIT) {
-        size += wrid_tag->GetSerializedSize();
+        size += wr_id_tag->GetSerializedSize();
     }
     if (mark_tag_bits & CHUNKSIZE_BIT) {
-        size += chunksize_tag->GetSerializedSize();
+        size += chunk_size_tag->GetSerializedSize();
     }
     if (mark_tag_bits & RPCTAG_BIT) {
         size += rpc_tag->GetSerializedSize();

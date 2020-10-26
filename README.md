@@ -27,9 +27,12 @@ You can contact Krayecho Yx (<mrgaoxx@smail.nju.edu.cn> (maybe filterd by NJU) /
    - Window Control
    - LEAP-CC (Ongoing)
 ### Reliability Module
-   - Numbering
-   - ACK: A simple per-packet ACK mechanism
+   - Numbering:
+      - Client layer: the rpc_id include a request/response(one-to-one)
+      - UserSpaceConnection layer: the usc_id is monotonically increasing, include request, response.(ack's usc_id is 0)
+   - ACK: A simple per-chunk  ACK mechanism
    - SR: SR
+
 
 # Layout 
 ## NS-3 simulation
