@@ -40,111 +40,114 @@ namespace ns3 {
  * This class allows subclasses of the ns3::Tag base class
  * to serialize and deserialize their data through a stream-like
  * API. This class keeps track of the "current" point in the
- * buffer and advances that "current" point everytime data is 
- * written. The in-memory format of the data written by 
+ * buffer and advances that "current" point everytime data is
+ * written. The in-memory format of the data written by
  * this class is unspecified.
  *
- * If the user attempts to write more data in the buffer than 
+ * If the user attempts to write more data in the buffer than
  * he allocated with Tag::GetSerializedSize, he will trigger
  * an NS_ASSERT error.
  */
-class TagBuffer
-{
-public:
-  TagBuffer (uint8_t *start, uint8_t *end);
-  void TrimAtEnd (uint32_t trim);
-  void CopyFrom (TagBuffer o);
+class TagBuffer {
+   public:
+    TagBuffer(uint8_t *start, uint8_t *end);
+    void TrimAtEnd(uint32_t trim);
+    void CopyFrom(TagBuffer o);
 
-  /**
-   * \param v the value to write
-   *
-   * Write one byte and advance the "current" point by one.
-   */
-  TAG_BUFFER_INLINE void WriteU8 (uint8_t v);
-  /**
-   * \param v the value to write
-   *
-   * Write two bytes and advance the "current" point by two.
-   */
-  TAG_BUFFER_INLINE void WriteU16 (uint16_t v);
-  /**
-   * \param v the value to write
-   *
-   * Write four bytes and advance the "current" point by four.
-   */
-  TAG_BUFFER_INLINE void WriteU32 (uint32_t v);
-  /**
-   * \param v the value to write
-   *
-   * Write eight bytes and advance the "current" point by eight.
-   */
-  void WriteU64 (uint64_t v);
-  /**
-   * \param v the value to write
-   *
-   * Write a double and advance the "current" point by the size of the
-   * data written.
-   */
-  void WriteDouble (double v);
-  /**
-   * \param buffer a pointer to data to write
-   * \param size the size of the data to write
-   *
-   * Write all the input data and advance the "current" point by the size of the
-   * data written.
-   */
-  void Write (const uint8_t *buffer, uint32_t size);
-  /**
-   * \returns the value read
-   *
-   * Read one byte, advance the "current" point by one,
-   * and return the value read.
-   */
-  TAG_BUFFER_INLINE uint8_t  ReadU8 (void);
-  /**
-   * \returns the value read
-   *
-   * Read two bytes, advance the "current" point by two,
-   * and return the value read.
-   */
-  TAG_BUFFER_INLINE uint16_t ReadU16 (void);
-  /**
-   * \returns the value read
-   *
-   * Read four bytes, advance the "current" point by four,
-   * and return the value read.
-   */
-  TAG_BUFFER_INLINE uint32_t ReadU32 (void);
-  /**
-   * \returns the value read
-   *
-   * Read eight bytes, advance the "current" point by eight,
-   * and return the value read.
-   */
-  uint64_t ReadU64 (void);
-  /**
-   * \returns the value read
-   *
-   * Read a double, advance the "current" point by the size
-   * of the data read, and, return the value read.
-   */
-  double ReadDouble (void);
-  /**
-   * \param buffer a pointer to the buffer where data should be
-   * written.
-   * \param size the number of bytes to read.
-   *
-   * Read the number of bytes requested, advance the "current"
-   * point by the number of bytes read, return.
-   */
-  void Read (uint8_t *buffer, uint32_t size);
-private:
+    /**
+     * \param v the value to write
+     *
+     * Write one byte and advance the "current" point by one.
+     */
+    TAG_BUFFER_INLINE void WriteU8(uint8_t v);
+    /**
+     * \param v the value to write
+     *
+     * Write two bytes and advance the "current" point by two.
+     */
+    TAG_BUFFER_INLINE void WriteU16(uint16_t v);
+    /**
+     * \param v the value to write
+     *
+     * Write four bytes and advance the "current" point by four.
+     */
+    TAG_BUFFER_INLINE void WriteU32(uint32_t v);
+    /**
+     * \param v the value to write
+     *
+     * Write eight bytes and advance the "current" point by eight.
+     */
+    void WriteU64(uint64_t v);
+    /**
+     * \param v the value to write
+     *
+     * Write a double and advance the "current" point by the size of the
+     * data written.
+     */
+    void WriteDouble(double v);
+    /**
+     * \param buffer a pointer to data to write
+     * \param size the size of the data to write
+     *
+     * Write all the input data and advance the "current" point by the size of the
+     * data written.
+     */
+    void Write(const uint8_t *buffer, uint32_t size);
+    /**
+     * \returns the value read
+     *
+     * Read one byte, advance the "current" point by one,
+     * and return the value read.
+     */
+    TAG_BUFFER_INLINE uint8_t ReadU8(void);
+    /**
+     * \returns the value read
+     *
+     * Read two bytes, advance the "current" point by two,
+     * and return the value read.
+     */
+    TAG_BUFFER_INLINE uint16_t ReadU16(void);
+    /**
+     * \returns the value read
+     *
+     * Read four bytes, advance the "current" point by four,
+     * and return the value read.
+     */
+    TAG_BUFFER_INLINE uint32_t ReadU32(void);
+    /**
+     * \returns the value read
+     *
+     * Read eight bytes, advance the "current" point by eight,
+     * and return the value read.
+     */
+    uint64_t ReadU64(void);
+    /**
+     * \returns the value read
+     *
+     * Read a double, advance the "current" point by the size
+     * of the data read, and, return the value read.
+     */
+    double ReadDouble(void);
+    /**
+     * \param buffer a pointer to the buffer where data should be
+     * written.
+     * \param size the number of bytes to read.
+     *
+     * Read the number of bytes requested, advance the "current"
+     * point by the number of bytes read, return.
+     */
+    void Read(uint8_t *buffer, uint32_t size);
+    void SetMCurrent(uint8_t *_m_current);
+    void SetMEnd(uint8_t *_m_end);
+    uint8_t *GetMCurrent();
+    uint8_t *GetMEnd();
 
-  uint8_t *m_current;
-  uint8_t *m_end;
+   private:
+    uint8_t *m_current;
+    uint8_t *m_end;
 };
 
-} // namespace ns3
+}  // namespace ns3
 
 #ifdef TAG_BUFFER_USE_INLINE
 
@@ -152,67 +155,56 @@ private:
 
 namespace ns3 {
 
-void 
-TagBuffer::WriteU8 (uint8_t v)
-{
-  NS_ASSERT (m_current + 1 <= m_end);
-  *m_current = v;
-  m_current++;
+
+void TagBuffer::WriteU8(uint8_t v) {
+    NS_ASSERT(m_current + 1 <= m_end);
+    *m_current = v;
+    m_current++;
 }
 
-void 
-TagBuffer::WriteU16 (uint16_t data)
-{
-  WriteU8 ((data >> 0) & 0xff);
-  WriteU8 ((data >> 8) & 0xff);
+void TagBuffer::WriteU16(uint16_t data) {
+    WriteU8((data >> 0) & 0xff);
+    WriteU8((data >> 8) & 0xff);
 }
-void 
-TagBuffer::WriteU32 (uint32_t data)
-{
-  WriteU8 ((data >> 0) & 0xff);
-  WriteU8 ((data >> 8) & 0xff);
-  WriteU8 ((data >> 16) & 0xff);
-  WriteU8 ((data >> 24) & 0xff);
+void TagBuffer::WriteU32(uint32_t data) {
+    WriteU8((data >> 0) & 0xff);
+    WriteU8((data >> 8) & 0xff);
+    WriteU8((data >> 16) & 0xff);
+    WriteU8((data >> 24) & 0xff);
 }
 
-uint8_t
-TagBuffer::ReadU8 (void)
-{
-  NS_ASSERT (m_current + 1 <= m_end);
-  uint8_t v;
-  v = *m_current;
-  m_current++;
-  return v;
+uint8_t TagBuffer::ReadU8(void) {
+    NS_ASSERT(m_current + 1 <= m_end);
+    uint8_t v;
+    v = *m_current;
+    m_current++;
+    return v;
 }
 
-uint16_t 
-TagBuffer::ReadU16 (void)
-{
-  uint8_t byte0 = ReadU8 ();
-  uint8_t byte1 = ReadU8 ();
-  uint16_t data = byte1;
-  data <<= 8;
-  data |= byte0;
-  return data;
+uint16_t TagBuffer::ReadU16(void) {
+    uint8_t byte0 = ReadU8();
+    uint8_t byte1 = ReadU8();
+    uint16_t data = byte1;
+    data <<= 8;
+    data |= byte0;
+    return data;
 }
-uint32_t 
-TagBuffer::ReadU32 (void)
-{
-  uint8_t byte0 = ReadU8 ();
-  uint8_t byte1 = ReadU8 ();
-  uint8_t byte2 = ReadU8 ();
-  uint8_t byte3 = ReadU8 ();
-  uint32_t data = byte3;
-  data <<= 8;
-  data |= byte2;
-  data <<= 8;
-  data |= byte1;
-  data <<= 8;
-  data |= byte0;
-  return data;
+uint32_t TagBuffer::ReadU32(void) {
+    uint8_t byte0 = ReadU8();
+    uint8_t byte1 = ReadU8();
+    uint8_t byte2 = ReadU8();
+    uint8_t byte3 = ReadU8();
+    uint32_t data = byte3;
+    data <<= 8;
+    data |= byte2;
+    data <<= 8;
+    data |= byte1;
+    data <<= 8;
+    data |= byte0;
+    return data;
 }
 
-} // namespace ns3
+}  // namespace ns3
 
 #endif /* TAG_BUFFER_USE_INLINE */
 

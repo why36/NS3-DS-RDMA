@@ -190,5 +190,13 @@ TagBuffer::CopyFrom (TagBuffer o)
   m_current += size;
 }
 
+void TagBuffer::SetMCurrent(uint8_t *_m_current) { m_current = _m_current; }
+
+void TagBuffer::SetMEnd(uint8_t *_m_end) { m_end = _m_end; }
+
+uint8_t* TagBuffer::GetMCurrent() { return m_current; }
+
+uint8_t* TagBuffer::GetMEnd() { return m_end; }
+
 } // namespace ns3
 
