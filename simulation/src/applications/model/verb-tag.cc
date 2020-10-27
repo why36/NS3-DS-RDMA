@@ -82,7 +82,7 @@ TypeId RPCTag::GetTypeId(void) {
 
 TypeId RPCTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
-uint32_t RPCTag::GetSerializedSize(void) const { return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint64_t); }
+uint32_t RPCTag::GetSerializedSize(void) const { return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint64_t); }
 
 void RPCTag::Serialize(TagBuffer i) const {
     i.WriteU32(m_rpc_id);
@@ -93,7 +93,7 @@ void RPCTag::Serialize(TagBuffer i) const {
 }
 
 void RPCTag::Deserialize(TagBuffer i) {
-    m_rpc_id = i.ReadU32(); 
+    m_rpc_id = i.ReadU32();
     m_request_size = i.ReadU32();
     m_response_size = i.ReadU32();
     m_type = static_cast<RPCType>(i.ReadU8());

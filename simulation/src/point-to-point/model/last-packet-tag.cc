@@ -52,7 +52,7 @@ TypeId LastPacketTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
 uint32_t LastPacketTag::GetSerializedSize(void) const {
     uint32_t tag_size = 0;
-    return 1 + 4 + 4 + m_ibv_wr.tags.GetSerializedSize();
+    return 1 + 4 + 4 + m_ibv_wr.tags.GetSerializedSize() + 8;
 }
 
 void LastPacketTag::Serialize(TagBuffer i) const {
@@ -61,6 +61,7 @@ void LastPacketTag::Serialize(TagBuffer i) const {
     i.WriteU32(m_ibv_wr.size);
     i.WriteU32(m_ibv_wr.imm);
     m_ibv_wr.tags.Serialize(i);
+    i.WriteU64(m_ibv_wr.wr_id);
 }
 
 void LastPacketTag::Deserialize(TagBuffer i) {
@@ -69,6 +70,7 @@ void LastPacketTag::Deserialize(TagBuffer i) {
     m_ibv_wr.size = i.ReadU32();
     m_ibv_wr.imm = i.ReadU32();
     m_ibv_wr.tags.Deserialize(i);
+    m_ibv_wr.wr_id = i.ReadU64();
 }
 
 void LastPacketTag::Print(std::ostream &os) const {

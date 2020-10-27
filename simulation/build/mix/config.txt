@@ -3,13 +3,13 @@ USE_DYNAMIC_PFC_THRESHOLD 1
 
 PACKET_PAYLOAD_SIZE 1000
 
-TOPOLOGY_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/topology.txt
-FLOW_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/flow.txt
-APP_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/app.txt
-TRACE_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/trace.txt
-TRACE_OUTPUT_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/mix.tr
-FCT_OUTPUT_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/fct.txt
-PFC_OUTPUT_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/pfc.txt
+TOPOLOGY_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/topology.txt
+FLOW_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/flow.txt
+APP_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/app.txt
+TRACE_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/trace.txt
+TRACE_OUTPUT_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/mix.tr
+FCT_OUTPUT_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/fct.txt
+PFC_OUTPUT_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/pfc.txt
 
 SIMULATOR_STOP_TIME 4.00
 
@@ -54,6 +54,6 @@ KMAX_MAP 3 25000000000 400 50000000000 800 100000000000 1600
 KMIN_MAP 3 25000000000 100 50000000000 200 100000000000 400
 PMAX_MAP 3 25000000000 0.2 50000000000 0.2 100000000000 0.2
 BUFFER_SIZE 32
-QLEN_MON_FILE /home/gyy/code/DistributedStorageSimulator/simulation/build/mix/qlen.txt
+QLEN_MON_FILE /home/tian/ali-code/NS3-DS-RDMA/simulation/build/mix/qlen.txt
 QLEN_MON_START 2000000000
 QLEN_MON_END 2010000000
