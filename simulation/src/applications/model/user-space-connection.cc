@@ -268,11 +268,12 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             NS_LOG_LOGIC("usc receives a last wc");
             ACKChunk chunk(rxIBVWC->imm);
-            std::cout << " the chunk is: usc_id" << (int)chunk.usc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
+            std::cout << " the chunk is: usc_id " << (int)chunk.usc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
                       << (int)(rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset());
 
-            if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                Ptr<RPC> rpc = Create<RPC>(chunk.usc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
+            if ((static_cast<uint16_t>(chunk.chunk_id)) ==
+                rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {  // the ibv_wr has been collected Completely
+                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                            rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }

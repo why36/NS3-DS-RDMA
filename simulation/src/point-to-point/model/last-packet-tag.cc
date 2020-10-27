@@ -62,6 +62,8 @@ void LastPacketTag::Serialize(TagBuffer i) const {
     i.WriteU32(m_ibv_wr.imm);
     i.WriteU64(m_ibv_wr.wr_id);
     m_ibv_wr.tags.Serialize(i);
+    // If there is something else that needs to be serialized, you need to add it in the front of m_ibv_wr.tags.Serialize(i), or manually set the
+    // shift of i.
 }
 
 void LastPacketTag::Deserialize(TagBuffer i) {
@@ -71,6 +73,8 @@ void LastPacketTag::Deserialize(TagBuffer i) {
     m_ibv_wr.imm = i.ReadU32();
     m_ibv_wr.wr_id = i.ReadU64();
     m_ibv_wr.tags.Deserialize(i);
+    // If there is something else that needs to be deserialized, you need to add it in the front of m_ibv_wr.tags.Serialize(i), or manually set the
+    // shift of i.
 }
 
 void LastPacketTag::Print(std::ostream &os) const {
