@@ -52,7 +52,7 @@ TypeId LastPacketTag::GetInstanceTypeId(void) const { return GetTypeId(); }
 
 uint32_t LastPacketTag::GetSerializedSize(void) const {
     uint32_t tag_size = 0;
-    return 1 + 4 + 4 + m_ibv_wr.tags.GetSerializedSize();
+    return 1 + 4 + 4 + m_ibv_wr.tags.GetSerializedSize() + 8;
 }
 
 void LastPacketTag::Serialize(TagBuffer i) const {
@@ -60,7 +60,10 @@ void LastPacketTag::Serialize(TagBuffer i) const {
     i.WriteU8(m_ibv_wr.tags.mark_tag_bits);
     i.WriteU32(m_ibv_wr.size);
     i.WriteU32(m_ibv_wr.imm);
+    i.WriteU64(m_ibv_wr.wr_id);
     m_ibv_wr.tags.Serialize(i);
+    // If there is something else that needs to be serialized, you need to add it in the front of m_ibv_wr.tags.Serialize(i), or manually set the
+    // shift of i.
 }
 
 void LastPacketTag::Deserialize(TagBuffer i) {
@@ -68,7 +71,10 @@ void LastPacketTag::Deserialize(TagBuffer i) {
     m_ibv_wr.tags.mark_tag_bits = i.ReadU8();
     m_ibv_wr.size = i.ReadU32();
     m_ibv_wr.imm = i.ReadU32();
+    m_ibv_wr.wr_id = i.ReadU64();
     m_ibv_wr.tags.Deserialize(i);
+    // If there is something else that needs to be deserialized, you need to add it in the front of m_ibv_wr.tags.Serialize(i), or manually set the
+    // shift of i.
 }
 
 void LastPacketTag::Print(std::ostream &os) const {

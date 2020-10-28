@@ -206,7 +206,7 @@ void UserSpaceConnection::SendAck(uint32_t _imm, Ptr<WRidTag> wrid_tag) {
     rpcTag->SetRPCUSCId(0);
     Ptr<RPCTotalOffsetTag> rpcTotalOffsetTag;
     rpcTotalOffsetTag->SetRPCTotalOffset(0);
-
+    m_sendAckWr->imm = _imm;
     m_sendAckWr->tags.wr_id_tag = wrid_tag;
     m_sendAckWr->tags.chunk_size_tag = chunkSizeTag;
     m_sendAckWr->tags.rpc_tag = rpcTag;
@@ -258,8 +258,8 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
             if (m_rpc_ack_bitmap->Check(usc_id, m_reliability->GetTotalChunks(usc_id))) {
                 m_reliability->DeleteTotalChunks(usc_id);
 
-                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
-                                           rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(),
+                                           rxIBVWC->tags.rpc_tag->GetResponseSize(), rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }
         }
@@ -268,11 +268,12 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             NS_LOG_LOGIC("usc receives a last wc");
             ACKChunk chunk(rxIBVWC->imm);
-            std::cout << " the chunk is: usc_id" << (int)chunk.usc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
+            std::cout << " the chunk is: usc_id " << (int)chunk.usc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
                       << (int)(rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset());
 
-            if ((static_cast<uint16_t>(chunk.chunk_id)) == rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {
-                Ptr<RPC> rpc = Create<RPC>(chunk.usc_id, rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
+            if ((static_cast<uint16_t>(chunk.chunk_id)) ==
+                rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {  // the ibv_wr has been collected Completely
+                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
                                            rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }

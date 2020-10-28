@@ -61,15 +61,27 @@ using TagPayload = struct tag_payload {
 void TagPayload::Serialize(TagBuffer i) const {
     if (mark_tag_bits & WRID_BIT) {
         wr_id_tag->Serialize(i);
+        uint8_t *temp = i.GetMCurrent();
+        temp +=  wr_id_tag->GetSerializedSize();
+        i.SetMCurrent(temp);
     }
     if (mark_tag_bits & CHUNKSIZE_BIT) {
         chunk_size_tag->Serialize(i);
+        uint8_t *temp1 = i.GetMCurrent();
+        temp1 +=  chunk_size_tag->GetSerializedSize();
+        i.SetMCurrent(temp1);
     }
     if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag->Serialize(i);
+        uint8_t *temp2 = i.GetMCurrent();
+        temp2 +=  rpc_tag->GetSerializedSize();
+        i.SetMCurrent(temp2);
     }
     if (mark_tag_bits & RPCTOTALOFFSET_BIT) {
         rpctotaloffset_tag->Serialize(i);
+        uint8_t *temp3 = i.GetMCurrent();
+        temp3 +=  rpctotaloffset_tag->GetSerializedSize();
+        i.SetMCurrent(temp3);
     }
 }
 
@@ -78,18 +90,30 @@ void TagPayload::Deserialize(TagBuffer i) {
     if (mark_tag_bits & WRID_BIT) {
         wr_id_tag = Create<WRidTag>();
         wr_id_tag->Deserialize(i);
+        uint8_t *temp = i.GetMCurrent();
+        temp +=  wr_id_tag->GetSerializedSize();
+        i.SetMCurrent(temp);
     }
     if (mark_tag_bits & CHUNKSIZE_BIT) {
         chunk_size_tag = Create<ChunkSizeTag>();
         chunk_size_tag->Deserialize(i);
+        uint8_t *temp1 = i.GetMCurrent();
+        temp1 +=  chunk_size_tag->GetSerializedSize();
+        i.SetMCurrent(temp1);
     }
     if (mark_tag_bits & RPCTAG_BIT) {
         rpc_tag = Create<RPCTag>();
         rpc_tag->Deserialize(i);
+        uint8_t *temp2 = i.GetMCurrent();
+        temp2 +=  rpc_tag->GetSerializedSize();
+        i.SetMCurrent(temp2);
     }
     if (mark_tag_bits & RPCTOTALOFFSET_BIT) {
         rpctotaloffset_tag = Create<RPCTotalOffsetTag>();
         rpctotaloffset_tag->Deserialize(i);
+        uint8_t *temp3 = i.GetMCurrent();
+        temp3 +=  rpctotaloffset_tag->GetSerializedSize();
+        i.SetMCurrent(temp3);
     }
 }
 
