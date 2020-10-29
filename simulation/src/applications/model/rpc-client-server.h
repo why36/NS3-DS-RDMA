@@ -48,13 +48,15 @@ class RPCLogger {
  */
 class RPCClient : public Object {
    public:
+    RPCClient();
     virtual void Start() = 0;
     virtual void OnResponseReceived(Ptr<RPC>) = 0;
     void SendRPC(Ptr<RPC> rpc);
+    uint64_t GetRPCId();
     void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
 
    protected:
-    uint64_t m_RPCId = 0;
+    uint64_t m_rpc_id;
     std::map<uint64_t, Ptr<RPC>> m_rpc_request_map;
     Ptr<UserSpaceConnection> m_userspace_connection;
     RPCLogger m_logger;
@@ -86,6 +88,8 @@ class KRPCServer : public RPCServer {
     virtual void OnRequestReceived(Ptr<RPC>) override;
 };
 
+inline RPCClient::RPCClient() : m_rpc_id(0){};
+inline uint64_t RPCClient::GetRPCId() { return m_rpc_id++; };
 inline void RPCClient::SendRPC(Ptr<RPC> rpc) { m_userspace_connection->SendRPC(rpc); }
 inline void RPCClient::set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection) {
     m_userspace_connection = userspace_connection;

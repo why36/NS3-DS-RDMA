@@ -39,9 +39,9 @@ NS_OBJECT_ENSURE_REGISTERED(RPCServer);
 void KRPCClient::KRPCInit() {
     NS_LOG_FUNCTION(this);
     for (int i = 0; i < kRPCRequest; i++) {
-        Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request); //Each client has a unique rpc_id 
+        Ptr<RPC> rpc = Create<RPC>(GetRPCId(), kRequestSize, kResponseSize, RPCType::Request);  // Each client has a unique rpc_id
         m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
-        std::cout<<"KRPCInit:: RPC insert into m_rpc_request_map: "<< rpc->rpc_id << std::endl;
+        NS_LOG_INFO("insert RPC in m_rpc_request_map id: " << std::dec << rpc->rpc_id);
     }
 }
 
@@ -65,13 +65,13 @@ void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
     if (it != m_rpc_request_map.end()) {
         m_logger.RecordRPCReceive(it->second);
         m_rpc_request_map.erase(it);
-        std::cout<<"erase RPC in m_rpc_request_map "<< it->first <<std::endl;
+        NS_LOG_INFO("erase RPC in m_rpc_request_map " << it->first);
     }
 
     while (m_rpc_request_map.size() <= kRPCRequest) {
-        Ptr<RPC> rpc = Create<RPC>(m_RPCId++, kRequestSize, kResponseSize, RPCType::Request);
+        Ptr<RPC> rpc = Create<RPC>(GetRPCId(), kRequestSize, kResponseSize, RPCType::Request);
         m_rpc_request_map.insert(std::pair<uint64_t, Ptr<RPC>>(rpc->rpc_id, rpc));
-        std::cout<<"RPC insert into m_rpc_request_map: "<< rpc->rpc_id << std::endl;
+        NS_LOG_INFO("RPC insert into m_rpc_request_map: " << rpc->rpc_id);
         SendRPC(rpc);
     }
 }
