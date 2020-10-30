@@ -26,8 +26,9 @@
 
 #include "ns3/rpc-client-server.h"
 
-#include "ns3/log.h"
+#include <string>
 
+#include "ns3/log.h"
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE("RPCClientServer");
@@ -35,6 +36,23 @@ NS_OBJECT_ENSURE_REGISTERED(KRPCClient);
 NS_OBJECT_ENSURE_REGISTERED(KRPCServer);
 NS_OBJECT_ENSURE_REGISTERED(RPCClient);
 NS_OBJECT_ENSURE_REGISTERED(RPCServer);
+
+RPCLogger::RPCLogger() {
+    m_logger_name = std::string(std::to_string(reinterpret_cast<uint64_t>(this)));
+    m_output.open("./rpc_latency" + m_logger_name, std::ios::out);
+    if (!m_output.is_open()) {
+        std::cout << "RPCLogger： cannot open file for RPC logging." << std::endl;
+    }
+};
+
+void RPCLogger::set_logger_name(std::string& logger_name) {
+    m_logger_name = logger_name;
+    m_output.close();
+    m_output.open("./rpc_latency" + m_logger_name, std::ios::out);
+    if (!m_output.is_open()) {
+        std::cout << "RPCLogger： cannot open file for RPC logging." << std::endl;
+    }
+}
 
 void KRPCClient::KRPCInit() {
     NS_LOG_FUNCTION(this);

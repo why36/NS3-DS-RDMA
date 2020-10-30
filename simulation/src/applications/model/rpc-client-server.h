@@ -23,23 +23,25 @@
 
 #include <fstream>
 #include <map>
+#include <string>
 
 #include "ns3/object.h"
 #include "ns3/rpc.h"
 #include "ns3/simulator.h"
 #include "ns3/user-space-connection.h"
 namespace ns3 {
-
 class RPCLogger {
    public:
     RPCLogger();
     void RecordRPCReceive(Ptr<RPC> rpc);
+    void set_logger_name(std::string& logger_name);
 
    private:
     static const uint8_t kMaxRecordNumber = 100;
     std::array<uint64_t, kMaxRecordNumber> m_rpcLatencies;
     uint8_t m_recordIndex = 0;
     std::ofstream m_output;
+    std::string m_logger_name;
 };
 
 /**
@@ -103,13 +105,6 @@ inline void RPCServer::set_userspace_connection(Ptr<UserSpaceConnection> userspa
     m_userspace_connection = userspace_connection;
     m_userspace_connection->SetReceiveRPCCallback(MakeCallback(&RPCServer::OnRequestReceived, this));
 }
-
-inline RPCLogger::RPCLogger() {
-    m_output.open("./rpc_latency.log", std::ios::out);
-    if (!m_output.is_open()) {
-        std::cout << "RPCLogger： cannot open file for RPC logging." << std::endl;
-    }
-};
 
 inline void RPCLogger::RecordRPCReceive(Ptr<RPC> rpc) {
     m_rpcLatencies[m_recordIndex++] = Simulator::Now().GetMicroSeconds() - rpc->m_info.issue_time;
