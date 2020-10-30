@@ -17,10 +17,12 @@
 #undef PGO_TRAINING
 #define PATH_TO_PGO_CONFIG "path_to_pgo_config"
 
+#include <errno.h>
 #include <ns3/rdma-driver.h>
 #include <ns3/rdma-queue-pair.h>
 #include <ns3/sim-setting.h>
 #include <ns3/switch-node.h>
+#include <string.h>
 #include <time.h>
 
 #include <fstream>
@@ -385,6 +387,13 @@ int InitConfiguration(int argc, char *argv[]) {
         std::ifstream conf;
 #ifndef PGO_TRAINING
         conf.open(argv[1]);
+        if (!conf.is_open()) {
+            std::cout << "cannot open " << argv[1] << std::endl;
+            std::cout << strerror(errno) << std::endl;
+            return 1;
+        } else {
+            std::cout << "successfully open " << argv[1] << std::endl;
+        }
 #else
         conf.open(PATH_TO_PGO_CONFIG);
 #endif
@@ -700,9 +709,18 @@ int InitConfiguration(int argc, char *argv[]) {
     return 0;
 }
 
+inline void PrintArgs(int argc, char *argv[]) {
+    std::cout << "the configuration file is: ";
+    for (int i = argc; i >= 0; i--) {
+        std::cout << argv[argc - i] << " \t";
+    }
+    std::cout << std::endl;
+}
+
 int main(int argc, char *argv[]) {
     clock_t begint, endt;
     begint = clock();
+    PrintArgs(argc, argv);
     if (InitConfiguration(argc, argv)) {
         return 1;
     }
