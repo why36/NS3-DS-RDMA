@@ -62,11 +62,10 @@ void KRPCClient::OnResponseReceived(Ptr<RPC> rpc) {
     // When response is received, it is removed from the Map
     auto it = m_rpc_request_map.find(rpc->rpc_id);
     NS_ASSERT_MSG(it != m_rpc_request_map.end(), "Received an invalid response.");
-    if (it != m_rpc_request_map.end()) {
-        m_logger.RecordRPCReceive(it->second);
-        m_rpc_request_map.erase(it);
-        NS_LOG_INFO("erase RPC in m_rpc_request_map " << it->first);
-    }
+
+    m_logger.RecordRPCReceive(it->second);
+    m_rpc_request_map.erase(it);
+    NS_LOG_INFO("erase RPC in m_rpc_request_map " << it->first);
 
     while (m_rpc_request_map.size() <= kRPCRequest) {
         Ptr<RPC> rpc = Create<RPC>(GetRPCId(), kRequestSize, kResponseSize, RPCType::Request);
