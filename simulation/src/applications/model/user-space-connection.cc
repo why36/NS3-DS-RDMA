@@ -222,7 +222,15 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
     Ptr<RttWindowCongestionControl> cc_implement =
         DynamicCast<RttWindowCongestionControl, UserSpaceCongestionControl>(m_userspace_congestion_control);
     RTTSignal rtt;
-    rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
+    if (this->m_app_qp->GetQPType() == QPType::RDMA_RC) {
+        rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
+    } else if (this->m_app_qp->GetQPType() == QPType::RDMA_UC) {
+        // krayecho: simplified by immediate ack return
+        rtt.m_rtt = rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
+    } else {
+        NS_ASSERT(false);
+    }
+
     cc_implement->UpdateSignal(&rtt);
     cc_implement->DecreaseInflight(ackWR->size);
 
@@ -273,8 +281,8 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
 
             if ((static_cast<uint16_t>(chunk.chunk_id)) ==
                 rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {  // the ibv_wr has been collected Completely
-                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(), rxIBVWC->tags.rpc_tag->GetResponseSize(),
-                                           rxIBVWC->tags.rpc_tag->GetRPCReqResType());
+                Ptr<RPC> rpc = Create<RPC>(rxIBVWC->tags.rpc_tag->GetRPCId(), rxIBVWC->tags.rpc_tag->GetRequestSize(),
+                                           rxIBVWC->tags.rpc_tag->GetResponseSize(), rxIBVWC->tags.rpc_tag->GetRPCReqResType());
                 m_receiveRPCCB(rpc);
             }
         } else {
