@@ -311,8 +311,7 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
             if (LastPacketTag::HasLastPacketTag(ch.udp.ibh.GetOpCode().GetOpCodeOperation())) {
                 LastPacketTag tag;
                 p->PeekPacketTag(tag);
-                tag.Print(std::cout);
-                std::cout << std::endl;
+                // tag.Print(std::cout);std::cout << std::endl;
                 Ptr<IBVWorkCompletion> wc = Create<IBVWorkCompletion>(tag.GetIBV_WR().tags.mark_tag_bits);
                 wc->imm = tag.GetIBV_WR().imm;
                 wc->isTx = false;
@@ -320,7 +319,8 @@ void RdmaHw::RCReceiveInboundRequest(Ptr<Packet> p, Ptr<RdmaQueuePair> rxQp, Cus
                 wc->size = tag.GetIBV_WR().size;
                 wc->tags = tag.GetIBV_WR().tags;
                 wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
-                // to do Krayecho Yx, by now only an IBV_SEND_WITH_IMM is generated
+                // to do: Krayecho Yx
+                // by now only an IBV_SEND_WITH_IMM is generated
                 wc->verb = IBVerb::IBV_SEND_WITH_IMM;
                 NS_LOG_LOGIC("successfully received a wr, postibg WC");
                 rxQp->m_notify_completion(wc);

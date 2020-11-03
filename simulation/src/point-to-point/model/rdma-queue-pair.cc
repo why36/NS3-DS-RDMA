@@ -200,10 +200,12 @@ Ptr<Packet> RdmaQueuePair::GetNextPacket() {
             wc->completion_time_in_us = Simulator::Now().GetMicroSeconds();
             wc->verb = m_sending_wr->verb;
             wc->wr = m_sending_wr;
+            wc->wr->send_completion_time = wc->completion_time_in_us;
             NS_LOG_LOGIC("successfully received a wr, posting wcs");
             m_notify_completion(wc);
         } else {
             m_sending_wr->last_packet_seq = snd_nxt;
+            m_sending_wr->send_completion_time = Simulator::Now().GetMicroSeconds();
             NS_LOG_LOGIC(this << " finished sending wr, waiting for acks, last_packet_seq = " << std::dec << m_sending_wr->last_packet_seq);
             m_inflight_wrs.push(m_sending_wr);
         }

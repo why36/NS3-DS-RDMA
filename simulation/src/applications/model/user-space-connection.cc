@@ -226,7 +226,7 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
         rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
     } else if (this->m_app_qp->GetQPType() == QPType::RDMA_UC) {
         // krayecho: simplified by immediate ack return
-        rtt.m_rtt = rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
+        rtt.m_rtt = Simulator::Now().GetMicroSeconds() - ackWR->send_completion_time;
     } else {
         NS_ASSERT(false);
     }
@@ -242,7 +242,6 @@ void UserSpaceConnection::ReceiveAck(Ptr<IBVWorkRequest> ackWR) {
 
 void UserSpaceConnection::OnTxIBVWC(Ptr<IBVWorkCompletion> txIBVWC) {
     NS_LOG_FUNCTION(this);
-    txIBVWC->wr->send_completion_time = txIBVWC->completion_time_in_us;
     if (m_app_qp->GetQPType() == QPType::RDMA_RC) {
         m_reliability->AckWR(txIBVWC->imm, txIBVWC->wr->wr_id);
     }
@@ -276,8 +275,8 @@ void UserSpaceConnection::OnRxIBVWC(Ptr<IBVWorkCompletion> rxIBVWC) {
         if (rxIBVWC->tags.mark_tag_bits & RPCTOTALOFFSET_BIT) {
             NS_LOG_LOGIC("usc receives a last wc");
             ACKChunk chunk(rxIBVWC->imm);
-            std::cout << " the chunk is: usc_id " << (int)chunk.usc_id << "chunk_id " << (int)chunk.chunk_id << "\n the total offset is "
-                      << (int)(rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset());
+            // std::cout << " the chunk is: usc_id " << std::dec << chunk.usc_id << "chunk_id " << chunk.chunk_id << "\n the total offset is "
+            //<< (rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset());
 
             if ((static_cast<uint16_t>(chunk.chunk_id)) ==
                 rxIBVWC->tags.rpctotaloffset_tag->GetRPCTotalOffset()) {  // the ibv_wr has been collected Completely

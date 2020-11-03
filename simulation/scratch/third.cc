@@ -710,8 +710,8 @@ int InitConfiguration(int argc, char *argv[]) {
 }
 
 inline void PrintArgs(int argc, char *argv[]) {
-    std::cout << "the configuration file is: ";
-    for (int i = argc; i >= 0; i--) {
+    std::cout << "commandline: ";
+    for (int i = argc; i > 0; i--) {
         std::cout << argv[argc - i] << " \t";
     }
     std::cout << std::endl;
@@ -1007,8 +1007,7 @@ int main(int argc, char *argv[]) {
             if (rtt > maxRtt) maxRtt = rtt;
         }
     }
-    printf("maxRtt=%lu maxBdp=%lu\n", maxRtt, maxBdp);
-
+    std::cout << "maxRTT = " << std::dec << maxRtt << "nmaxBDP = " << maxBdp << std::endl;
     //
     // setup switch CC
     //
