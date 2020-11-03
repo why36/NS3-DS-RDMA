@@ -28,6 +28,7 @@
 
 #include <string>
 
+#include "ns3/distributed-storage-daemon.h"
 #include "ns3/log.h"
 namespace ns3 {
 
@@ -37,18 +38,22 @@ NS_OBJECT_ENSURE_REGISTERED(KRPCServer);
 NS_OBJECT_ENSURE_REGISTERED(RPCClient);
 NS_OBJECT_ENSURE_REGISTERED(RPCServer);
 
-RPCLogger::RPCLogger() {
-    m_logger_name = std::string(std::to_string(reinterpret_cast<uint64_t>(this)));
-    m_output.open("./rpc_latency" + m_logger_name, std::ios::out);
-    if (!m_output.is_open()) {
-        std::cout << "RPCLogger： cannot open file for RPC logging." << std::endl;
-    }
+void RPCClient::set_thread(Ptr<DistributedStorageThread> thread) {
+    m_thread = thread;
+    const ThreadId& thread_id = m_thread->get_id();
+    m_logger.set_logger_name(std::to_string(thread_id.node_id) + "_" + std::to_string(thread_id.thread_id));
 };
 
-void RPCLogger::set_logger_name(std::string& logger_name) {
+void RPCServer::set_thread(Ptr<DistributedStorageThread> thread) { m_thread = thread; };
+
+RPCLogger::RPCLogger(){};
+
+void RPCLogger::set_logger_name(const std::string& logger_name) {
     m_logger_name = logger_name;
-    m_output.close();
-    m_output.open("./rpc_latency" + m_logger_name, std::ios::out);
+    if (m_output.is_open()) {
+        m_output.close();
+    }
+    m_output.open("./rpclatency_" + m_logger_name, std::ios::out);
     if (!m_output.is_open()) {
         std::cout << "RPCLogger： cannot open file for RPC logging." << std::endl;
     }

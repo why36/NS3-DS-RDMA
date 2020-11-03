@@ -56,7 +56,7 @@ NS_LOG_COMPONENT_DEFINE("DistributedStorageDaemon");
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageDaemon);
 NS_OBJECT_ENSURE_REGISTERED(DistributedStorageThread);
 
-DistributedStorageThread::DistributedStorageThread(uint16_t port) : m_port(port){};
+DistributedStorageThread::DistributedStorageThread(uint16_t port, uint32_t node_id, uint16_t thread_id) : m_port(port), m_id(node_id, thread_id){};
 
 void DistributedStorageThread::Start() {
     NS_LOG_FUNCTION("starting thread with " << m_clients.size() << " clients");
@@ -68,10 +68,12 @@ void DistributedStorageThread::Start() {
 
 void DistributedStorageThread::AddRPCClient(Ptr<RPCClient> client) {
     NS_LOG_FUNCTION(this);
+    client->set_thread(this);
     m_clients.push_back(client);
 }
 void DistributedStorageThread::AddRPCServer(Ptr<RPCServer> server) {
     NS_LOG_FUNCTION(this);
+    server->set_thread(this);
     m_servers.push_back(server);
 }
 

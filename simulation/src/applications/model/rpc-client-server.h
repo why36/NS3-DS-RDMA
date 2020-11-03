@@ -30,11 +30,14 @@
 #include "ns3/simulator.h"
 #include "ns3/user-space-connection.h"
 namespace ns3 {
+
+class DistributedStorageThread;
+
 class RPCLogger {
    public:
     RPCLogger();
     void RecordRPCReceive(Ptr<RPC> rpc);
-    void set_logger_name(std::string& logger_name);
+    void set_logger_name(const std::string& logger_name);
 
    private:
     static const uint8_t kMaxRecordNumber = 100;
@@ -57,9 +60,11 @@ class RPCClient : public Object {
     virtual void OnResponseReceived(Ptr<RPC>) = 0;
     void SendRPC(Ptr<RPC> rpc);
     uint64_t GetRPCId();
+    void set_thread(Ptr<DistributedStorageThread> thread);
     void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
 
    protected:
+    Ptr<DistributedStorageThread> m_thread;
     uint64_t m_rpc_id;
     std::map<uint64_t, Ptr<RPC>> m_rpc_request_map;
     Ptr<UserSpaceConnection> m_userspace_connection;
@@ -81,9 +86,11 @@ class RPCServer : public Object {
    public:
     virtual void OnRequestReceived(Ptr<RPC>) = 0;
     void SendRPC(Ptr<RPC> rpc);
+    void set_thread(Ptr<DistributedStorageThread> thread);
     void set_userspace_connection(Ptr<UserSpaceConnection> userspace_connection);
 
    private:
+    Ptr<DistributedStorageThread> m_thread;
     Ptr<UserSpaceConnection> m_userspace_connection;
 };
 

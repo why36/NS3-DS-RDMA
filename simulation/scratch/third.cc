@@ -136,10 +136,10 @@ void ReadThreadInput() {
         NS_ASSERT_MSG(node->GetNodeType() == kNodeType::Host, "applications must be installed on non-switch nodes");
         Ptr<DistributedStorageDaemon> client = Create<DistributedStorageDaemon>();
         client->setIp(serverAddress[thread_input.src]);
+        node->AddApplication(client);
         for (int i = 0; i < thread_input.num_thread; i++) {
             client->AddThread(i);
         }
-        node->AddApplication(client);
         thread_input.idx++;
     }
 }

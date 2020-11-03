@@ -40,17 +40,27 @@
 
 namespace ns3 {
 
+using ThreadId = struct s_thread_id {
+    s_thread_id(uint32_t _node_id, uint16_t _thread_id);
+    uint32_t node_id;
+    uint16_t thread_id;
+};
+
+inline ThreadId::s_thread_id(uint32_t _node_id, uint16_t _thread_id) : node_id(_node_id), thread_id(_thread_id){};
+
 class DistributedStorageDaemon;
 class DistributedStorageThread : public Object {
    public:
-    explicit DistributedStorageThread(uint16_t port);
+    explicit DistributedStorageThread(uint16_t port, uint32_t node_id, uint16_t thread_id);
     virtual ~DistributedStorageThread(){};
     void Start();
     uint16_t GetPort();
+    const ThreadId& get_id();
     void AddRPCClient(Ptr<RPCClient> client);
     void AddRPCServer(Ptr<RPCServer> server);
 
    private:
+    ThreadId m_id;
     std::vector<Ptr<RPCClient>> m_clients;
     std::vector<Ptr<RPCServer>> m_servers;
 
@@ -94,6 +104,7 @@ class DistributedStorageDaemon : public Application {
 };
 
 inline uint16_t DistributedStorageThread::GetPort() { return m_port; }
+inline const ThreadId& DistributedStorageThread::get_id() { return m_id; };
 
 inline void DistributedStorageDaemon::setIp(Ipv4Address ip) { m_ip = ip; }
 
@@ -101,7 +112,7 @@ inline Ipv4Address DistributedStorageDaemon::getIp() { return m_ip; }
 
 inline void DistributedStorageDaemon::AddThread(int i) {
     NS_ASSERT(i == m_threads.size());
-    m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort()));
+    m_threads.push_back(Create<DistributedStorageThread>(GetNextAvailablePort(), GetNode()->GetId(), i));
 }
 
 inline Ptr<DistributedStorageThread> DistributedStorageDaemon::GetThread(int i) { return m_threads[i]; }
