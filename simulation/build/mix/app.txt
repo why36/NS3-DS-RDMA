@@ -1,9 +1,0 @@
-3
-1 1
-2 1
-3 1
-
-First line: # of apps
-src0 thread0 
-#Each node should only have one application
-
